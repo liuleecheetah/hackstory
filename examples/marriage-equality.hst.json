@@ -1,0 +1,348 @@
+{
+  "hackstory": "0.1",
+  "id": "tw-marriage-equality",
+  "meta": {
+    "title": "台灣婚姻平權進程",
+    "subtitle": "從祁家威到釋字第 748 號",
+    "description": "整理 1986–2017 年間，同性婚姻在台灣的法制化過程，以及並行的社會運動動員。資料原始來源為 HackStory 專案的 Google Sheet。",
+    "authors": [
+      { "name": "HackStory 專案", "url": "https://g0v.tw" }
+    ],
+    "license": "CC-BY-4.0",
+    "language": "zh-TW",
+    "topics": ["人權", "婚姻平權", "立法", "司法"],
+    "created": "2016-12-17",
+    "updated": "2026-07-11",
+    "revision": 1,
+    "source": {
+      "type": "google-sheet",
+      "url": "https://docs.google.com/spreadsheets/d/11hHSbluBcNfMYppvSMTfB9Pg4fHmJMvmduoaHFCXREE"
+    }
+  },
+
+  "tracks": [
+    {
+      "id": "legislation",
+      "title": "立法與司法進程",
+      "description": "國會、行政、司法系統內的正式動作",
+      "color": "#3b6ea5",
+      "order": 1
+    },
+    {
+      "id": "movement",
+      "title": "社會運動",
+      "description": "街頭動員、遊行、公民團體行動",
+      "color": "#d97706",
+      "order": 2
+    }
+  ],
+
+  "events": [
+    {
+      "id": "evt-001",
+      "track": "legislation",
+      "title": "祁家威請求與男性公證結婚遭拒",
+      "description": "男同志祁家威請求與男性公證結婚，並提出同性婚姻法制化的請願，但皆遭政府機構拒絕。",
+      "start": { "value": "1986-03-07", "precision": "day", "raw": "1986/3/7" },
+      "location": { "name": "台北" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["祁家威", "起點"]
+    },
+    {
+      "id": "evt-002",
+      "track": "legislation",
+      "title": "《人權保障基本法》草案納入同志組成家庭與收養子女的權利",
+      "description": "法務部擬定《人權保障基本法》，草案第二十四條提出「為保障同性戀者人權，明定國家應尊重其權益，同性戀者得依法組成家庭及收養子女」。時任法務部長為陳定南，是台灣史上第一次將同性婚姻與子女收養以基本人權形式置入法條的法案。",
+      "start": { "value": "2001-03-13", "precision": "day", "raw": "2001/3/13" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["法務部", "草案"]
+    },
+    {
+      "id": "evt-003",
+      "track": "legislation",
+      "title": "立委蕭美琴提出《同性婚姻法》草案，遭程序委員會退回",
+      "description": "蕭美琴提出《同性婚姻法》草案，獲 38 位立委贊成連署。同月 20 日，23 名立委反對連署，草案無法通過一讀會程序。10 月 31 日程序委員會退回草案，決定不將其排入議事程序。",
+      "start": { "value": "2006-10-11", "precision": "day", "raw": "2006/10/11" },
+      "end": { "value": "2006-10-31", "precision": "day" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["立法院", "草案"]
+    },
+    {
+      "id": "evt-004",
+      "track": "movement",
+      "title": "台灣同志遊行以「一同去家遊 Go Together」為主題",
+      "description": "同志遊行首次以家庭與伴侶權益為主軸議題，訴求包括同志伴侶權益合法化、生育領養權、老年同志照顧等，參與人數破萬人。",
+      "start": { "value": "2006-09-30", "precision": "day", "raw": "2006/9/30" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["同志遊行"]
+    },
+    {
+      "id": "evt-005",
+      "track": "legislation",
+      "title": "陳敬學與高治瑋向臺北高等行政法院提起行政訴訟",
+      "description": "兩人 2005 年訂婚、2006 年舉行結婚典禮，2011 年 8 月辦理結婚登記時遭戶政事務所拒絕。10 月 21 日提起訴願，台北市訴願審議委員會維持原處分。",
+      "start": { "value": "2011-10-21", "precision": "day", "raw": "2011/10/21" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["行政訴訟"]
+    },
+    {
+      "id": "evt-006",
+      "track": "legislation",
+      "title": "陳敬學與高治瑋撤銷告訴",
+      "description": "2012 年 12 月法院決定聲請釋憲。此後起訴人表示在個人臉書上收到不知名網友的死亡威脅，兩人在不滿司法系統拖延判決與安全考量下，於 2013 年 1 月 23 日撤銷告訴。",
+      "start": { "value": "2013-01-23", "precision": "day", "raw": "2013/1/23" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["行政訴訟", "威脅"]
+    },
+    {
+      "id": "evt-007",
+      "track": "movement",
+      "title": "台灣伴侶權益推動聯盟將多元成家立法草案送入立法院",
+      "description": "伴侶盟將費時兩年起草的「多元成家立法草案」送進立法院。",
+      "start": { "value": "2013-10-08", "precision": "day", "raw": "2013/10/8" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["伴侶盟", "多元成家"]
+    },
+    {
+      "id": "evt-008",
+      "track": "legislation",
+      "title": "多元成家草案婚姻平權部分一讀付委",
+      "description": "立法院將草案第一部分——婚姻平權與同性婚姻法制化的民法親屬、繼承篇部分條文修正案——一讀通過，交付司法及法制委員會審查。",
+      "start": { "value": "2013-10-25", "precision": "day", "raw": "2013/10/25" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["立法院", "一讀"]
+    },
+    {
+      "id": "evt-009",
+      "track": "legislation",
+      "title": "尤美女提出民法修正版同性婚姻法案，一讀付司法委員會",
+      "description": "尤美女委員提出民法修正版同性婚姻法案並完成一讀送入司法委員會，法務部公開反對。",
+      "start": { "value": "2013-12-18", "precision": "day", "raw": "2013/12/18" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["立法院", "尤美女"]
+    },
+    {
+      "id": "evt-010",
+      "track": "movement",
+      "title": "民間模擬憲法法庭宣判：限制同性婚姻違憲",
+      "description": "民間舉辦的「模擬憲法法庭」就同性婚姻召開辯論（6/14），並於 8 月 2 日宣布判決，主張限制同性婚姻違憲。",
+      "start": { "value": "2014-06-14", "precision": "day", "raw": "2014/6/14" },
+      "end": { "value": "2014-08-02", "precision": "day", "raw": "2014/8/2" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["模擬憲法法庭"]
+    },
+    {
+      "id": "evt-011",
+      "track": "legislation",
+      "title": "高雄市政府開放戶政系統同性伴侶註記",
+      "description": "高雄市為第一個開放同性伴侶註記的地方縣市。",
+      "start": { "value": "2015-05-20", "precision": "day", "raw": "2015/5/20" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["地方政府", "伴侶註記"]
+    },
+    {
+      "id": "evt-012",
+      "track": "legislation",
+      "title": "祁家威向司法院提出解釋憲法聲請書",
+      "description": "伴侶盟律師團受祁家威委任，正式將同性伴侶登記結婚一案送交大法官釋憲。",
+      "start": { "value": "2015-08-20", "precision": "day", "raw": "2015/8/20" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["祁家威", "釋憲"]
+    },
+    {
+      "id": "evt-013",
+      "track": "legislation",
+      "title": "司法及法制委員會召開同志婚姻公聽會（第一場）",
+      "start": { "value": "2016-11-24T09:00", "precision": "minute", "raw": "2016/11/24 09:00-18:00" },
+      "end": { "value": "2016-11-24T18:00", "precision": "minute" },
+      "description": "許淑華任召委。",
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["公聽會"]
+    },
+    {
+      "id": "evt-014",
+      "track": "legislation",
+      "title": "司法及法制委員會召開同志婚姻公聽會（第二場）",
+      "start": { "value": "2016-11-28T09:00", "precision": "minute", "raw": "2016/11/28 09:00-18:00" },
+      "end": { "value": "2016-11-28T18:00", "precision": "minute" },
+      "description": "尤美女任召委。",
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["公聽會"]
+    },
+    {
+      "id": "evt-015",
+      "track": "movement",
+      "title": "「婚姻平權，基本人權」活動於立法院外聲援公聽會",
+      "description": "網路發起的行動，約兩萬名支持修改民法的群眾聚集於立法院前，聲援同日由尤美女召開的公聽會。",
+      "start": { "value": "2016-11-28", "precision": "day", "raw": "2016/11/28" },
+      "location": { "name": "立法院前" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["集會"]
+    },
+    {
+      "id": "evt-016",
+      "track": "movement",
+      "title": "「讓生命不再逝去，為婚姻平權站出來」音樂會",
+      "description": "於凱達格蘭大道舉行，二十三組藝人登台、逾七十位藝人透過影像表態。台灣史上參與人數最多的性別平權活動，媒體報導人潮蔓延四公里、逾二十五萬人參與；警方僅估計申請區內約 7 萬人。活動最後以雷射投影在總統府上打出歷年因同志身分自殺或受暴致死者的姓名。",
+      "start": { "value": "2016-12-10T13:00", "precision": "minute", "raw": "2016/12/10 13:00" },
+      "location": { "name": "凱達格蘭大道" },
+      "importance": 5,
+      "confidence": "reported",
+      "tags": ["集會", "音樂會", "國際人權日"]
+    },
+    {
+      "id": "evt-017",
+      "track": "movement",
+      "title": "「爭取婚姻平權 用愛守護立院」與反方對峙",
+      "description": "立法院司法及法制委員會進行婚姻平權民法修改審議，正反雙方分別於濟南路與中山南路聚集。正方約三萬人次，反方約八千人。上午九時起反對方發生暴力行為，多次衝撞試圖進入立法院，約 50 人闖入立法院前廣場後遭警方逮捕。下午一時左右委員會完成審議，法案送出進入政黨協商階段。",
+      "start": { "value": "2016-12-26T09:00", "precision": "minute", "raw": "2016/12/26 09:00" },
+      "location": { "name": "立法院前" },
+      "importance": 5,
+      "confidence": "reported",
+      "tags": ["集會", "衝突"]
+    },
+    {
+      "id": "evt-018",
+      "track": "legislation",
+      "title": "民法修正案出委員會",
+      "description": "立法院司法及法制委員會完成審議，法案送出進入政黨協商階段。",
+      "start": { "value": "2016-12-26", "precision": "day", "raw": "2016/12/26" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["立法院", "委員會"]
+    },
+    {
+      "id": "evt-019",
+      "track": "legislation",
+      "title": "司法院宣布受理祁家威釋憲聲請",
+      "description": "司法院宣布受理聲請，並定於同年 3 月 24 日召開憲法法庭。",
+      "start": { "value": "2017-02-20", "precision": "day", "raw": "2017/02/20" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["釋憲"]
+    },
+    {
+      "id": "evt-020",
+      "track": "legislation",
+      "title": "憲法法庭就同性婚姻釋憲案進行言詞辯論",
+      "description": "大法官召開憲法法庭，就聲請人祁家威及臺北市政府之同性婚姻釋憲案進行言詞辯論。",
+      "start": { "value": "2017-03-24", "precision": "day", "raw": "2017/3/24" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["釋憲", "憲法法庭"]
+    },
+    {
+      "id": "evt-021",
+      "track": "legislation",
+      "title": "釋字第 748 號：現行民法未保障同志婚姻違憲",
+      "description": "大法官宣告民法第四編親屬第二章婚姻規定，未使同性別二人為經營共同生活之目的成立具有親密性與排他性之永久結合關係，於此範圍內與憲法第 22 條保障婚姻自由、第 7 條保障平等權之意旨有違。有關機關應於解釋公布之日起二年內完成相關法律之修正或制定；逾期未完成者，同性二人得依民法婚姻章規定持二人以上證人簽名之書面向戶政機關辦理結婚登記。",
+      "start": { "value": "2017-05-24", "precision": "day", "raw": "2017/5/24" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["釋憲", "釋字748"],
+      "sources": [
+        { "title": "司法院釋字第 748 號解釋", "url": "https://cons.judicial.gov.tw/docdata.aspx?fid=100&id=310927" }
+      ]
+    },
+    {
+      "id": "evt-022",
+      "track": "movement",
+      "title": "挺同婚團體於青島東路集結，同步解讀釋憲文",
+      "description": "上萬名群眾集結於立法院旁青島東路。解釋公布後現場歡聲雷動，即使降下大雨仍未散去。現場投射六色彩虹，宣告戰場回歸立法院。",
+      "start": { "value": "2017-05-24", "precision": "day", "raw": "2017/5/24" },
+      "location": { "name": "青島東路" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["集會"]
+    },
+    {
+      "id": "evt-023",
+      "track": "legislation",
+      "title": "行政院宣布以行政命令開放全國性同性伴侶戶政註記",
+      "description": "釋字第 748 號公布後，行政院宣布於同年 7 月以行政命令開放全國性的同性伴侶戶政註記，可跨縣市辦理登記。此措施尚不具完全法律效力。",
+      "start": { "value": "2017-06-07", "precision": "day", "raw": "2017/6/7" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["行政院", "伴侶註記"]
+    }
+  ],
+
+  "relations": [
+    {
+      "from": "evt-001",
+      "to": "evt-012",
+      "type": "derives_from",
+      "label": "祁家威 1986 年的請求，三十年後成為釋憲聲請的基礎"
+    },
+    {
+      "from": "evt-012",
+      "to": "evt-019",
+      "type": "causes",
+      "label": "釋憲聲請 → 司法院受理"
+    },
+    {
+      "from": "evt-019",
+      "to": "evt-020",
+      "type": "causes",
+      "label": "受理 → 召開憲法法庭"
+    },
+    {
+      "from": "evt-020",
+      "to": "evt-021",
+      "type": "causes",
+      "label": "言詞辯論 → 作成解釋"
+    },
+    {
+      "from": "evt-021",
+      "to": "evt-023",
+      "type": "causes",
+      "label": "釋字 748 → 行政院以行政命令先行開放註記"
+    },
+    {
+      "from": "evt-021",
+      "to": "evt-022",
+      "type": "responds_to",
+      "label": "釋憲結果公布，群眾在場外即時反應"
+    },
+    {
+      "from": "evt-013",
+      "to": "evt-015",
+      "type": "responds_to",
+      "label": "公聽會召開 → 場外群眾聲援"
+    },
+    {
+      "from": "evt-017",
+      "to": "evt-018",
+      "type": "responds_to",
+      "label": "委員會審議與場外對峙同時發生"
+    },
+    {
+      "from": "evt-005",
+      "to": "evt-006",
+      "type": "causes",
+      "label": "訴訟拖延與人身威脅 → 撤銷告訴"
+    }
+  ],
+
+  "display": {
+    "orientation": "horizontal",
+    "defaultScale": "year",
+    "range": { "start": "1986", "end": "2017" },
+    "collapseGaps": true
+  }
+}
