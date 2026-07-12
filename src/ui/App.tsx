@@ -37,6 +37,7 @@ export default function App() {
     setColor,
     moveLayer,
     renameLayer,
+    setKeyEvent,
   } = useLayers(INITIAL_DOCS)
   const [loadErrors, setLoadErrors] = useState<string[]>(INITIAL_ERRORS)
   const [scaleRequest, setScaleRequest] = useState<ScaleRequest | null>(null)
@@ -44,8 +45,25 @@ export default function App() {
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [showDates, setShowDates] = useState(true)
+  const [showYears, setShowYears] = useState(true)
   // 被點選的事件（顯示詳情卡）
   const [selection, setSelection] = useState<EventSelection | null>(null)
+
+  // 詳情卡上的「標示為關鍵事件」開關：更新圖層資料，也同步更新卡片顯示
+  const handleToggleKey = useCallback(() => {
+    setSelection((prev) => {
+      if (!prev) return prev
+      const nextKey = (prev.event.importance ?? 0) < 5
+      setKeyEvent(prev.sourceId, prev.event.id, nextKey)
+      const event = { ...prev.event }
+      if (nextKey) {
+        event.importance = 5
+      } else {
+        delete event.importance
+      }
+      return { ...prev, event }
+    })
+  }, [setKeyEvent])
 
   // 按 Esc 關閉詳情卡
   useEffect(() => {
@@ -93,7 +111,11 @@ export default function App() {
           />
         </div>
         {selection && (
-          <EventDetailCard selection={selection} onClose={() => setSelection(null)} />
+          <EventDetailCard
+            selection={selection}
+            onClose={() => setSelection(null)}
+            onToggleKey={handleToggleKey}
+          />
         )}
         <footer className="border-t border-slate-100 px-3 py-1 text-right text-xs text-slate-400">
           以{' '}
@@ -134,15 +156,32 @@ export default function App() {
           匯出／分享
         </button>
 
-        <label className="ml-auto flex items-center gap-1.5 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={showDates}
-            onChange={(e) => setShowDates(e.target.checked)}
-            className="accent-slate-700"
-          />
-          顯示事件日期
-        </label>
+        <span className="ml-auto flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={showDates}
+              onChange={(e) => setShowDates(e.target.checked)}
+              className="accent-slate-700"
+            />
+            顯示事件日期
+          </label>
+          <label
+            className={
+              'flex items-center gap-1.5 text-sm ' +
+              (showDates ? 'text-slate-600' : 'text-slate-300')
+            }
+          >
+            <input
+              type="checkbox"
+              checked={showYears}
+              disabled={!showDates}
+              onChange={(e) => setShowYears(e.target.checked)}
+              className="accent-slate-700"
+            />
+            含年份
+          </label>
+        </span>
 
         {/* 尺度切換（像 Google 日曆） */}
         <div className="flex overflow-hidden rounded-md border border-slate-300">
@@ -181,6 +220,7 @@ export default function App() {
             scaleRequest={scaleRequest}
             onScaleModeChange={setActiveMode}
             showDates={showDates}
+            showYears={showYears}
             selectedKey={selection?.key ?? null}
             onEventSelect={setSelection}
           />
@@ -197,7 +237,13 @@ export default function App() {
         onImport={addLayer}
       />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} layers={layers} />
-      {selection && <EventDetailCard selection={selection} onClose={() => setSelection(null)} />}
+      {selection && (
+        <EventDetailCard
+          selection={selection}
+          onClose={() => setSelection(null)}
+          onToggleKey={handleToggleKey}
+        />
+      )}
     </div>
   )
 }

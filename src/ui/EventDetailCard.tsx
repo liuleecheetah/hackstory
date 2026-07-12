@@ -10,6 +10,8 @@ import { formatPointLong } from '../render/timeScale'
 interface Props {
   selection: EventSelection
   onClose: () => void
+  /** 切換「關鍵事件」標示 */
+  onToggleKey: () => void
 }
 
 /** 查證程度的中文標籤與配色 */
@@ -22,8 +24,9 @@ const CONFIDENCE: Record<string, { label: string; cls: string }> = {
 
 const CARD_W = 340
 
-export function EventDetailCard({ selection, onClose }: Props) {
+export function EventDetailCard({ selection, onClose, onToggleKey }: Props) {
   const { event, docTitle, trackTitle, color, clientX, clientY } = selection
+  const isKey = (event.importance ?? 0) >= 5
 
   // 卡片位置：貼著點擊處，水平不出界；點在畫面下半部就往上開
   const style: CSSProperties = {
@@ -84,12 +87,15 @@ export function EventDetailCard({ selection, onClose }: Props) {
 
         {event.location?.name && <p className="text-slate-500">地點：{event.location.name}</p>}
 
-        {event.importance !== undefined && (
-          <p className="text-xs text-amber-600" title={`重要性 ${event.importance}/5`}>
-            重要性 {'★'.repeat(event.importance)}
-            {'☆'.repeat(Math.max(0, 5 - event.importance))}
-          </p>
-        )}
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={isKey}
+            onChange={onToggleKey}
+            className="accent-amber-500"
+          />
+          標示為關鍵事件（在時間軸上放大顯示）
+        </label>
 
         {event.tags && event.tags.length > 0 && (
           <p className="flex flex-wrap gap-1">

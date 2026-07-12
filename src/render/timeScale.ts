@@ -65,19 +65,25 @@ export function formatTick(d: Date): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
-/** 事件旁顯示的簡短日期：依精度誠實呈現（只知道月就只顯示到月） */
-export function formatPointShort(point: AbsoluteTimePoint): string {
+/**
+ * 事件旁顯示的簡短日期：依精度誠實呈現（只知道月就只顯示到月）。
+ * withYear = false 時省略年份（整條軸都在同一年時比較清爽）；
+ * 「年」精度的事件除外——它只有年份可顯示。
+ */
+export function formatPointShort(point: AbsoluteTimePoint, withYear = true): string {
   const [datePart, timePart] = point.value.split('T')
   const [y, m, d] = datePart.split('-')
   switch (point.precision) {
     case 'year':
       return y
     case 'month':
-      return `${y}/${Number(m)}`
+      return withYear ? `${y}/${Number(m)}` : `${Number(m)}月`
     case 'day':
-      return `${y}/${Number(m)}/${Number(d)}`
+      return withYear ? `${y}/${Number(m)}/${Number(d)}` : `${Number(m)}/${Number(d)}`
     case 'minute':
-      return `${y}/${Number(m)}/${Number(d)} ${timePart}`
+      return withYear
+        ? `${y}/${Number(m)}/${Number(d)} ${timePart}`
+        : `${Number(m)}/${Number(d)} ${timePart}`
   }
 }
 

@@ -36,6 +36,8 @@ export interface TimelineSource {
 export interface EventSelection {
   /** 圖層 id + 事件 id 的組合鍵（事件 id 只保證在單一文件內唯一） */
   key: string
+  /** 事件所屬的圖層 id（ui 要改事件內容時用） */
+  sourceId: string
   event: HstEvent
   docTitle: string
   trackTitle: string
@@ -52,6 +54,8 @@ interface Props {
   onScaleModeChange?: (mode: ScaleMode) => void
   /** 是否在事件標題前顯示日期（預設顯示） */
   showDates?: boolean
+  /** 日期是否含年份（整條軸都在同一年時可關掉，預設顯示） */
+  showYears?: boolean
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -122,6 +126,7 @@ export function TimelineView({
   scaleRequest,
   onScaleModeChange,
   showDates = true,
+  showYears = true,
   selectedKey,
   onEventSelect,
 }: Props) {
@@ -224,6 +229,10 @@ export function TimelineView({
             const startSpan = timePointToSpan(start)
             const endPoint = ev.end && isAbsolute(ev.end) ? (ev.end as AbsoluteTimePoint) : null
 
+            // 關鍵事件（importance 5）：放大、粗體、光暈，一眼看到
+            const isKey = (ev.importance ?? 0) >= 5
+            const dotR = isKey ? DOT_R + 2.5 : DOT_R
+
             let kind: 'dot' | 'bar'
             let shapeL: number
             let shapeR: number
@@ -239,20 +248,20 @@ export function TimelineView({
               // 點事件 = 圓點：畫在精度範圍的中點
               const cx = x(spanMidpoint(startSpan))
               kind = 'dot'
-              shapeL = cx - DOT_R
-              shapeR = cx + DOT_R
+              shapeL = cx - dotR
+              shapeR = cx + dotR
             }
 
             const text = truncate(ev.title, 16)
-            // 日期前綴（可由「顯示事件日期」勾選框關掉）
-            const dateLabel = showDates ? formatPointShort(start) : ''
+            // 日期前綴（「顯示事件日期」「含年份」兩個勾選框控制）
+            const dateLabel = showDates ? formatPointShort(start, showYears) : ''
             const labelW = estimateTextWidth(dateLabel ? `${dateLabel} ${text}` : text)
             // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
             const labelSide: 'right' | 'left' =
               shapeR + 6 + labelW > width && shapeL - 6 - labelW > 0 ? 'left' : 'right'
             const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
             const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
-            return [{ ev, kind, shapeL, shapeR, label: text, dateLabel, labelSide, occL, occR }]
+            return [{ ev, kind, isKey, shapeL, shapeR, label: text, dateLabel, labelSide, occL, occR }]
           })
           .sort((p, q) => p.occL - q.occL)
 
@@ -277,7 +286,7 @@ export function TimelineView({
     })
 
     return { bands, height: Math.max(y + 8, 320), x }
-  }, [sources, domain, width, showDates])
+  }, [sources, domain, width, showDates, showYears])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -360,11 +369,13 @@ export function TimelineView({
               {label}
             </text>
 
-            {items.map(({ ev, kind, shapeL, shapeR, label: text, dateLabel, labelSide, lane }) => {
+            {items.map(({ ev, kind, isKey, shapeL, shapeR, label: text, dateLabel, labelSide, lane }) => {
               const cy = bandTop + TRACK_LABEL_H + lane * LANE_H + LANE_H / 2
               const fill = ev.color ?? color
               const eventKey = `${sourceId}/${ev.id}`
               const isSelected = selectedKey === eventKey
+              const dotR = isKey ? DOT_R + 2.5 : DOT_R
+              const barH = isKey ? 16 : 12
               return (
                 <g
                   key={ev.id}
@@ -375,6 +386,7 @@ export function TimelineView({
                     e.stopPropagation()
                     onEventSelect?.({
                       key: eventKey,
+                      sourceId,
                       event: ev,
                       docTitle,
                       trackTitle,
@@ -384,15 +396,36 @@ export function TimelineView({
                     })
                   }}
                 >
+                  {/* 關鍵事件的常駐光暈 */}
+                  {isKey &&
+                    (kind === 'bar' ? (
+                      <rect
+                        x={shapeL - 4}
+                        y={cy - barH / 2 - 4}
+                        width={shapeR - shapeL + 8}
+                        height={barH + 8}
+                        rx={(barH + 8) / 2}
+                        fill={fill}
+                        opacity={0.15}
+                      />
+                    ) : (
+                      <circle
+                        cx={(shapeL + shapeR) / 2}
+                        cy={cy}
+                        r={dotR + 4}
+                        fill={fill}
+                        opacity={0.15}
+                      />
+                    ))}
                   {/* 選取光環 */}
                   {isSelected &&
                     (kind === 'bar' ? (
                       <rect
                         x={shapeL - 3}
-                        y={cy - 9}
+                        y={cy - barH / 2 - 3}
                         width={shapeR - shapeL + 6}
-                        height={18}
-                        rx={9}
+                        height={barH + 6}
+                        rx={(barH + 6) / 2}
                         fill="none"
                         stroke={fill}
                         strokeWidth={2}
@@ -402,7 +435,7 @@ export function TimelineView({
                       <circle
                         cx={(shapeL + shapeR) / 2}
                         cy={cy}
-                        r={DOT_R + 4}
+                        r={dotR + 4}
                         fill="none"
                         stroke={fill}
                         strokeWidth={2}
@@ -412,24 +445,25 @@ export function TimelineView({
                   {kind === 'bar' ? (
                     <rect
                       x={shapeL}
-                      y={cy - 6}
+                      y={cy - barH / 2}
                       width={shapeR - shapeL}
-                      height={12}
-                      rx={6}
+                      height={barH}
+                      rx={barH / 2}
                       fill={fill}
                       opacity={0.85}
                     />
                   ) : (
-                    <circle cx={(shapeL + shapeR) / 2} cy={cy} r={DOT_R} fill={fill} />
+                    <circle cx={(shapeL + shapeR) / 2} cy={cy} r={dotR} fill={fill} />
                   )}
                   <text
                     x={labelSide === 'right' ? shapeR + 6 : shapeL - 6}
                     y={cy + 4}
                     textAnchor={labelSide === 'right' ? 'start' : 'end'}
                     fontSize={12}
-                    fill="#334155"
+                    fontWeight={isKey ? 700 : 400}
+                    fill={isKey ? '#1e293b' : '#334155'}
                   >
-                    {dateLabel && <tspan fill="#94a3b8">{dateLabel} </tspan>}
+                    {dateLabel && <tspan fill="#94a3b8" fontWeight={400}>{dateLabel} </tspan>}
                     {text}
                   </text>
                 </g>

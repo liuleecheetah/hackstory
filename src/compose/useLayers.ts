@@ -52,6 +52,29 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, color } : l)))
   }, [])
 
+  /**
+   * 標示／取消關鍵事件：關鍵事件記成 importance 5（沿用 SPEC 既有欄位，檔案格式不變），
+   * 在時間軸上會放大顯示。匯出時會一併保存。
+   */
+  const setKeyEvent = useCallback((layerId: string, eventId: string, key: boolean) => {
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== layerId) return l
+        const events = l.doc.events.map((ev) => {
+          if (ev.id !== eventId) return ev
+          const next = { ...ev }
+          if (key) {
+            next.importance = 5
+          } else {
+            delete next.importance
+          }
+          return next
+        })
+        return { ...l, doc: { ...l.doc, events } }
+      }),
+    )
+  }, [])
+
   /** 重新命名圖層：改的是文件的標題（meta.title），匯出時也會帶著新名字 */
   const renameLayer = useCallback((id: string, title: string) => {
     setLayers((prev) =>
@@ -88,5 +111,6 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     setColor,
     moveLayer,
     renameLayer,
+    setKeyEvent,
   }
 }
