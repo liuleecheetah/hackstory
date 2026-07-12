@@ -1,6 +1,6 @@
 // .hst.json 驗證器的測試。
 // 「規格好不好，用真實的髒資料來檢驗」——所以第一個測試就是 examples/ 裡的真實檔案。
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -34,6 +34,17 @@ describe('真實資料', () => {
     expect(result.errors).toEqual([])
     expect(result.ok).toBe(true)
     expect(result.doc?.events.length).toBe(23)
+  })
+
+  it('examples/ 目錄下每一份 .hst.json 都通過驗證', () => {
+    const dir = resolve(here, '../../examples')
+    const files = readdirSync(dir).filter((f) => f.endsWith('.hst.json'))
+    expect(files.length).toBeGreaterThanOrEqual(3)
+    for (const file of files) {
+      const data = JSON.parse(readFileSync(resolve(dir, file), 'utf-8'))
+      const result = validateDocument(data)
+      expect(result.errors, `${file} 應通過驗證`).toEqual([])
+    }
   })
 })
 
