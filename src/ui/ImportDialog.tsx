@@ -224,6 +224,19 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                 {inputError}
               </p>
             )}
+
+            <p className="border-t border-slate-100 pt-3 text-xs text-slate-400">
+              看不懂格式？
+              <a
+                href="https://github.com/liuleecheetah/hackstory-next/blob/main/docs/import-guide.md"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-slate-600"
+              >
+                閱讀匯入格式說明
+              </a>
+              ——欄位怎麼填、日期怎麼寫、Google Sheet 怎麼設成公開，都在裡面。
+            </p>
           </div>
         ) : (
           /* ---- 第二步：預覽與逐筆修正 ---- */
