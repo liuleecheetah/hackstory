@@ -8,6 +8,7 @@ import { parseHstJson } from '../adapters/json'
 import { useLayers } from '../compose/useLayers'
 import type { ScaleMode, ScaleRequest } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
+import { ImportDialog } from './ImportDialog'
 import { LayerPanel } from './LayerPanel'
 
 const SCALE_LABELS: Record<ScaleMode, string> = {
@@ -30,6 +31,7 @@ export default function App() {
   const [loadErrors, setLoadErrors] = useState<string[]>(INITIAL_ERRORS)
   const [scaleRequest, setScaleRequest] = useState<ScaleRequest | null>(null)
   const [activeMode, setActiveMode] = useState<ScaleMode>('year')
+  const [importOpen, setImportOpen] = useState(false)
 
   // 使用者從檔案挑選器載入 .hst.json：好的變圖層，壞的把原因列出來（不靜默）
   const handleAddFiles = useCallback(
@@ -60,6 +62,14 @@ export default function App() {
         <span className="text-xs text-slate-400">
           {layers.length} 個圖層，顯示中 {visibleSources.length} 個
         </span>
+
+        <button
+          type="button"
+          onClick={() => setImportOpen(true)}
+          className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+        >
+          匯入 CSV / Google Sheet
+        </button>
 
         {/* 尺度切換（像 Google 日曆） */}
         <div className="ml-auto flex overflow-hidden rounded-md border border-slate-300">
@@ -103,6 +113,12 @@ export default function App() {
       <footer className="border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
         滑鼠滾輪：縮放　｜　按住拖曳：平移　｜　右上按鈕：切換日／週／月／年尺度　｜　左側面板：管理圖層
       </footer>
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImport={addLayer}
+      />
     </div>
   )
 }
