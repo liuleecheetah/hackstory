@@ -213,6 +213,8 @@ export function TimelineView({
   const dragState = useRef<{ startX: number; domain: [number, number] } | null>(null)
   // 這次按下之後有沒有實際拖動（拖動結束的 click 不應該被當成「點空白處取消選取」）
   const draggedRef = useRef(false)
+  // 滑鼠懸停的事件：不用點擊，關係線就會先亮起來
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null)
 
   // ---- 排版計算 ----
   const layout = useMemo(() => {
@@ -439,7 +441,12 @@ export function TimelineView({
               </marker>
             </defs>
             {layout.relationLines.map(({ id, from, to, fromKey, toKey, type, label }) => {
-              const active = selectedKey === fromKey || selectedKey === toKey
+              // 點選或滑鼠懸停的事件，其關係線都會亮起
+              const active =
+                selectedKey === fromKey ||
+                selectedKey === toKey ||
+                hoveredKey === fromKey ||
+                hoveredKey === toKey
               const sameLevel = Math.abs(from.y - to.y) < 12
               const midY = sameLevel ? Math.min(from.y, to.y) - 44 : (from.y + to.y) / 2
               const d = sameLevel
@@ -492,6 +499,8 @@ export function TimelineView({
                   className="cursor-pointer"
                   // 按在事件上不啟動拖曳，讓 click 正常送達
                   onPointerDown={(e) => e.stopPropagation()}
+                  onMouseEnter={() => setHoveredKey(eventKey)}
+                  onMouseLeave={() => setHoveredKey((prev) => (prev === eventKey ? null : prev))}
                   onClick={(e) => {
                     e.stopPropagation()
                     onEventSelect?.({

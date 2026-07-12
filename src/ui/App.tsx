@@ -47,8 +47,16 @@ export default function App() {
   const [showDates, setShowDates] = useState(true)
   const [showYears, setShowYears] = useState(true)
   const [showRelations, setShowRelations] = useState(true)
-  // 被點選的事件（顯示詳情卡）
+  // 被點選的事件。關閉詳情卡不會清除選取——選取光環與亮起的關係線會留著，
+  // 點時間軸空白處才會真正取消選取
   const [selection, setSelection] = useState<EventSelection | null>(null)
+  const [cardVisible, setCardVisible] = useState(false)
+
+  // render 層回報：點了事件 → 選取並開卡；點了空白處 → 全部清除
+  const handleEventSelect = useCallback((sel: EventSelection | null) => {
+    setSelection(sel)
+    setCardVisible(sel !== null)
+  }, [])
 
   // 詳情卡上的「標示為關鍵事件」開關：更新圖層資料，也同步更新卡片顯示
   const handleToggleKey = useCallback(() => {
@@ -66,15 +74,20 @@ export default function App() {
     })
   }, [setKeyEvent])
 
-  // 按 Esc 關閉詳情卡
+  // Esc 兩段式：第一下關閉詳情卡（保留選取與關係線），第二下取消選取
   useEffect(() => {
     if (!selection) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelection(null)
+      if (e.key !== 'Escape') return
+      if (cardVisible) {
+        setCardVisible(false)
+      } else {
+        setSelection(null)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selection])
+  }, [selection, cardVisible])
   // 嵌入模式（?embed=1）：只顯示乾淨的時間軸，給 iframe 用
   const isEmbed = new URLSearchParams(window.location.search).has('embed')
 
@@ -108,13 +121,13 @@ export default function App() {
           <TimelineView
             sources={visibleSources}
             selectedKey={selection?.key ?? null}
-            onEventSelect={setSelection}
+            onEventSelect={handleEventSelect}
           />
         </div>
-        {selection && (
+        {selection && cardVisible && (
           <EventDetailCard
             selection={selection}
-            onClose={() => setSelection(null)}
+            onClose={() => setCardVisible(false)}
             onToggleKey={handleToggleKey}
           />
         )}
@@ -233,7 +246,7 @@ export default function App() {
             showYears={showYears}
             showRelations={showRelations}
             selectedKey={selection?.key ?? null}
-            onEventSelect={setSelection}
+            onEventSelect={handleEventSelect}
           />
         </div>
       </div>
@@ -248,10 +261,10 @@ export default function App() {
         onImport={addLayer}
       />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} layers={layers} />
-      {selection && (
+      {selection && cardVisible && (
         <EventDetailCard
           selection={selection}
-          onClose={() => setSelection(null)}
+          onClose={() => setCardVisible(false)}
           onToggleKey={handleToggleKey}
         />
       )}
