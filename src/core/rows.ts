@@ -52,6 +52,8 @@ export interface DraftEvent {
   title: string
   start: AbsoluteTimePoint
   end?: AbsoluteTimePoint
+  /** 結束日期欄寫「至今／迄今／持續中」時為 true：事件仍在進行中 */
+  ongoing?: boolean
   description?: string
   location?: { name: string }
   track?: string
@@ -86,6 +88,9 @@ export interface TriageResult {
 }
 
 const isBlank = (v: string | undefined): boolean => v === undefined || v.trim() === ''
+
+/** 結束日期欄的「進行中」寫法（SPEC 第 9 節） */
+const RE_ONGOING = /^(至今|迄今|持續中|進行中|now|present|ongoing)$/i
 
 /** 整列是否全空白 */
 function isEmptyRow(row: RawRow): boolean {
@@ -149,25 +154,33 @@ export function triageRows(rows: RawRow[], options?: { idPrefix?: string }): Tri
       warnings.push({ rowIndex, message: `第 ${rowIndex + 1} 列：${w}` })
     }
 
-    // 結束日期欄（若時間欄已產生同日的 end，以明確的結束日期欄為優先）
+    // 結束日期欄（若時間欄已產生同日的 end，以明確的結束日期欄為優先）。
+    // 寫「至今／持續中」→ 進行中事件（畫到今天），不是解析錯誤
     let end = parsed.end
+    let ongoing = false
     if (!isBlank(row.end)) {
-      const parsedEnd = parseDateTime(row.end!)
-      if (!parsedEnd.ok) {
-        unresolved.push({
-          rowIndex,
-          row,
-          reason: `第 ${rowIndex + 1} 列的結束日期：${parsedEnd.reason}`,
-        })
-        return
+      if (RE_ONGOING.test(row.end!.trim())) {
+        ongoing = true
+        end = undefined
+      } else {
+        const parsedEnd = parseDateTime(row.end!)
+        if (!parsedEnd.ok) {
+          unresolved.push({
+            rowIndex,
+            row,
+            reason: `第 ${rowIndex + 1} 列的結束日期：${parsedEnd.reason}`,
+          })
+          return
+        }
+        end = parsedEnd.start
       }
-      end = parsedEnd.start
     }
 
     serial += 1
     const id = `${idPrefix}${String(serial).padStart(3, '0')}`
     const draft: DraftEvent = { id, title, start: parsed.start, rowIndex }
     if (end) draft.end = end
+    if (ongoing) draft.ongoing = true
     if (!isBlank(row.description)) draft.description = row.description!.trim()
     if (!isBlank(row.location)) draft.location = { name: row.location!.trim() }
     if (!isBlank(row.track)) draft.track = row.track!.trim()

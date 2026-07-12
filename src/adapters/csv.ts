@@ -145,6 +145,7 @@ export function draftsToDocument(
       start: d.start,
     }
     if (d.end) ev.end = d.end
+    if (d.ongoing) ev.ongoing = true
     if (d.description) ev.description = d.description
     if (d.location) ev.location = d.location
     if (d.tags) ev.tags = d.tags

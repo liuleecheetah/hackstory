@@ -40,9 +40,14 @@ export function EventDetailCard({ selection, onClose, onToggleKey }: Props) {
     style.top = clientY + 14
   }
 
-  // 日期文字：起（—迄），依精度誠實顯示
+  // 日期文字：起（—迄），依精度誠實顯示；進行中事件顯示「至今仍持續」
   const startText = isAbsolute(event.start) ? formatPointLong(event.start) : '（相對時間）'
-  const endText = event.end && isAbsolute(event.end) ? formatPointLong(event.end) : null
+  const endText =
+    event.end && isAbsolute(event.end)
+      ? formatPointLong(event.end)
+      : event.ongoing
+        ? '至今仍持續'
+        : null
   const confidence = event.confidence ? CONFIDENCE[event.confidence] : null
 
   return (

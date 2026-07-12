@@ -28,7 +28,7 @@ export interface ValidationResult {
 
 // 本程式支援的規格版本
 const SUPPORTED_MAJOR = 0
-const SUPPORTED_MINOR = 1
+const SUPPORTED_MINOR = 2
 
 const PRECISIONS: Precision[] = ['year', 'month', 'day', 'minute']
 const CONFIDENCES = ['verified', 'reported', 'disputed', 'unknown']
@@ -214,6 +214,12 @@ export function validateDocument(data: unknown): ValidationResult {
         }
       }
 
+      if (e.ongoing !== undefined && typeof e.ongoing !== 'boolean') {
+        err(`${path}.ongoing`, 'ongoing 應為 true/false')
+      }
+      if (e.ongoing === true && e.end !== undefined && e.end !== null) {
+        warn(`${path}.ongoing`, `事件${label}同時有結束時間與 ongoing，以結束時間為準`)
+      }
       if (e.importance !== undefined) {
         if (
           typeof e.importance !== 'number' ||

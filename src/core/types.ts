@@ -108,6 +108,11 @@ export interface HstEvent {
   start: TimePoint
   /** 有 end = 區間事件（長條），無 = 點事件（圓點） */
   end?: TimePoint | null
+  /**
+   * true = 事件仍在持續中：畫成從 start 延伸到「今天」的長條，右端淡出。
+   * 與 end 擇一使用（兩者都有時以 end 為準）。SPEC 0.2 新增
+   */
+  ongoing?: boolean
   location?: EventLocation
   /** 1–5，縮小時決定哪些事件優先顯示 */
   importance?: number

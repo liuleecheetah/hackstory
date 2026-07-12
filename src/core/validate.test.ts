@@ -155,6 +155,24 @@ describe('事件與引用完整性', () => {
     expect(result.warnings.some((w) => w.message.includes('早於'))).toBe(true)
   })
 
+  it('進行中事件（ongoing: true，SPEC 0.2）合法；同時有 end 則警告', () => {
+    const doc = minimalDoc()
+    const evt = (doc.events as Record<string, unknown>[])[0]
+    evt.ongoing = true
+    const ok = validateDocument(doc)
+    expect(ok.errors).toEqual([])
+    expect(ok.ok).toBe(true)
+    // ongoing 不是布林 → 錯誤
+    evt.ongoing = '是'
+    expect(validateDocument(doc).ok).toBe(false)
+    // ongoing 與 end 同時存在 → 警告（以 end 為準）
+    evt.ongoing = true
+    evt.end = { value: '2024-12-31', precision: 'day' }
+    const both = validateDocument(doc)
+    expect(both.ok).toBe(true)
+    expect(both.warnings.some((w) => w.message.includes('以結束時間為準'))).toBe(true)
+  })
+
   it('相對時間錨點（Phase 2 的前瞻設計）：格式合法就接受', () => {
     const doc = minimalDoc()
     const events = doc.events as Record<string, unknown>[]

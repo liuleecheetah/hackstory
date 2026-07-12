@@ -1,5 +1,5 @@
 {
-  "hackstory": "0.1",
+  "hackstory": "0.2",
   "id": "my-first-timeline",
   "meta": {
     "title": "我的第一條時間軸（改成你的標題）",
@@ -54,6 +54,14 @@
       "track": "side",
       "title": "只知道月份的事件（precision 誠實標示模糊時間）",
       "start": { "value": "2024-08", "precision": "month", "raw": "2024年8月" }
+    },
+    {
+      "id": "evt-005",
+      "track": "side",
+      "title": "持續至今的事件（ongoing: true 會畫到今天）",
+      "description": "沒有 end、標了 ongoing 的事件，長條會一路畫到今天，右端淡出表示還沒結束。",
+      "start": { "value": "2024-09-01", "precision": "day" },
+      "ongoing": true
     }
   ],
 

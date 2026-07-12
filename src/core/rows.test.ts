@@ -142,6 +142,15 @@ describe('其他欄位的轉換', () => {
     expect(result.events[0].end?.value).toBe('2006-10-31')
   })
 
+  it('結束日期寫「至今／持續中／now」→ 進行中事件（ongoing），不是解析錯誤', () => {
+    for (const word of ['至今', '迄今', '持續中', 'now', 'Present']) {
+      const result = triageRows([{ start: '2024/9/1', end: word, title: '進行中的事件' }])
+      expect(result.unresolved, `「${word}」不應進待修正`).toEqual([])
+      expect(result.events[0].ongoing).toBe(true)
+      expect(result.events[0].end).toBeUndefined()
+    }
+  })
+
   it('結束日期無法解析 → 整列進待修正（不會只丟掉 end 假裝沒事）', () => {
     const rows: RawRow[] = [{ start: '2006/10/11', end: '月底吧', title: '草案遭退回' }]
     const result = triageRows(rows)

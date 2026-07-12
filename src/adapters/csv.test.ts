@@ -103,15 +103,19 @@ describe('試算表名稱（Content-Disposition）', () => {
 })
 
 describe('template.csv 範本（說明文件提供給使用者的起手檔）', () => {
-  it('整份範本乾淨匯入：主題列變標題、6 筆全過、分成主線支線兩軸', () => {
+  it('整份範本乾淨匯入：主題列變標題、7 筆全過、分成主線支線兩軸', () => {
     const outcome = parseCsvText(
       readFileSync(resolve(here, '../../examples/template.csv'), 'utf-8'),
     )
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) throw new Error('unreachable')
     expect(outcome.titleHint).toContain('我的時間軸主題')
-    expect(outcome.triage.events.length).toBe(6)
+    expect(outcome.triage.events.length).toBe(7)
     expect(outcome.triage.unresolved).toEqual([])
+    // 「至今」→ 進行中事件
+    const ongoing = outcome.triage.events.find((e) => e.title === '持續進行中的事件')
+    expect(ongoing?.ongoing).toBe(true)
+    expect(ongoing?.end).toBeUndefined()
     const doc = draftsToDocument(outcome.triage.events, { title: '範本', sourceType: 'csv' })
     expect(doc.tracks.map((t) => t.title)).toEqual(['主線', '支線'])
     expect(validateDocument(doc).ok).toBe(true)

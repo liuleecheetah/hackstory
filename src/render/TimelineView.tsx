@@ -97,6 +97,10 @@ function eventsExtent(docs: TimelineDocument[]): [number, number] | null {
       if (ev.end && isAbsolute(ev.end)) {
         max = Math.max(max, timePointToSpan(ev.end).end.getTime())
       }
+      // 進行中的事件延伸到「今天」
+      if (ev.ongoing && !ev.end) {
+        max = Math.max(max, Date.now())
+      }
     }
   }
   return min < max ? [min, max] : null
@@ -252,6 +256,9 @@ export function TimelineView({
             const isKey = (ev.importance ?? 0) >= 5
             const dotR = isKey ? DOT_R + 2.5 : DOT_R
 
+            // 進行中事件（ongoing 且沒有 end）：長條一路畫到「今天」，右端淡出
+            const ongoing = ev.ongoing === true && !endPoint
+
             let kind: 'dot' | 'bar'
             let shapeL: number
             let shapeR: number
@@ -260,6 +267,12 @@ export function TimelineView({
               const endSpan = timePointToSpan(endPoint)
               const x1 = x(startSpan.start.getTime())
               const x2 = Math.max(x(endSpan.end.getTime()), x1 + 6)
+              kind = 'bar'
+              shapeL = x1
+              shapeR = x2
+            } else if (ongoing) {
+              const x1 = x(startSpan.start.getTime())
+              const x2 = Math.max(x(Date.now()), x1 + 6)
               kind = 'bar'
               shapeL = x1
               shapeR = x2
@@ -280,7 +293,9 @@ export function TimelineView({
               shapeR + 6 + labelW > width && shapeL - 6 - labelW > 0 ? 'left' : 'right'
             const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
             const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
-            return [{ ev, kind, isKey, shapeL, shapeR, label: text, dateLabel, labelSide, occL, occR }]
+            return [
+              { ev, kind, isKey, ongoing, shapeL, shapeR, label: text, dateLabel, labelSide, occL, occR },
+            ]
           })
           .sort((p, q) => p.occL - q.occL)
 
@@ -398,6 +413,13 @@ export function TimelineView({
           if (!draggedRef.current) onEventSelect?.(null)
         }}
       >
+        {/* 進行中事件右端的淡出漸層 */}
+        <defs>
+          <linearGradient id="hst-ongoing-fade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="1" />
+          </linearGradient>
+        </defs>
         {/* 直式格線 */}
         {ticks.map((d, i) => (
           <line
@@ -483,7 +505,7 @@ export function TimelineView({
         {/* 事件 */}
         {layout.bands.map(({ key, sourceId, docTitle, trackTitle, color, items }) => (
           <g key={key}>
-            {items.map(({ ev, kind, isKey, shapeL, shapeR, label: text, dateLabel, labelSide, cy }) => {
+            {items.map(({ ev, kind, isKey, ongoing, shapeL, shapeR, label: text, dateLabel, labelSide, cy }) => {
               const fill = ev.color ?? color
               const eventKey = `${sourceId}/${ev.id}`
               const isSelected = selectedKey === eventKey
@@ -570,15 +592,27 @@ export function TimelineView({
                       />
                     ))}
                   {kind === 'bar' ? (
-                    <rect
-                      x={shapeL}
-                      y={cy - barH / 2}
-                      width={shapeR - shapeL}
-                      height={barH}
-                      rx={barH / 2}
-                      fill={fill}
-                      opacity={0.85}
-                    />
+                    <>
+                      <rect
+                        x={shapeL}
+                        y={cy - barH / 2}
+                        width={shapeR - shapeL}
+                        height={barH}
+                        rx={barH / 2}
+                        fill={fill}
+                        opacity={0.85}
+                      />
+                      {/* 進行中：右端蓋一層白色淡出，表示「還沒結束」 */}
+                      {ongoing && (
+                        <rect
+                          x={Math.max(shapeL, shapeR - 32)}
+                          y={cy - barH / 2 - 1}
+                          width={Math.min(32, shapeR - shapeL)}
+                          height={barH + 2}
+                          fill="url(#hst-ongoing-fade)"
+                        />
+                      )}
+                    </>
                   ) : (
                     <circle cx={(shapeL + shapeR) / 2} cy={cy} r={dotR} fill={fill} />
                   )}
