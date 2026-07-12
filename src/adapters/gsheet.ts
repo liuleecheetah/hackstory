@@ -22,7 +22,28 @@ export function toCsvUrl(input: string): string | null {
   return null
 }
 
-export type SheetFetchResult = { ok: true; text: string } | { ok: false; error: string }
+/**
+ * 從 Content-Disposition 標頭取出檔名——Google 會把試算表名稱放在這裡，
+ * 正好拿來當圖層標題。中文名稱藏在 filename*=UTF-8'' 的百分號編碼裡。
+ */
+export function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null
+  const star = header.match(/filename\*=UTF-8''([^;]+)/i)
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].trim()).replace(/\.csv$/i, '')
+    } catch {
+      // 編碼壞掉就退回試下一種寫法
+    }
+  }
+  const plain = header.match(/filename="([^"]+)"/i)
+  if (plain) return plain[1].replace(/\.csv$/i, '')
+  return null
+}
+
+export type SheetFetchResult =
+  | { ok: true; text: string; filename?: string }
+  | { ok: false; error: string }
 
 /** 從公開的 Google Sheet 抓 CSV 文字 */
 export async function fetchSheetCsv(input: string): Promise<SheetFetchResult> {
@@ -45,7 +66,8 @@ export async function fetchSheetCsv(input: string): Promise<SheetFetchResult> {
         error: '拿到的不是 CSV（試算表可能需要登入）。請改用「發布到網路」產生的 CSV 連結',
       }
     }
-    return { ok: true, text }
+    const filename = filenameFromContentDisposition(res.headers.get('content-disposition'))
+    return { ok: true, text, filename: filename ?? undefined }
   } catch {
     return {
       ok: false,

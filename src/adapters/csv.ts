@@ -24,6 +24,8 @@ export type CsvParseOutcome =
       ok: true
       headers: HeaderMapping[]
       triage: TriageResult
+      /** 表頭上方的主題文字（若有），當作建議的圖層標題 */
+      titleHint?: string
     }
   | { ok: false; error: string }
 
@@ -33,26 +35,48 @@ export function parseCsvText(text: string): CsvParseOutcome {
     skipEmptyLines: false,
   })
   const rows = parsed.data.filter((r) => Array.isArray(r))
-  // 找到第一個有內容的列當表頭
-  const headerIndex = rows.findIndex((r) => r.some((cell) => cell && cell.trim() !== ''))
-  if (headerIndex < 0) {
-    return { ok: false, error: '檔案是空的，找不到任何內容' }
+  const nonEmpty = (r: string[]) => r.some((cell) => cell && cell.trim() !== '')
+
+  // 在前 10 個非空列中往下尋找表頭列：能同時認出「日期」與「標題」的那一列才算表頭。
+  // 這樣第一列就算是主題標題（例如「同婚大事記」）也能正確匯入。
+  let headerIndex = -1
+  let headers: HeaderMapping[] = []
+  let scanned = 0
+  for (let i = 0; i < rows.length && scanned < 10; i++) {
+    if (!nonEmpty(rows[i])) continue
+    scanned++
+    const candidate: HeaderMapping[] = rows[i].map((h) => ({
+      original: (h ?? '').trim(),
+      mapped: mapHeader(h ?? ''),
+    }))
+    if (candidate.some((h) => h.mapped === 'start') && candidate.some((h) => h.mapped === 'title')) {
+      headerIndex = i
+      headers = candidate
+      break
+    }
   }
 
-  const headers: HeaderMapping[] = rows[headerIndex].map((h) => ({
-    original: h.trim(),
-    mapped: mapHeader(h),
-  }))
-
-  const hasStart = headers.some((h) => h.mapped === 'start')
-  const hasTitle = headers.some((h) => h.mapped === 'title')
-  if (!hasStart || !hasTitle) {
-    const found = headers.map((h) => h.original).filter((h) => h !== '').join('、') || '（無）'
+  if (headerIndex < 0) {
+    const first = rows.find(nonEmpty)
+    if (!first) {
+      return { ok: false, error: '檔案是空的，找不到任何內容' }
+    }
+    const found = first.map((h) => (h ?? '').trim()).filter((h) => h !== '').join('、')
     return {
       ok: false,
       error:
-        `認不出必要的欄位：${!hasStart ? '「日期」' : ''}${!hasStart && !hasTitle ? '與' : ''}${!hasTitle ? '「標題」' : ''}。` +
-        `檔案裡的表頭是：${found}。支援的表頭例如「日期／Start Date」「標題／Title／事件」`,
+        `在前 10 列裡認不出表頭——至少需要「日期」與「標題」兩欄。` +
+        `第一列的內容是：${found}。支援的表頭例如「日期／Start Date」「標題／Title／事件」`,
+    }
+  }
+
+  // 表頭上方的第一個非空儲存格 → 建議的圖層標題
+  let titleHint: string | undefined
+  for (let i = 0; i < headerIndex; i++) {
+    const cell = rows[i].find((c) => c && c.trim() !== '')
+    if (cell) {
+      titleHint = cell.trim()
+      break
     }
   }
 
@@ -69,7 +93,7 @@ export function parseCsvText(text: string): CsvParseOutcome {
     return row
   })
 
-  return { ok: true, headers, triage: triageRows(rawRows) }
+  return { ok: true, headers, triage: triageRows(rawRows), titleHint }
 }
 
 /**

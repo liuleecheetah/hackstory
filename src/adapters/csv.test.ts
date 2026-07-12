@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { validateDocument } from '../core'
 import { draftsToDocument, parseCsvText, retryRow } from './csv'
-import { toCsvUrl } from './gsheet'
+import { filenameFromContentDisposition, toCsvUrl } from './gsheet'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const dirtyCsv = readFileSync(resolve(here, '../../examples/dirty-sample.csv'), 'utf-8')
@@ -55,6 +55,50 @@ describe('dirty-sample.csv 整檔分流', () => {
     const reasons = outcome.triage.unresolved.map((u) => u.reason).join('\n')
     expect(reasons).toContain('你好天')
     expect(outcome.triage.unresolved.some((u) => u.row.start === '台北市')).toBe(true)
+  })
+})
+
+describe('表頭往下搜尋與主題標題', () => {
+  it('第一列是主題標題時，往下找到真正的表頭列，主題變成建議的圖層標題', () => {
+    const csv = '同婚大事記\n\n日期,標題\n2017/5/24,釋字748公布\n'
+    const outcome = parseCsvText(csv)
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) throw new Error('unreachable')
+    expect(outcome.titleHint).toBe('同婚大事記')
+    expect(outcome.triage.events.length).toBe(1)
+    expect(outcome.triage.events[0].title).toBe('釋字748公布')
+  })
+
+  it('表頭就在第一列時，titleHint 為空、行為不變', () => {
+    const outcome = parseCsvText('日期,標題\n2017/5/24,某事件\n')
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) throw new Error('unreachable')
+    expect(outcome.titleHint).toBeUndefined()
+  })
+
+  it('前 10 列都認不出表頭 → 明確報錯，附上第一列內容', () => {
+    const outcome = parseCsvText('隨便,亂寫\n甲,乙\n')
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) throw new Error('unreachable')
+    expect(outcome.error).toContain('隨便')
+  })
+})
+
+describe('試算表名稱（Content-Disposition）', () => {
+  it('優先讀 UTF-8 編碼的檔名（中文名稱在這裡）', () => {
+    expect(
+      filenameFromContentDisposition(
+        `attachment; filename="HackStory_Sample.csv"; filename*=UTF-8''%E5%A4%A7%E4%BA%8B%E8%A8%98.csv`,
+      ),
+    ).toBe('大事記')
+  })
+
+  it('沒有 UTF-8 版本就用一般檔名，去掉 .csv 副檔名', () => {
+    expect(filenameFromContentDisposition('attachment; filename="My Sheet.csv"')).toBe('My Sheet')
+  })
+
+  it('沒有標頭 → null', () => {
+    expect(filenameFromContentDisposition(null)).toBeNull()
   })
 })
 

@@ -52,6 +52,15 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, color } : l)))
   }, [])
 
+  /** 重新命名圖層：改的是文件的標題（meta.title），匯出時也會帶著新名字 */
+  const renameLayer = useCallback((id: string, title: string) => {
+    setLayers((prev) =>
+      prev.map((l) =>
+        l.id === id ? { ...l, doc: { ...l.doc, meta: { ...l.doc.meta, title } } } : l,
+      ),
+    )
+  }, [])
+
   /** 往上（-1）或往下（+1）移動一格。圖層順序 = 時間軸上軸線的排列順序 */
   const moveLayer = useCallback((id: string, direction: -1 | 1) => {
     setLayers((prev) => {
@@ -70,5 +79,14 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     [layers],
   )
 
-  return { layers, visibleSources, addLayer, removeLayer, toggleVisible, setColor, moveLayer }
+  return {
+    layers,
+    visibleSources,
+    addLayer,
+    removeLayer,
+    toggleVisible,
+    setColor,
+    moveLayer,
+    renameLayer,
+  }
 }

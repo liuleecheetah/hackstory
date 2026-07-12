@@ -65,6 +65,22 @@ export function formatTick(d: Date): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
+/** 事件旁顯示的簡短日期：依精度誠實呈現（只知道月就只顯示到月） */
+export function formatPointShort(point: AbsoluteTimePoint): string {
+  const [datePart, timePart] = point.value.split('T')
+  const [y, m, d] = datePart.split('-')
+  switch (point.precision) {
+    case 'year':
+      return y
+    case 'month':
+      return `${y}/${Number(m)}`
+    case 'day':
+      return `${y}/${Number(m)}/${Number(d)}`
+    case 'minute':
+      return `${y}/${Number(m)}/${Number(d)} ${timePart}`
+  }
+}
+
 /** 目前可視範圍的文字說明（畫在左上角，讓使用者知道自己在哪個年代） */
 export function formatRangeLabel(domain: [number, number]): string {
   const a = new Date(domain[0])

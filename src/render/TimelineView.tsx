@@ -7,7 +7,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AbsoluteTimePoint, TimelineDocument } from '../core'
 import { isAbsolute } from '../core'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
-import { formatRangeLabel, formatTick, getTicks, spanMidpoint, timePointToSpan } from './timeScale'
+import {
+  formatPointShort,
+  formatRangeLabel,
+  formatTick,
+  getTicks,
+  spanMidpoint,
+  timePointToSpan,
+} from './timeScale'
 
 /** 尺度模式（像 Google 日曆的 日/週/月/年 切換） */
 export type ScaleMode = 'day' | 'week' | 'month' | 'year'
@@ -30,6 +37,8 @@ interface Props {
   scaleRequest?: ScaleRequest | null
   /** 縮放後回報目前落在哪個尺度，讓 ui 層的按鈕高亮 */
   onScaleModeChange?: (mode: ScaleMode) => void
+  /** 是否在事件標題前顯示日期（預設顯示） */
+  showDates?: boolean
 }
 
 const DAY = 86_400_000
@@ -91,7 +100,7 @@ function initialDomainOf(sources: TimelineSource[]): [number, number] {
   return [extent[0] - pad, extent[1] + pad]
 }
 
-export function TimelineView({ sources, scaleRequest, onScaleModeChange }: Props) {
+export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDates = true }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const [width, setWidth] = useState(960)
@@ -209,13 +218,15 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange }: Props
             }
 
             const text = truncate(ev.title, 16)
-            const labelW = estimateTextWidth(text)
+            // 日期前綴（可由「顯示事件日期」勾選框關掉）
+            const dateLabel = showDates ? formatPointShort(start) : ''
+            const labelW = estimateTextWidth(dateLabel ? `${dateLabel} ${text}` : text)
             // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
             const labelSide: 'right' | 'left' =
               shapeR + 6 + labelW > width && shapeL - 6 - labelW > 0 ? 'left' : 'right'
             const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
             const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
-            return [{ ev, kind, shapeL, shapeR, label: text, labelSide, occL, occR }]
+            return [{ ev, kind, shapeL, shapeR, label: text, dateLabel, labelSide, occL, occR }]
           })
           .sort((p, q) => p.occL - q.occL)
 
@@ -237,7 +248,7 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange }: Props
     })
 
     return { bands, height: Math.max(y + 8, 320), x }
-  }, [sources, domain, width])
+  }, [sources, domain, width, showDates])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -314,7 +325,7 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange }: Props
               {label}
             </text>
 
-            {items.map(({ ev, kind, shapeL, shapeR, label: text, labelSide, lane }) => {
+            {items.map(({ ev, kind, shapeL, shapeR, label: text, dateLabel, labelSide, lane }) => {
               const cy = bandTop + TRACK_LABEL_H + lane * LANE_H + LANE_H / 2
               const fill = ev.color ?? color
               return (
@@ -339,6 +350,7 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange }: Props
                     fontSize={12}
                     fill="#334155"
                   >
+                    {dateLabel && <tspan fill="#94a3b8">{dateLabel} </tspan>}
                     {text}
                   </text>
                 </g>

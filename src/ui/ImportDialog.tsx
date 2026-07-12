@@ -75,8 +75,8 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
   /** 拿到 CSV 文字後進入預覽 */
   const showPreview = (
     text: string,
-    defaultTitle: string,
     sourceType: 'csv' | 'google-sheet',
+    fallbackTitle?: string,
     sourceUrl?: string,
   ) => {
     const outcome = parseCsvText(text)
@@ -85,7 +85,12 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
       return
     }
     nextIdRef.current = outcome.triage.events.length + 1
-    setTitle(defaultTitle)
+    // 圖層標題的優先順序：表格內的主題列 > 檔名／試算表名稱 > 通用名稱
+    setTitle(
+      outcome.titleHint ??
+        fallbackTitle ??
+        (sourceType === 'csv' ? '匯入的時間軸' : '從 Google Sheet 匯入'),
+    )
     setInputError(null)
     setPreview({
       headers: outcome.headers,
@@ -102,9 +107,7 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
   }
 
   const handleFile = (file: File) => {
-    void file.text().then((text) =>
-      showPreview(text, file.name.replace(/\.csv$/i, ''), 'csv'),
-    )
+    void file.text().then((text) => showPreview(text, 'csv', file.name.replace(/\.csv$/i, '')))
   }
 
   const handleSheet = async () => {
@@ -116,7 +119,8 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
       setInputError(result.error)
       return
     }
-    showPreview(result.text, '從 Google Sheet 匯入', 'google-sheet', sheetUrl.trim())
+    // result.filename 是 Google 回傳的試算表名稱
+    showPreview(result.text, 'google-sheet', result.filename, sheetUrl.trim())
   }
 
   /** 逐筆修正：重新解析使用者改過的列 */

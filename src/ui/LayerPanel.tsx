@@ -1,7 +1,8 @@
 // ui 層：圖層面板
-// 顯示／隱藏、調整順序、改配色、載入新的 .hst.json 檔案。
+// 顯示／隱藏、重新命名、調整順序、改配色、載入新的 .hst.json 檔案。
 // 面板只呈現與轉發操作，圖層邏輯都在 compose 層的 useLayers。
 
+import { useState } from 'react'
 import type { Layer } from '../compose/useLayers'
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   onMove: (id: string, direction: -1 | 1) => void
   onRemove: (id: string) => void
   onColor: (id: string, color: string) => void
+  onRename: (id: string, title: string) => void
   onAddFiles: (files: FileList) => void
 }
 
@@ -22,8 +24,19 @@ export function LayerPanel({
   onMove,
   onRemove,
   onColor,
+  onRename,
   onAddFiles,
 }: Props) {
+  // 正在重新命名的圖層與草稿文字
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftTitle, setDraftTitle] = useState('')
+
+  const commitRename = () => {
+    if (editingId && draftTitle.trim() !== '') {
+      onRename(editingId, draftTitle.trim())
+    }
+    setEditingId(null)
+  }
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
       <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
@@ -64,17 +77,43 @@ export function LayerPanel({
               className="h-6 w-7 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
             />
             <div className="min-w-0 flex-1">
-              <div
-                className={
-                  'truncate text-sm ' +
-                  (layer.visible ? 'text-slate-800' : 'text-slate-400 line-through')
-                }
-                title={layer.doc.meta.title}
-              >
-                {layer.doc.meta.title}
-              </div>
+              {editingId === layer.id ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename()
+                    if (e.key === 'Escape') setEditingId(null)
+                  }}
+                  className="w-full rounded border border-slate-400 px-1 py-0.5 text-sm"
+                />
+              ) : (
+                <div
+                  className={
+                    'truncate text-sm ' +
+                    (layer.visible ? 'text-slate-800' : 'text-slate-400 line-through')
+                  }
+                  title={layer.doc.meta.title}
+                >
+                  {layer.doc.meta.title}
+                </div>
+              )}
               <div className="text-xs text-slate-400">{layer.doc.events.length} 筆事件</div>
             </div>
+            <button
+              type="button"
+              title="重新命名"
+              onClick={() => {
+                setEditingId(layer.id)
+                setDraftTitle(layer.doc.meta.title)
+              }}
+              className="px-1 text-xs text-slate-400 hover:text-slate-700"
+            >
+              ✎
+            </button>
             <div className="flex flex-col">
               <button
                 type="button"

@@ -27,13 +27,22 @@ const INITIAL_ERRORS = INITIAL_RESULTS.flatMap((r) =>
 )
 
 export default function App() {
-  const { layers, visibleSources, addLayer, removeLayer, toggleVisible, setColor, moveLayer } =
-    useLayers(INITIAL_DOCS)
+  const {
+    layers,
+    visibleSources,
+    addLayer,
+    removeLayer,
+    toggleVisible,
+    setColor,
+    moveLayer,
+    renameLayer,
+  } = useLayers(INITIAL_DOCS)
   const [loadErrors, setLoadErrors] = useState<string[]>(INITIAL_ERRORS)
   const [scaleRequest, setScaleRequest] = useState<ScaleRequest | null>(null)
   const [activeMode, setActiveMode] = useState<ScaleMode>('year')
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [showDates, setShowDates] = useState(true)
   // 嵌入模式（?embed=1）：只顯示乾淨的時間軸，給 iframe 用
   const isEmbed = new URLSearchParams(window.location.search).has('embed')
 
@@ -105,8 +114,18 @@ export default function App() {
           匯出／分享
         </button>
 
+        <label className="ml-auto flex items-center gap-1.5 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={showDates}
+            onChange={(e) => setShowDates(e.target.checked)}
+            className="accent-slate-700"
+          />
+          顯示事件日期
+        </label>
+
         {/* 尺度切換（像 Google 日曆） */}
-        <div className="ml-auto flex overflow-hidden rounded-md border border-slate-300">
+        <div className="flex overflow-hidden rounded-md border border-slate-300">
           {(Object.keys(SCALE_LABELS) as ScaleMode[]).map((mode) => (
             <button
               key={mode}
@@ -133,6 +152,7 @@ export default function App() {
           onMove={moveLayer}
           onRemove={removeLayer}
           onColor={setColor}
+          onRename={renameLayer}
           onAddFiles={handleAddFiles}
         />
         <div className="min-w-0 flex-1">
@@ -140,6 +160,7 @@ export default function App() {
             sources={visibleSources}
             scaleRequest={scaleRequest}
             onScaleModeChange={setActiveMode}
+            showDates={showDates}
           />
         </div>
       </div>
