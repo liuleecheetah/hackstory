@@ -2,8 +2,7 @@
 // 預設載入「科幻小說的預言」與「現實世界的實現」兩份範本作為兩個圖層，
 // 展示多圖層對比；左側面板可顯示隱藏、排序、改配色，也能載入更多 .hst.json。
 import { useCallback, useEffect, useState } from 'react'
-import rawReality from '../../examples/real-world-milestones.hst.json?raw'
-import rawScifi from '../../examples/scifi-visions.hst.json?raw'
+import rawScifiVsReality from '../../examples/scifi-vs-reality.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
 import { useLayers } from '../compose/useLayers'
 import type { EventSelection, ScaleMode, ScaleRequest } from '../render/TimelineView'
@@ -20,8 +19,9 @@ const SCALE_LABELS: Record<ScaleMode, string> = {
   year: '年',
 }
 
-// 預載的範例（模組載入時解析一次）：科幻在上、現實在下
-const INITIAL_RESULTS = [rawScifi, rawReality].map((raw) => parseHstJson(raw))
+// 預載的範例（模組載入時解析一次）：科幻與現實兩條軸在同一份文件裡，
+// 事件之間的 relations 會畫成關係線
+const INITIAL_RESULTS = [rawScifiVsReality].map((raw) => parseHstJson(raw))
 const INITIAL_DOCS = INITIAL_RESULTS.flatMap((r) => (r.ok ? [r.doc] : []))
 const INITIAL_ERRORS = INITIAL_RESULTS.flatMap((r) =>
   r.ok ? [] : r.errors.map((e) => `內建範例載入失敗 ${e.path}：${e.message}`),
@@ -46,6 +46,7 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false)
   const [showDates, setShowDates] = useState(true)
   const [showYears, setShowYears] = useState(true)
+  const [showRelations, setShowRelations] = useState(true)
   // 被點選的事件（顯示詳情卡）
   const [selection, setSelection] = useState<EventSelection | null>(null)
 
@@ -181,6 +182,15 @@ export default function App() {
             />
             含年份
           </label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={showRelations}
+              onChange={(e) => setShowRelations(e.target.checked)}
+              className="accent-slate-700"
+            />
+            顯示關係線
+          </label>
         </span>
 
         {/* 尺度切換（像 Google 日曆） */}
@@ -221,6 +231,7 @@ export default function App() {
             onScaleModeChange={setActiveMode}
             showDates={showDates}
             showYears={showYears}
+            showRelations={showRelations}
             selectedKey={selection?.key ?? null}
             onEventSelect={setSelection}
           />

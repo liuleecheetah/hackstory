@@ -56,6 +56,8 @@ interface Props {
   showDates?: boolean
   /** 日期是否含年份（整條軸都在同一年時可關掉，預設顯示） */
   showYears?: boolean
+  /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
+  showRelations?: boolean
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -121,12 +123,22 @@ function initialDomainOf(sources: TimelineSource[]): [number, number] {
   return [extent[0] - pad, extent[1] + pad]
 }
 
+/** 關係類型的中文名稱（沒有自訂 label 時顯示） */
+const RELATION_LABELS: Record<string, string> = {
+  causes: '導致',
+  responds_to: '回應',
+  derives_from: '衍生自',
+  contradicts: '與之矛盾',
+  same_event: '同一事件',
+}
+
 export function TimelineView({
   sources,
   scaleRequest,
   onScaleModeChange,
   showDates = true,
   showYears = true,
+  showRelations = true,
   selectedKey,
   onEventSelect,
 }: Props) {
@@ -213,7 +225,12 @@ export function TimelineView({
     const bands = sources.flatMap((source) => {
       const tracks = [...source.doc.tracks].sort((t1, t2) => (t1.order ?? 0) - (t2.order ?? 0))
       return tracks.map((track) => {
-        const color = source.color ?? track.color ?? PALETTE[bandIndex % PALETTE.length]
+        // 顏色優先序：多軸文件以文件內的軸線配色區分（圖層色只當後備）；
+        // 單軸文件以圖層色為主（面板改色才會生效）
+        const color =
+          tracks.length > 1
+            ? track.color ?? source.color ?? PALETTE[bandIndex % PALETTE.length]
+            : source.color ?? track.color ?? PALETTE[bandIndex % PALETTE.length]
         // 單軸文件直接用文件標題；多軸文件標成「文件｜軸線」
         const label =
           tracks.length === 1
@@ -280,12 +297,46 @@ export function TimelineView({
           color,
           bandTop,
           bandH,
-          items: items.map((it, j) => ({ ...it, lane: lanes[j] })),
+          items: items.map((it, j) => ({
+            ...it,
+            lane: lanes[j],
+            cy: bandTop + TRACK_LABEL_H + lanes[j] * LANE_H + LANE_H / 2,
+          })),
         }
       })
     })
 
-    return { bands, height: Math.max(y + 8, 320), x }
+    // 每個事件圖形的中心點，供關係線定位
+    const anchors = new Map<string, { x: number; y: number }>()
+    for (const band of bands) {
+      for (const it of band.items) {
+        anchors.set(`${band.sourceId}/${it.ev.id}`, { x: (it.shapeL + it.shapeR) / 2, y: it.cy })
+      }
+    }
+
+    // 關係線：只連同一份文件內、兩端都畫得出來的事件
+    const relationLines = sources.flatMap((source) =>
+      (source.doc.relations ?? []).flatMap((rel, i) => {
+        const fromKey = `${source.id}/${rel.from}`
+        const toKey = `${source.id}/${rel.to}`
+        const from = anchors.get(fromKey)
+        const to = anchors.get(toKey)
+        if (!from || !to) return []
+        return [
+          {
+            id: `${source.id}/rel-${i}`,
+            from,
+            to,
+            fromKey,
+            toKey,
+            type: rel.type,
+            label: rel.label ?? RELATION_LABELS[rel.type] ?? rel.type,
+          },
+        ]
+      }),
+    )
+
+    return { bands, relationLines, height: Math.max(y + 8, 320), x }
   }, [sources, domain, width, showDates, showYears])
 
   // 沒有任何可見圖層：顯示提示文字
@@ -360,17 +411,76 @@ export function TimelineView({
           {formatRangeLabel(domain)}
         </text>
 
-        {/* 軸線與事件 */}
-        {layout.bands.map(({ key, sourceId, docTitle, trackTitle, label, color, bandTop, bandH, items }) => (
-          <g key={key}>
+        {/* 軸線底色與標題 */}
+        {layout.bands.map(({ key, label, color, bandTop, bandH }) => (
+          <g key={`${key}-bg`}>
             <rect x={0} y={bandTop} width={width} height={bandH} fill={color} opacity={0.05} />
             <rect x={0} y={bandTop} width={3} height={bandH} fill={color} />
             <text x={12} y={bandTop + 18} fontSize={13} fontWeight={700} fill={color}>
               {label}
             </text>
+          </g>
+        ))}
 
-            {items.map(({ ev, kind, isKey, shapeL, shapeR, label: text, dateLabel, labelSide, lane }) => {
-              const cy = bandTop + TRACK_LABEL_H + lane * LANE_H + LANE_H / 2
+        {/* 事件關係線（畫在事件圖形下方；點選事件時相關的線會亮起並顯示說明） */}
+        {showRelations && layout.relationLines.length > 0 && (
+          <g pointerEvents="none">
+            <defs>
+              <marker
+                id="hst-rel-arrow"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6.5"
+                markerHeight="6.5"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+              </marker>
+            </defs>
+            {layout.relationLines.map(({ id, from, to, fromKey, toKey, type, label }) => {
+              const active = selectedKey === fromKey || selectedKey === toKey
+              const sameLevel = Math.abs(from.y - to.y) < 12
+              const midY = sameLevel ? Math.min(from.y, to.y) - 44 : (from.y + to.y) / 2
+              const d = sameLevel
+                ? `M ${from.x} ${from.y - 8} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y - 8}`
+                : `M ${from.x} ${from.y} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y}`
+              return (
+                <g key={id}>
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={active ? '#d97706' : '#94a3b8'}
+                    strokeWidth={active ? 2.5 : 1.25}
+                    strokeDasharray={type === 'same_event' ? '4 3' : undefined}
+                    opacity={active ? 0.95 : 0.4}
+                    markerEnd="url(#hst-rel-arrow)"
+                  />
+                  {active && (
+                    <text
+                      x={(from.x + to.x) / 2}
+                      y={midY + 4}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fontWeight={600}
+                      fill="#b45309"
+                      stroke="#ffffff"
+                      strokeWidth={4}
+                      style={{ paintOrder: 'stroke' }}
+                    >
+                      {label}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+          </g>
+        )}
+
+        {/* 事件 */}
+        {layout.bands.map(({ key, sourceId, docTitle, trackTitle, color, items }) => (
+          <g key={key}>
+            {items.map(({ ev, kind, isKey, shapeL, shapeR, label: text, dateLabel, labelSide, cy }) => {
               const fill = ev.color ?? color
               const eventKey = `${sourceId}/${ev.id}`
               const isSelected = selectedKey === eventKey
