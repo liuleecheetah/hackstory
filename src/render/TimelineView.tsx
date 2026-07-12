@@ -4,7 +4,7 @@
 // 也不知道「圖層」怎麼管理——它只負責把收到的多份文件畫出來。
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { AbsoluteTimePoint, TimelineDocument } from '../core'
+import type { AbsoluteTimePoint, HstEvent, TimelineDocument } from '../core'
 import { isAbsolute } from '../core'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
 import {
@@ -32,6 +32,19 @@ export interface TimelineSource {
   color?: string
 }
 
+/** 使用者點選了一個事件：render 層回報給 ui 層，由 ui 顯示詳情卡 */
+export interface EventSelection {
+  /** 圖層 id + 事件 id 的組合鍵（事件 id 只保證在單一文件內唯一） */
+  key: string
+  event: HstEvent
+  docTitle: string
+  trackTitle: string
+  color: string
+  /** 點擊位置（視窗座標），ui 用來決定詳情卡放哪裡 */
+  clientX: number
+  clientY: number
+}
+
 interface Props {
   sources: TimelineSource[]
   scaleRequest?: ScaleRequest | null
@@ -39,6 +52,10 @@ interface Props {
   onScaleModeChange?: (mode: ScaleMode) => void
   /** 是否在事件標題前顯示日期（預設顯示） */
   showDates?: boolean
+  /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
+  selectedKey?: string | null
+  /** 點事件 → 回報選取；點空白處 → 回報 null */
+  onEventSelect?: (selection: EventSelection | null) => void
 }
 
 const DAY = 86_400_000
@@ -100,7 +117,14 @@ function initialDomainOf(sources: TimelineSource[]): [number, number] {
   return [extent[0] - pad, extent[1] + pad]
 }
 
-export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDates = true }: Props) {
+export function TimelineView({
+  sources,
+  scaleRequest,
+  onScaleModeChange,
+  showDates = true,
+  selectedKey,
+  onEventSelect,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const [width, setWidth] = useState(960)
@@ -170,6 +194,8 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDat
 
   // 拖曳平移
   const dragState = useRef<{ startX: number; domain: [number, number] } | null>(null)
+  // 這次按下之後有沒有實際拖動（拖動結束的 click 不應該被當成「點空白處取消選取」）
+  const draggedRef = useRef(false)
 
   // ---- 排版計算 ----
   const layout = useMemo(() => {
@@ -238,6 +264,9 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDat
 
         return {
           key: `${source.id}/${track.id}`,
+          sourceId: source.id,
+          docTitle: source.doc.meta.title,
+          trackTitle: track.title,
           label,
           color,
           bandTop,
@@ -272,17 +301,23 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDat
         style={{ touchAction: 'none' }}
         onPointerDown={(e) => {
           dragState.current = { startX: e.clientX, domain }
+          draggedRef.current = false
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
         onPointerMove={(e) => {
           const drag = dragState.current
           if (!drag) return
+          if (Math.abs(e.clientX - drag.startX) > 4) draggedRef.current = true
           const [a, b] = drag.domain
           const dt = ((e.clientX - drag.startX) / width) * (b - a)
           setDomainState([a - dt, b - dt])
         }}
         onPointerUp={() => (dragState.current = null)}
         onPointerCancel={() => (dragState.current = null)}
+        onClick={() => {
+          // 點空白處（不是拖曳）→ 取消選取
+          if (!draggedRef.current) onEventSelect?.(null)
+        }}
       >
         {/* 直式格線 */}
         {ticks.map((d, i) => (
@@ -317,7 +352,7 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDat
         </text>
 
         {/* 軸線與事件 */}
-        {layout.bands.map(({ key, label, color, bandTop, bandH, items }) => (
+        {layout.bands.map(({ key, sourceId, docTitle, trackTitle, label, color, bandTop, bandH, items }) => (
           <g key={key}>
             <rect x={0} y={bandTop} width={width} height={bandH} fill={color} opacity={0.05} />
             <rect x={0} y={bandTop} width={3} height={bandH} fill={color} />
@@ -328,8 +363,52 @@ export function TimelineView({ sources, scaleRequest, onScaleModeChange, showDat
             {items.map(({ ev, kind, shapeL, shapeR, label: text, dateLabel, labelSide, lane }) => {
               const cy = bandTop + TRACK_LABEL_H + lane * LANE_H + LANE_H / 2
               const fill = ev.color ?? color
+              const eventKey = `${sourceId}/${ev.id}`
+              const isSelected = selectedKey === eventKey
               return (
-                <g key={ev.id}>
+                <g
+                  key={ev.id}
+                  className="cursor-pointer"
+                  // 按在事件上不啟動拖曳，讓 click 正常送達
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEventSelect?.({
+                      key: eventKey,
+                      event: ev,
+                      docTitle,
+                      trackTitle,
+                      color: fill,
+                      clientX: e.clientX,
+                      clientY: e.clientY,
+                    })
+                  }}
+                >
+                  {/* 選取光環 */}
+                  {isSelected &&
+                    (kind === 'bar' ? (
+                      <rect
+                        x={shapeL - 3}
+                        y={cy - 9}
+                        width={shapeR - shapeL + 6}
+                        height={18}
+                        rx={9}
+                        fill="none"
+                        stroke={fill}
+                        strokeWidth={2}
+                        opacity={0.5}
+                      />
+                    ) : (
+                      <circle
+                        cx={(shapeL + shapeR) / 2}
+                        cy={cy}
+                        r={DOT_R + 4}
+                        fill="none"
+                        stroke={fill}
+                        strokeWidth={2}
+                        opacity={0.5}
+                      />
+                    ))}
                   {kind === 'bar' ? (
                     <rect
                       x={shapeL}

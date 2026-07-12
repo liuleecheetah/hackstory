@@ -1,13 +1,14 @@
 // ui 層：頁面外殼與工具列。
 // M3：預載「同婚立法進程」與「平權運動」兩份檔案作為兩個圖層，
 // 左側面板可顯示隱藏、排序、改配色，也能載入更多 .hst.json。
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import rawMovement from '../../examples/equality-movement.hst.json?raw'
 import rawLegislation from '../../examples/marriage-legislation.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
 import { useLayers } from '../compose/useLayers'
-import type { ScaleMode, ScaleRequest } from '../render/TimelineView'
+import type { EventSelection, ScaleMode, ScaleRequest } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
+import { EventDetailCard } from './EventDetailCard'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
 import { LayerPanel } from './LayerPanel'
@@ -43,6 +44,18 @@ export default function App() {
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [showDates, setShowDates] = useState(true)
+  // 被點選的事件（顯示詳情卡）
+  const [selection, setSelection] = useState<EventSelection | null>(null)
+
+  // 按 Esc 關閉詳情卡
+  useEffect(() => {
+    if (!selection) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelection(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selection])
   // 嵌入模式（?embed=1）：只顯示乾淨的時間軸，給 iframe 用
   const isEmbed = new URLSearchParams(window.location.search).has('embed')
 
@@ -68,13 +81,20 @@ export default function App() {
     [addLayer],
   )
 
-  // 嵌入模式：無面板、無工具列的乾淨檢視（縮放平移仍可用）
+  // 嵌入模式：無面板、無工具列的乾淨檢視（縮放平移、點事件看詳情仍可用）
   if (isEmbed) {
     return (
       <div className="flex h-screen flex-col bg-white">
         <div className="min-h-0 flex-1">
-          <TimelineView sources={visibleSources} />
+          <TimelineView
+            sources={visibleSources}
+            selectedKey={selection?.key ?? null}
+            onEventSelect={setSelection}
+          />
         </div>
+        {selection && (
+          <EventDetailCard selection={selection} onClose={() => setSelection(null)} />
+        )}
         <footer className="border-t border-slate-100 px-3 py-1 text-right text-xs text-slate-400">
           以{' '}
           <a
@@ -161,6 +181,8 @@ export default function App() {
             scaleRequest={scaleRequest}
             onScaleModeChange={setActiveMode}
             showDates={showDates}
+            selectedKey={selection?.key ?? null}
+            onEventSelect={setSelection}
           />
         </div>
       </div>
@@ -175,6 +197,7 @@ export default function App() {
         onImport={addLayer}
       />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} layers={layers} />
+      {selection && <EventDetailCard selection={selection} onClose={() => setSelection(null)} />}
     </div>
   )
 }

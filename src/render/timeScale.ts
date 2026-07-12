@@ -81,6 +81,28 @@ export function formatPointShort(point: AbsoluteTimePoint): string {
   }
 }
 
+/** 詳情卡用的完整日期：中文長格式，依精度誠實呈現，circa 加「約」 */
+export function formatPointLong(point: AbsoluteTimePoint): string {
+  const [datePart, timePart] = point.value.split('T')
+  const [y, m, d] = datePart.split('-').map(Number)
+  let text: string
+  switch (point.precision) {
+    case 'year':
+      text = `${y} 年`
+      break
+    case 'month':
+      text = `${y} 年 ${m} 月`
+      break
+    case 'day':
+      text = `${y} 年 ${m} 月 ${d} 日`
+      break
+    case 'minute':
+      text = `${y} 年 ${m} 月 ${d} 日 ${timePart}`
+      break
+  }
+  return point.circa ? `約 ${text}` : text
+}
+
 /** 目前可視範圍的文字說明（畫在左上角，讓使用者知道自己在哪個年代） */
 export function formatRangeLabel(domain: [number, number]): string {
   const a = new Date(domain[0])
