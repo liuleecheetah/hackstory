@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AbsoluteTimePoint, HstEvent, TimelineDocument } from '../core'
 import { isAbsolute } from '../core'
+import type { TimeWarp } from './gaps'
+import { buildWarp, formatSkipped } from './gaps'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
 import {
   formatPointShort,
@@ -58,6 +60,8 @@ interface Props {
   showYears?: boolean
   /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
   showRelations?: boolean
+  /** 是否摺疊大段空白（SPEC display.collapseGaps），預設不摺疊 */
+  collapseGaps?: boolean
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -106,11 +110,31 @@ function eventsExtent(docs: TimelineDocument[]): [number, number] | null {
   return min < max ? [min, max] : null
 }
 
+/** 收集所有事件佔用的時間範圍（毫秒），給空白摺疊的計算用 */
+function collectSpans(docs: TimelineDocument[]): Array<[number, number]> {
+  const spans: Array<[number, number]> = []
+  for (const doc of docs) {
+    for (const ev of doc.events) {
+      if (!isAbsolute(ev.start)) continue
+      const s = timePointToSpan(ev.start)
+      let end = s.end.getTime()
+      if (ev.end && isAbsolute(ev.end)) {
+        end = Math.max(end, timePointToSpan(ev.end).end.getTime())
+      }
+      if (ev.ongoing && !ev.end) {
+        end = Math.max(end, Date.now())
+      }
+      spans.push([s.start.getTime(), end])
+    }
+  }
+  return spans
+}
+
 /**
- * 初始可視範圍：疊多個圖層時以最外層（第一份）的 display.range 建議為準（SPEC 第 8 節），
- * 否則用所有事件的實際範圍，前後各留 3% 呼吸空間。
+ * 初始可視範圍（壓縮座標 u）：疊多個圖層時以最外層（第一份）的 display.range 建議為準
+ * （SPEC 第 8 節），否則用所有事件的實際範圍，前後各留 3% 呼吸空間。
  */
-function initialDomainOf(sources: TimelineSource[]): [number, number] {
+function initialDomainOf(sources: TimelineSource[], warp: TimeWarp): [number, number] {
   let extent = eventsExtent(sources.map((s) => s.doc))
   const range = sources[0]?.doc.display?.range
   if (range && /^\d{4}$/.test(range.start) && /^\d{4}$/.test(range.end)) {
@@ -123,8 +147,10 @@ function initialDomainOf(sources: TimelineSource[]): [number, number] {
     const now = Date.now()
     return [now - 365 * DAY, now + 365 * DAY]
   }
-  const pad = (extent[1] - extent[0]) * 0.03
-  return [extent[0] - pad, extent[1] + pad]
+  const u0 = warp.toU(extent[0])
+  const u1 = warp.toU(extent[1])
+  const pad = (u1 - u0) * 0.03
+  return [u0 - pad, u1 + pad]
 }
 
 /** 關係類型的中文名稱（沒有自訂 label 時顯示） */
@@ -143,6 +169,7 @@ export function TimelineView({
   showDates = true,
   showYears = true,
   showRelations = true,
+  collapseGaps = false,
   selectedKey,
   onEventSelect,
 }: Props) {
@@ -150,7 +177,14 @@ export function TimelineView({
   const svgRef = useRef<SVGSVGElement>(null)
   const [width, setWidth] = useState(960)
 
-  const initialDomain = useMemo(() => initialDomainOf(sources), [sources])
+  // 時間 t ↔ 壓縮座標 u 的對應（不摺疊時為直通）。
+  // 之後所有座標運算（縮放、平移、排版）都在 u 空間進行
+  const warp = useMemo(
+    () => buildWarp(collectSpans(sources.map((s) => s.doc)), collapseGaps),
+    [sources, collapseGaps],
+  )
+
+  const initialDomain = useMemo(() => initialDomainOf(sources, warp), [sources, warp])
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
   // 這樣切換圖層顯示隱藏時，使用者已縮放的視野不會被重設。
@@ -158,6 +192,17 @@ export function TimelineView({
   const domain = domainState ?? initialDomain
   const domainRef = useRef(domain)
   domainRef.current = domain
+
+  // 摺疊開關或資料變動時 warp 會換：把已縮放的視野換算到新座標，畫面才不會跳走
+  const prevWarpRef = useRef(warp)
+  useEffect(() => {
+    const prev = prevWarpRef.current
+    if (prev === warp) return
+    setDomainState((d) =>
+      d ? [warp.toU(prev.toT(d[0])), warp.toU(prev.toT(d[1]))] : d,
+    )
+    prevWarpRef.current = warp
+  }, [warp])
 
   // 量測容器寬度，讓 SVG 跟著視窗伸縮
   useEffect(() => {
@@ -223,7 +268,8 @@ export function TimelineView({
   // ---- 排版計算 ----
   const layout = useMemo(() => {
     const [a, b] = domain
-    const x = (t: number) => ((t - a) / (b - a)) * width
+    // 先把真實時間換算到壓縮座標，再投影到像素
+    const x = (t: number) => ((warp.toU(t) - a) / (b - a)) * width
 
     let y = AXIS_H + 8
     let bandIndex = 0
@@ -371,7 +417,7 @@ export function TimelineView({
     )
 
     return { bands, relationLines, height: Math.max(y + 8, 320), x }
-  }, [sources, domain, width, showDates, showYears])
+  }, [sources, domain, width, showDates, showYears, warp])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -382,7 +428,26 @@ export function TimelineView({
     )
   }
 
-  const ticks = getTicks(domain, width)
+  // 可視範圍（真實時間）與其中的密集子區間（扣掉摺疊的空白）
+  const tView: [number, number] = [warp.toT(domain[0]), warp.toT(domain[1])]
+  const denseRanges: Array<[number, number]> = []
+  {
+    let cursor = tView[0]
+    for (const g of warp.gaps) {
+      if (g.tEnd <= tView[0] || g.tStart >= tView[1]) continue
+      if (g.tStart > cursor) denseRanges.push([cursor, g.tStart])
+      cursor = Math.max(cursor, g.tEnd)
+    }
+    if (cursor < tView[1]) denseRanges.push([cursor, tView[1]])
+  }
+  // 每段密集區依自己佔的像素寬各自產生刻度，摺疊區內不放刻度
+  const ticks = denseRanges.flatMap(([a, b]) => {
+    const px = ((warp.toU(b) - warp.toU(a)) / (domain[1] - domain[0])) * width
+    if (px < 50) return []
+    return getTicks([a, b], px).filter((d) => d.getTime() >= a && d.getTime() <= b)
+  })
+  // 壓縮座標 → 像素（畫斷軸記號用）
+  const xOfU = (u: number) => ((u - domain[0]) / (domain[1] - domain[0])) * width
 
   return (
     <div ref={containerRef} className="h-full w-full select-none overflow-y-auto">
@@ -449,8 +514,31 @@ export function TimelineView({
         ))}
         {/* 左上角：目前可視範圍 */}
         <text x={8} y={14} fontSize={11} fill="#94a3b8">
-          {formatRangeLabel(domain)}
+          {formatRangeLabel(tView)}
         </text>
+
+        {/* 斷軸記號：⫽ 加上「略過多久」，虛線貫穿到底 */}
+        {warp.gaps.map((g, i) => {
+          const xg = xOfU(g.uCenter)
+          if (xg < -30 || xg > width + 30) return null
+          return (
+            <g key={`gap-${i}`}>
+              <line x1={xg - 6} y1={AXIS_H - 5} x2={xg - 1} y2={AXIS_H + 5} stroke="#94a3b8" strokeWidth={1.5} />
+              <line x1={xg + 1} y1={AXIS_H - 5} x2={xg + 6} y2={AXIS_H + 5} stroke="#94a3b8" strokeWidth={1.5} />
+              <line
+                x1={xg}
+                y1={AXIS_H + 5}
+                x2={xg}
+                y2={layout.height}
+                stroke="#cbd5e1"
+                strokeDasharray="2 6"
+              />
+              <text x={xg} y={AXIS_H - 10} textAnchor="middle" fontSize={10} fill="#94a3b8">
+                {formatSkipped(g.skippedMs)}
+              </text>
+            </g>
+          )
+        })}
 
         {/* 軸線底色與標題 */}
         {layout.bands.map(({ key, label, color, bandTop, bandH }) => (

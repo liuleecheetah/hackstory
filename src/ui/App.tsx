@@ -48,6 +48,10 @@ export default function App() {
   const [showDates, setShowDates] = useState(true)
   const [showYears, setShowYears] = useState(true)
   const [showRelations, setShowRelations] = useState(true)
+  // 摺疊空白：預設聽第一份文件的 display.collapseGaps 建議（SPEC 第 8 節）
+  const [collapseGaps, setCollapseGaps] = useState(
+    () => INITIAL_DOCS[0]?.display?.collapseGaps ?? false,
+  )
   // 被點選的事件。關閉詳情卡不會清除選取——選取光環與亮起的關係線會留著，
   // 點時間軸空白處才會真正取消選取
   const [selection, setSelection] = useState<EventSelection | null>(null)
@@ -121,6 +125,7 @@ export default function App() {
         <div className="min-h-0 flex-1">
           <TimelineView
             sources={visibleSources}
+            collapseGaps={collapseGaps}
             selectedKey={selection?.key ?? null}
             onEventSelect={handleEventSelect}
           />
@@ -205,6 +210,15 @@ export default function App() {
             />
             顯示關係線
           </label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={collapseGaps}
+              onChange={(e) => setCollapseGaps(e.target.checked)}
+              className="accent-slate-700"
+            />
+            摺疊空白
+          </label>
         </span>
 
         {/* 尺度切換（像 Google 日曆） */}
@@ -247,6 +261,7 @@ export default function App() {
             showDates={showDates}
             showYears={showYears}
             showRelations={showRelations}
+            collapseGaps={collapseGaps}
             selectedKey={selection?.key ?? null}
             onEventSelect={handleEventSelect}
           />
