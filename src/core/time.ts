@@ -59,6 +59,35 @@ export function checkCalendarValue(value: string, precision: Precision): string 
   return null
 }
 
+/**
+ * 把絕對時間點展開成毫秒範圍。月／年精度誠實涵蓋整段期間，
+ * 不假裝知道確切日期。render 層與相對時間求解器共用。
+ */
+export function absolutePointRange(point: AbsoluteTimePoint): { start: number; end: number } {
+  const v = point.value
+  switch (point.precision) {
+    case 'year': {
+      const y = Number(v)
+      return { start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime() }
+    }
+    case 'month': {
+      const [y, m] = v.split('-').map(Number)
+      return { start: new Date(y, m - 1, 1).getTime(), end: new Date(y, m, 1).getTime() }
+    }
+    case 'day': {
+      const [y, m, d] = v.split('-').map(Number)
+      return { start: new Date(y, m - 1, d).getTime(), end: new Date(y, m - 1, d + 1).getTime() }
+    }
+    case 'minute': {
+      const [datePart, timePart] = v.split('T')
+      const [y, m, d] = datePart.split('-').map(Number)
+      const [hh, mm] = timePart.split(':').map(Number)
+      const start = new Date(y, m - 1, d, hh, mm).getTime()
+      return { start, end: start + 60_000 }
+    }
+  }
+}
+
 // ---- 日期部分 ----------------------------------------------------------
 
 // 接受的分隔符號：/ - . 與中文的 年 月 日

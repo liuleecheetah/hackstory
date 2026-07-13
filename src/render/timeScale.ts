@@ -3,6 +3,7 @@
 
 import { scaleTime } from 'd3-scale'
 import type { AbsoluteTimePoint } from '../core'
+import { absolutePointRange } from '../core'
 
 /** 一個時間點依精度展開成的「真實範圍」：例如 2010-06（月精度）涵蓋整個六月 */
 export interface TimeSpan {
@@ -10,30 +11,10 @@ export interface TimeSpan {
   end: Date
 }
 
-/** 把帶精度的時間點展開成範圍。月／年精度不假裝知道確切日期，而是涵蓋整段期間 */
+/** 把帶精度的時間點展開成範圍（換算邏輯在 core 的 absolutePointRange） */
 export function timePointToSpan(point: AbsoluteTimePoint): TimeSpan {
-  const v = point.value
-  switch (point.precision) {
-    case 'year': {
-      const y = Number(v)
-      return { start: new Date(y, 0, 1), end: new Date(y + 1, 0, 1) }
-    }
-    case 'month': {
-      const [y, m] = v.split('-').map(Number)
-      return { start: new Date(y, m - 1, 1), end: new Date(y, m, 1) }
-    }
-    case 'day': {
-      const [y, m, d] = v.split('-').map(Number)
-      return { start: new Date(y, m - 1, d), end: new Date(y, m - 1, d + 1) }
-    }
-    case 'minute': {
-      const [datePart, timePart] = v.split('T')
-      const [y, m, d] = datePart.split('-').map(Number)
-      const [hh, mm] = timePart.split(':').map(Number)
-      const start = new Date(y, m - 1, d, hh, mm)
-      return { start, end: new Date(start.getTime() + 60_000) }
-    }
-  }
+  const r = absolutePointRange(point)
+  return { start: new Date(r.start), end: new Date(r.end) }
 }
 
 /** 範圍的中點（毫秒），點事件畫在這裡 */

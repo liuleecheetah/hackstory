@@ -4,8 +4,14 @@
 // 也不知道「圖層」怎麼管理——它只負責把收到的多份文件畫出來。
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { AbsoluteTimePoint, HstEvent, TimelineDocument } from '../core'
-import { isAbsolute } from '../core'
+import type {
+  AbsoluteTimePoint,
+  HstEvent,
+  RelativeAnchor,
+  RelativeResolution,
+  TimelineDocument,
+} from '../core'
+import { isAbsolute, resolveRelativeEvents } from '../core'
 import type { TimeWarp } from './gaps'
 import { buildWarp, formatSkipped } from './gaps'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
@@ -44,6 +50,8 @@ export interface EventSelection {
   docTitle: string
   trackTitle: string
   color: string
+  /** 相對時間事件的說明（「在Ａ之後、在Ｂ之前」），絕對時間事件為空 */
+  relativeNote?: string | null
   /** 點擊位置（視窗座標），ui 用來決定詳情卡放哪裡 */
   clientX: number
   clientY: number
@@ -177,12 +185,23 @@ export function TimelineView({
   const svgRef = useRef<SVGSVGElement>(null)
   const [width, setWidth] = useState(960)
 
+  // 相對時間事件的推估位置（每份文件各自求解）
+  const resolvedBySource = useMemo(() => {
+    const map = new Map<string, RelativeResolution>()
+    for (const s of sources) map.set(s.id, resolveRelativeEvents(s.doc))
+    return map
+  }, [sources])
+
   // 時間 t ↔ 壓縮座標 u 的對應（不摺疊時為直通）。
-  // 之後所有座標運算（縮放、平移、排版）都在 u 空間進行
-  const warp = useMemo(
-    () => buildWarp(collectSpans(sources.map((s) => s.doc)), collapseGaps),
-    [sources, collapseGaps],
-  )
+  // 之後所有座標運算（縮放、平移、排版）都在 u 空間進行。
+  // 相對時間的推估位置也算進佔用範圍，避免它們掉進被摺疊的空白裡
+  const warp = useMemo(() => {
+    const spans = collectSpans(sources.map((s) => s.doc))
+    for (const s of sources) {
+      resolvedBySource.get(s.id)?.positions.forEach((t) => spans.push([t, t + 3_600_000]))
+    }
+    return buildWarp(spans, collapseGaps)
+  }, [sources, collapseGaps, resolvedBySource])
 
   const initialDomain = useMemo(() => initialDomainOf(sources, warp), [sources, warp])
 
@@ -276,6 +295,7 @@ export function TimelineView({
 
     const bands = sources.flatMap((source) => {
       const tracks = [...source.doc.tracks].sort((t1, t2) => (t1.order ?? 0) - (t2.order ?? 0))
+      const resolvedForSource = resolvedBySource.get(source.id)
       return tracks.map((track) => {
         // 顏色優先序：多軸文件以文件內的軸線配色區分（圖層色只當後備）；
         // 單軸文件以圖層色為主（面板改色才會生效）
@@ -283,27 +303,51 @@ export function TimelineView({
           tracks.length > 1
             ? track.color ?? source.color ?? PALETTE[bandIndex % PALETTE.length]
             : source.color ?? track.color ?? PALETTE[bandIndex % PALETTE.length]
-        // 單軸文件直接用文件標題；多軸文件標成「文件｜軸線」
+        // 單軸文件直接用文件標題；多軸文件標成「文件｜軸線」。
+        // 無法推估的相對時間事件不靜默——在軸線標題上註記
+        const unresolvedCount = (resolvedForSource?.unresolved ?? []).filter((u) =>
+          source.doc.events.some((e) => e.id === u.id && e.track === track.id),
+        ).length
         const label =
-          tracks.length === 1
+          (tracks.length === 1
             ? source.doc.meta.title
-            : `${source.doc.meta.title}｜${track.title}`
+            : `${source.doc.meta.title}｜${track.title}`) +
+          (unresolvedCount > 0 ? `（${unresolvedCount} 筆相對時間無法推估）` : '')
         bandIndex++
 
         const items = source.doc.events
           .filter((ev) => ev.track === track.id)
           .flatMap((ev) => {
             const start = ev.start
-            if (!isAbsolute(start)) return [] // 相對時間 Phase 2 才畫
-            const startSpan = timePointToSpan(start)
-            const endPoint = ev.end && isAbsolute(ev.end) ? (ev.end as AbsoluteTimePoint) : null
+            const estimate = !isAbsolute(start)
+            // 相對時間事件：用求解器的推估位置畫成虛線圓點
+            const estimatedT = estimate ? resolvedForSource?.positions.get(ev.id) : undefined
+            if (estimate && estimatedT === undefined) return [] // 無法推估（軸線標題已註記）
+            const startSpan = estimate
+              ? { start: new Date(estimatedT!), end: new Date(estimatedT!) }
+              : timePointToSpan(start as AbsoluteTimePoint)
+            const endPoint =
+              !estimate && ev.end && isAbsolute(ev.end) ? (ev.end as AbsoluteTimePoint) : null
+
+            // 相對時間的文字說明（詳情卡用）：「在Ａ之後、在Ｂ之前」
+            let relativeNote: string | null = null
+            if (estimate) {
+              const relRef = (start as RelativeAnchor).relative
+              const titleOf = (id: string) =>
+                source.doc.events.find((e) => e.id === id)?.title ?? id
+              const parts: string[] = []
+              if (relRef.after) parts.push(`在「${titleOf(relRef.after)}」之後`)
+              if (relRef.before) parts.push(`在「${titleOf(relRef.before)}」之前`)
+              relativeNote = parts.join('、')
+            }
 
             // 關鍵事件（importance 5）：放大、粗體、光暈，一眼看到
             const isKey = (ev.importance ?? 0) >= 5
             const dotR = isKey ? DOT_R + 2.5 : DOT_R
 
-            // 進行中事件（ongoing 且沒有 end）：長條一路畫到「今天」，右端淡出
-            const ongoing = ev.ongoing === true && !endPoint
+            // 進行中事件（ongoing 且沒有 end）：長條一路畫到「今天」，右端淡出。
+            // 推估位置的事件不適用（位置本身就不確定）
+            const ongoing = ev.ongoing === true && !endPoint && !estimate
 
             let kind: 'dot' | 'bar'
             let shapeL: number
@@ -331,8 +375,13 @@ export function TimelineView({
             }
 
             const text = truncate(ev.title, 16)
-            // 日期前綴（「顯示事件日期」「含年份」兩個勾選框控制）
-            const dateLabel = showDates ? formatPointShort(start, showYears) : ''
+            // 日期前綴（「顯示事件日期」「含年份」兩個勾選框控制）。
+            // 推估位置永遠標示「（推估）」——明確告訴讀者這不是真實日期
+            const dateLabel = estimate
+              ? '（推估）'
+              : showDates
+                ? formatPointShort(start as AbsoluteTimePoint, showYears)
+                : ''
             const labelW = estimateTextWidth(dateLabel ? `${dateLabel} ${text}` : text)
             // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
             const labelSide: 'right' | 'left' =
@@ -340,7 +389,21 @@ export function TimelineView({
             const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
             const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
             return [
-              { ev, kind, isKey, ongoing, shapeL, shapeR, label: text, dateLabel, labelSide, occL, occR },
+              {
+                ev,
+                kind,
+                isKey,
+                ongoing,
+                estimate,
+                relativeNote,
+                shapeL,
+                shapeR,
+                label: text,
+                dateLabel,
+                labelSide,
+                occL,
+                occR,
+              },
             ]
           })
           .sort((p, q) => p.occL - q.occL)
@@ -417,7 +480,7 @@ export function TimelineView({
     )
 
     return { bands, relationLines, height: Math.max(y + 8, 320), x }
-  }, [sources, domain, width, showDates, showYears, warp])
+  }, [sources, domain, width, showDates, showYears, warp, resolvedBySource])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -593,7 +656,7 @@ export function TimelineView({
         {/* 事件 */}
         {layout.bands.map(({ key, sourceId, docTitle, trackTitle, color, items }) => (
           <g key={key}>
-            {items.map(({ ev, kind, isKey, ongoing, shapeL, shapeR, label: text, dateLabel, labelSide, cy }) => {
+            {items.map(({ ev, kind, isKey, ongoing, estimate, relativeNote, shapeL, shapeR, label: text, dateLabel, labelSide, cy }) => {
               const fill = ev.color ?? color
               const eventKey = `${sourceId}/${ev.id}`
               const isSelected = selectedKey === eventKey
@@ -616,6 +679,7 @@ export function TimelineView({
                       docTitle,
                       trackTitle,
                       color: fill,
+                      relativeNote,
                       clientX: e.clientX,
                       clientY: e.clientY,
                     })
@@ -701,6 +765,17 @@ export function TimelineView({
                         />
                       )}
                     </>
+                  ) : estimate ? (
+                    /* 推估位置：虛線空心圓點，明確標示「這不是真實日期」 */
+                    <circle
+                      cx={(shapeL + shapeR) / 2}
+                      cy={cy}
+                      r={dotR}
+                      fill="#ffffff"
+                      stroke={fill}
+                      strokeWidth={2}
+                      strokeDasharray="3 2.5"
+                    />
                   ) : (
                     <circle cx={(shapeL + shapeR) / 2} cy={cy} r={dotR} fill={fill} />
                   )}

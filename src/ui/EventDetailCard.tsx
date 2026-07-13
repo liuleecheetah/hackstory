@@ -40,8 +40,11 @@ export function EventDetailCard({ selection, onClose, onToggleKey }: Props) {
     style.top = clientY + 14
   }
 
-  // 日期文字：起（—迄），依精度誠實顯示；進行中事件顯示「至今仍持續」
-  const startText = isAbsolute(event.start) ? formatPointLong(event.start) : '（相對時間）'
+  // 日期文字：起（—迄），依精度誠實顯示；進行中事件顯示「至今仍持續」；
+  // 相對時間事件顯示先後關係並註明畫面位置只是推估
+  const startText = isAbsolute(event.start)
+    ? formatPointLong(event.start)
+    : `${selection.relativeNote || '相對時間'}（畫面位置為推估）`
   const endText =
     event.end && isAbsolute(event.end)
       ? formatPointLong(event.end)

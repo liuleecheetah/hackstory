@@ -62,6 +62,13 @@
       "description": "沒有 end、標了 ongoing 的事件，長條會一路畫到今天，右端淡出表示還沒結束。",
       "start": { "value": "2024-09-01", "precision": "day" },
       "ongoing": true
+    },
+    {
+      "id": "evt-006",
+      "track": "main",
+      "title": "相對時間事件（只知道先後、不知道日期）",
+      "description": "start 不寫日期，改寫 relative：after／before 填其他事件的 id。畫面會以虛線空心圓點顯示推估位置，並標示「（推估）」。",
+      "start": { "relative": { "after": "evt-001", "before": "evt-002" } }
     }
   ],
 
