@@ -23,6 +23,8 @@ const SVG_ID = 'hackstory-timeline-svg'
 
 export function ExportDialog({ open, onClose, layers }: Props) {
   const [message, setMessage] = useState<string | null>(null)
+  // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
+  const [shareSrc, setShareSrc] = useState('')
 
   if (!open) return null
 
@@ -63,12 +65,22 @@ export function ExportDialog({ open, onClose, layers }: Props) {
   const embedUrl = `${window.location.origin}${window.location.pathname}?embed=1`
   const embedHtml = embedCode(embedUrl)
 
-  const handleCopyEmbed = () => {
+  const copy = (text: string, what: string) => {
     void navigator.clipboard
-      .writeText(embedHtml)
-      .then(() => say('已複製嵌入碼'))
+      .writeText(text)
+      .then(() => say(`已複製${what}`))
       .catch(() => say('複製失敗——請直接框選文字手動複製'))
   }
+
+  const handleCopyEmbed = () => copy(embedHtml, '嵌入碼')
+
+  // 分享連結與對應的嵌入碼
+  const shareBase = `${window.location.origin}${window.location.pathname}`
+  const trimmedSrc = shareSrc.trim()
+  const shareLink = trimmedSrc ? `${shareBase}?src=${encodeURIComponent(trimmedSrc)}` : ''
+  const shareEmbedHtml = trimmedSrc
+    ? embedCode(`${shareBase}?embed=1&src=${encodeURIComponent(trimmedSrc)}`)
+    : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -116,6 +128,59 @@ export function ExportDialog({ open, onClose, layers }: Props) {
                 <li className="text-xs text-slate-400">目前沒有圖層</li>
               )}
             </ul>
+          </section>
+
+          {/* 分享連結（免後端） */}
+          <section>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">分享連結</h3>
+            <p className="mb-2 text-xs leading-relaxed text-slate-400">
+              把上面下載的 .hst.json 放上任何公開網址（最簡單：GitHub 或 Gist 的 raw
+              網址），或直接用「公開的 Google 試算表」網址——貼進下面，就會產生一個開啟即見的分享連結。
+            </p>
+            <input
+              type="url"
+              value={shareSrc}
+              onChange={(e) => setShareSrc(e.target.value)}
+              placeholder="https://raw.githubusercontent.com/... 或 https://docs.google.com/spreadsheets/..."
+              className="mb-2 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+            {shareLink && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={shareLink}
+                    onFocus={(e) => e.target.select()}
+                    className="min-w-0 flex-1 rounded border border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs text-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copy(shareLink, '分享連結')}
+                    className="shrink-0 rounded bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+                  >
+                    複製連結
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={shareEmbedHtml}
+                    onFocus={(e) => e.target.select()}
+                    className="min-w-0 flex-1 rounded border border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs text-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copy(shareEmbedHtml, '嵌入碼')}
+                    className="shrink-0 rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+                  >
+                    複製嵌入碼
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  想同時分享多份：在連結後面繼續接 <code>&src=另一個網址</code>，開啟時會疊成多個圖層。
+                </p>
+              </div>
+            )}
           </section>
 
           {/* 圖片 */}

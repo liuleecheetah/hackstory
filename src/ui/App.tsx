@@ -1,9 +1,10 @@
 // ui 層：頁面外殼與工具列。
 // 預設載入「科幻小說的預言」與「現實世界的實現」兩份範本作為兩個圖層，
 // 展示多圖層對比；左側面板可顯示隱藏、排序、改配色，也能載入更多 .hst.json。
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import rawScifiVsReality from '../../examples/scifi-vs-reality.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
+import { loadFromUrl } from '../adapters/remote'
 import { useLayers } from '../compose/useLayers'
 import type { EventSelection, ScaleMode, ScaleRequest } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
@@ -19,9 +20,13 @@ const SCALE_LABELS: Record<ScaleMode, string> = {
   year: '年',
 }
 
+// 分享連結：網址帶 ?src=公開網址 時，載入分享的時間軸（可多個），不載入預設範例
+const SHARED_SRC_URLS = new URLSearchParams(window.location.search).getAll('src')
+
 // 預載的範例（模組載入時解析一次）：科幻與現實兩條軸在同一份文件裡，
 // 事件之間的 relations 會畫成關係線
-const INITIAL_RESULTS = [rawScifiVsReality].map((raw) => parseHstJson(raw))
+const INITIAL_RESULTS =
+  SHARED_SRC_URLS.length > 0 ? [] : [rawScifiVsReality].map((raw) => parseHstJson(raw))
 const INITIAL_DOCS = INITIAL_RESULTS.flatMap((r) => (r.ok ? [r.doc] : []))
 const INITIAL_ERRORS = INITIAL_RESULTS.flatMap((r) =>
   r.ok ? [] : r.errors.map((e) => `內建範例載入失敗 ${e.path}：${e.message}`),
@@ -52,6 +57,32 @@ export default function App() {
   const [collapseGaps, setCollapseGaps] = useState(
     () => INITIAL_DOCS[0]?.display?.collapseGaps ?? false,
   )
+
+  // 分享連結（?src=）：開啟時依序載入分享的時間軸，
+  // 第一份載入成功的文件決定「摺疊空白」的預設值
+  const sharedLoadedRef = useRef(false)
+  useEffect(() => {
+    if (SHARED_SRC_URLS.length === 0 || sharedLoadedRef.current) return
+    sharedLoadedRef.current = true
+    void (async () => {
+      let first = true
+      for (const url of SHARED_SRC_URLS) {
+        const result = await loadFromUrl(url)
+        if (result.ok) {
+          addLayer(result.doc)
+          if (first) {
+            setCollapseGaps(result.doc.display?.collapseGaps ?? false)
+            first = false
+          }
+          if (result.notice) {
+            setLoadErrors((prev) => [...prev, result.notice!])
+          }
+        } else {
+          setLoadErrors((prev) => [...prev, result.error])
+        }
+      }
+    })()
+  }, [addLayer])
   // 被點選的事件。關閉詳情卡不會清除選取——選取光環與亮起的關係線會留著，
   // 點時間軸空白處才會真正取消選取
   const [selection, setSelection] = useState<EventSelection | null>(null)
@@ -136,6 +167,13 @@ export default function App() {
             onClose={() => setCardVisible(false)}
             onToggleKey={handleToggleKey}
           />
+        )}
+        {loadErrors.length > 0 && (
+          <div className="border-t border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700">
+            {loadErrors.map((msg, i) => (
+              <p key={i}>{msg}</p>
+            ))}
+          </div>
         )}
         <footer className="border-t border-slate-100 px-3 py-1 text-right text-xs text-slate-400">
           以{' '}
