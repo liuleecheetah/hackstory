@@ -4,7 +4,7 @@
 // 鐵律：只能呼叫比它低的層（render、adapters、core）。
 
 import { useCallback, useMemo, useRef, useState } from 'react'
-import type { TimelineDocument } from '../core'
+import type { HstEvent, TimelineDocument } from '../core'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -89,6 +89,31 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     )
   }, [])
 
+  /** 以編輯後的事件整筆取代（id 與 track 由呼叫端保留）。匯出時會保存 */
+  const replaceEvent = useCallback((layerId: string, eventId: string, next: HstEvent) => {
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== layerId) return l
+        const events = l.doc.events.map((ev) => (ev.id === eventId ? next : ev))
+        return { ...l, doc: { ...l.doc, events } }
+      }),
+    )
+  }, [])
+
+  /** 刪除事件。指向它的關係線一併移除（否則檔案匯出後會驗證失敗） */
+  const removeEvent = useCallback((layerId: string, eventId: string) => {
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== layerId) return l
+        const events = l.doc.events.filter((ev) => ev.id !== eventId)
+        const relations = l.doc.relations?.filter(
+          (r) => r.from !== eventId && r.to !== eventId,
+        )
+        return { ...l, doc: { ...l.doc, events, ...(relations ? { relations } : {}) } }
+      }),
+    )
+  }, [])
+
   /** 重新命名圖層：改的是文件的標題（meta.title），匯出時也會帶著新名字 */
   const renameLayer = useCallback((id: string, title: string) => {
     setLayers((prev) =>
@@ -127,5 +152,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     moveLayer,
     renameLayer,
     setKeyEvent,
+    replaceEvent,
+    removeEvent,
   }
 }

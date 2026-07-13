@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import rawScifiVsReality from '../../examples/scifi-vs-reality.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
 import { loadFromUrl } from '../adapters/remote'
+import type { HstEvent } from '../core'
 import { useLayers } from '../compose/useLayers'
 import type { EventSelection, ScaleMode, ScaleRequest } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
@@ -44,6 +45,8 @@ export default function App() {
     moveLayer,
     renameLayer,
     setKeyEvent,
+    replaceEvent,
+    removeEvent,
   } = useLayers(INITIAL_DOCS)
   const [loadErrors, setLoadErrors] = useState<string[]>(INITIAL_ERRORS)
   const [scaleRequest, setScaleRequest] = useState<ScaleRequest | null>(null)
@@ -109,6 +112,31 @@ export default function App() {
       return { ...prev, event }
     })
   }, [setKeyEvent])
+
+  // 詳情卡的「儲存編輯」：更新圖層資料，同步更新卡片顯示
+  const handleUpdateEvent = useCallback(
+    (next: HstEvent) => {
+      setSelection((prev) => {
+        if (!prev) return prev
+        replaceEvent(prev.sourceId, prev.event.id, next)
+        return {
+          ...prev,
+          event: next,
+          // 改成絕對時間後不再是推估
+          relativeNote: 'relative' in (next.start as object) ? prev.relativeNote : null,
+        }
+      })
+    },
+    [replaceEvent],
+  )
+
+  // 詳情卡的「刪除」：移除事件（連同指向它的關係線）並清除選取
+  const handleDeleteEvent = useCallback(() => {
+    setSelection((prev) => {
+      if (prev) removeEvent(prev.sourceId, prev.event.id)
+      return null
+    })
+  }, [removeEvent])
 
   // Esc 兩段式：第一下關閉詳情卡（保留選取與關係線），第二下取消選取
   useEffect(() => {
@@ -321,6 +349,8 @@ export default function App() {
           selection={selection}
           onClose={() => setCardVisible(false)}
           onToggleKey={handleToggleKey}
+          onUpdate={handleUpdateEvent}
+          onDelete={handleDeleteEvent}
         />
       )}
     </div>
