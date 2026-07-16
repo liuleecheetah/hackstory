@@ -89,6 +89,15 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     )
   }, [])
 
+  /** 新增事件到指定圖層（id 由呼叫端產生）。匯出時會保存 */
+  const addEvent = useCallback((layerId: string, event: HstEvent) => {
+    setLayers((prev) =>
+      prev.map((l) =>
+        l.id === layerId ? { ...l, doc: { ...l.doc, events: [...l.doc.events, event] } } : l,
+      ),
+    )
+  }, [])
+
   /** 以編輯後的事件整筆取代（id 與 track 由呼叫端保留）。匯出時會保存 */
   const replaceEvent = useCallback((layerId: string, eventId: string, next: HstEvent) => {
     setLayers((prev) =>
@@ -152,6 +161,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     moveLayer,
     renameLayer,
     setKeyEvent,
+    addEvent,
     replaceEvent,
     removeEvent,
   }

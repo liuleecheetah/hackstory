@@ -6,8 +6,14 @@ import rawScifiVsReality from '../../examples/scifi-vs-reality.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
 import { loadFromUrl } from '../adapters/remote'
 import type { HstEvent } from '../core'
+import { parseDateTime } from '../core'
 import { useLayers } from '../compose/useLayers'
-import type { EventSelection, ScaleMode, ScaleRequest } from '../render/TimelineView'
+import type {
+  EventSelection,
+  NewEventDraft,
+  ScaleMode,
+  ScaleRequest,
+} from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
 import { EventDetailCard } from './EventDetailCard'
 import { ExportDialog } from './ExportDialog'
@@ -45,6 +51,7 @@ export default function App() {
     moveLayer,
     renameLayer,
     setKeyEvent,
+    addEvent,
     replaceEvent,
     removeEvent,
   } = useLayers(INITIAL_DOCS)
@@ -90,60 +97,101 @@ export default function App() {
   // 點時間軸空白處才會真正取消選取
   const [selection, setSelection] = useState<EventSelection | null>(null)
   const [cardVisible, setCardVisible] = useState(false)
+  // 新增模式：詳情卡是一張尚未加入圖層的草稿
+  const [createMode, setCreateMode] = useState(false)
 
   // render 層回報：點了事件 → 選取並開卡；點了空白處 → 全部清除
   const handleEventSelect = useCallback((sel: EventSelection | null) => {
     setSelection(sel)
     setCardVisible(sel !== null)
+    setCreateMode(false)
   }, [])
 
-  // 詳情卡上的「標示為關鍵事件」開關：更新圖層資料，也同步更新卡片顯示
-  const handleToggleKey = useCallback(() => {
-    setSelection((prev) => {
-      if (!prev) return prev
-      const nextKey = (prev.event.importance ?? 0) < 5
-      setKeyEvent(prev.sourceId, prev.event.id, nextKey)
-      const event = { ...prev.event }
-      if (nextKey) {
-        event.importance = 5
-      } else {
-        delete event.importance
-      }
-      return { ...prev, event }
+  // 在軸線空白處點兩下 → 以該位置的日期開「新增事件」表單
+  const handleEventCreate = useCallback((draft: NewEventDraft) => {
+    const parsed = parseDateTime(draft.dateRaw)
+    if (!parsed.ok) return
+    const event: HstEvent = {
+      id: `evt-${Date.now().toString(36)}`,
+      track: draft.trackId,
+      title: '',
+      start: parsed.start,
+    }
+    setSelection({
+      key: `draft/${event.id}`,
+      sourceId: draft.sourceId,
+      event,
+      docTitle: draft.docTitle,
+      trackTitle: draft.trackTitle,
+      color: draft.color,
+      relativeNote: null,
+      clientX: draft.clientX,
+      clientY: draft.clientY,
     })
-  }, [setKeyEvent])
+    setCardVisible(true)
+    setCreateMode(true)
+  }, [])
+
+  // 新增模式的「儲存」：把草稿加進圖層，然後轉成一般選取狀態
+  const handleCreateSave = useCallback(
+    (next: HstEvent) => {
+      if (!selection) return
+      addEvent(selection.sourceId, next)
+      setSelection({ ...selection, key: `${selection.sourceId}/${next.id}`, event: next })
+      setCreateMode(false)
+    },
+    [selection, addEvent],
+  )
+
+  // 詳情卡上的「標示為關鍵事件」開關：更新圖層資料，也同步更新卡片顯示。
+  // 注意：副作用（setKeyEvent 等）不能放進 setSelection 的更新函式裡——
+  // React 開發模式會把更新函式執行兩次，副作用就會重複
+  const handleToggleKey = useCallback(() => {
+    if (!selection) return
+    const nextKey = (selection.event.importance ?? 0) < 5
+    setKeyEvent(selection.sourceId, selection.event.id, nextKey)
+    const event = { ...selection.event }
+    if (nextKey) {
+      event.importance = 5
+    } else {
+      delete event.importance
+    }
+    setSelection({ ...selection, event })
+  }, [selection, setKeyEvent])
 
   // 詳情卡的「儲存編輯」：更新圖層資料，同步更新卡片顯示
   const handleUpdateEvent = useCallback(
     (next: HstEvent) => {
-      setSelection((prev) => {
-        if (!prev) return prev
-        replaceEvent(prev.sourceId, prev.event.id, next)
-        return {
-          ...prev,
-          event: next,
-          // 改成絕對時間後不再是推估
-          relativeNote: 'relative' in (next.start as object) ? prev.relativeNote : null,
-        }
+      if (!selection) return
+      replaceEvent(selection.sourceId, selection.event.id, next)
+      setSelection({
+        ...selection,
+        event: next,
+        // 改成絕對時間後不再是推估
+        relativeNote: 'relative' in (next.start as object) ? selection.relativeNote : null,
       })
     },
-    [replaceEvent],
+    [selection, replaceEvent],
   )
 
   // 詳情卡的「刪除」：移除事件（連同指向它的關係線）並清除選取
   const handleDeleteEvent = useCallback(() => {
-    setSelection((prev) => {
-      if (prev) removeEvent(prev.sourceId, prev.event.id)
-      return null
-    })
-  }, [removeEvent])
+    if (!selection) return
+    removeEvent(selection.sourceId, selection.event.id)
+    setSelection(null)
+  }, [selection, removeEvent])
 
-  // Esc 兩段式：第一下關閉詳情卡（保留選取與關係線），第二下取消選取
+  // Esc 兩段式：第一下關閉詳情卡（保留選取與關係線），第二下取消選取。
+  // 新增模式按 Esc 直接放棄草稿
   useEffect(() => {
     if (!selection) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (cardVisible) {
+      if (createMode) {
+        setSelection(null)
+        setCardVisible(false)
+        setCreateMode(false)
+      } else if (cardVisible) {
         setCardVisible(false)
       } else {
         setSelection(null)
@@ -151,7 +199,16 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selection, cardVisible])
+  }, [selection, cardVisible, createMode])
+
+  // 關閉詳情卡：新增模式＝放棄草稿，一般模式＝保留選取
+  const handleCardClose = useCallback(() => {
+    if (createMode) {
+      setSelection(null)
+      setCreateMode(false)
+    }
+    setCardVisible(false)
+  }, [createMode])
   // 嵌入模式（?embed=1）：只顯示乾淨的時間軸，給 iframe 用
   const isEmbed = new URLSearchParams(window.location.search).has('embed')
 
@@ -330,12 +387,13 @@ export default function App() {
             collapseGaps={collapseGaps}
             selectedKey={selection?.key ?? null}
             onEventSelect={handleEventSelect}
+            onEventCreate={handleEventCreate}
           />
         </div>
       </div>
 
       <footer className="border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
-        滑鼠滾輪：縮放　｜　按住拖曳：平移　｜　右上按鈕：切換日／週／月／年尺度　｜　左側面板：管理圖層
+        滑鼠滾輪：縮放　｜　按住拖曳：平移　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件　｜　左側面板：管理圖層
       </footer>
 
       <ImportDialog
@@ -347,10 +405,11 @@ export default function App() {
       {selection && cardVisible && (
         <EventDetailCard
           selection={selection}
-          onClose={() => setCardVisible(false)}
+          onClose={handleCardClose}
           onToggleKey={handleToggleKey}
-          onUpdate={handleUpdateEvent}
-          onDelete={handleDeleteEvent}
+          onUpdate={createMode ? handleCreateSave : handleUpdateEvent}
+          onDelete={createMode ? undefined : handleDeleteEvent}
+          createMode={createMode}
         />
       )}
     </div>

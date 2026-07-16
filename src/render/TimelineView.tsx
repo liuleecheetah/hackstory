@@ -57,6 +57,19 @@ export interface EventSelection {
   clientY: number
 }
 
+/** 使用者在軸線空白處點兩下：render 層回報位置資訊，由 ui 開「新增事件」表單 */
+export interface NewEventDraft {
+  sourceId: string
+  trackId: string
+  docTitle: string
+  trackTitle: string
+  color: string
+  /** 點擊位置對應的日期（如 2024/3/15，交給表單當預設值） */
+  dateRaw: string
+  clientX: number
+  clientY: number
+}
+
 interface Props {
   sources: TimelineSource[]
   scaleRequest?: ScaleRequest | null
@@ -74,6 +87,8 @@ interface Props {
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
   onEventSelect?: (selection: EventSelection | null) => void
+  /** 在軸線空白處點兩下 → 回報新增事件的草稿資訊（未提供時停用，例如嵌入模式） */
+  onEventCreate?: (draft: NewEventDraft) => void
 }
 
 const DAY = 86_400_000
@@ -180,6 +195,7 @@ export function TimelineView({
   collapseGaps = false,
   selectedKey,
   onEventSelect,
+  onEventCreate,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -417,6 +433,7 @@ export function TimelineView({
         return {
           key: `${source.id}/${track.id}`,
           sourceId: source.id,
+          trackId: track.id,
           docTitle: source.doc.meta.title,
           trackTitle: track.title,
           label,
@@ -539,6 +556,27 @@ export function TimelineView({
         onClick={() => {
           // 點空白處（不是拖曳）→ 取消選取
           if (!draggedRef.current) onEventSelect?.(null)
+        }}
+        onDoubleClick={(e) => {
+          // 在軸線空白處點兩下 → 以該位置的日期與軸線開「新增事件」
+          if (!onEventCreate) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const xPix = e.clientX - rect.left
+          const yPix = e.clientY - rect.top
+          const band = layout.bands.find((b) => yPix >= b.bandTop && yPix <= b.bandTop + b.bandH)
+          if (!band) return
+          const u = domain[0] + (xPix / width) * (domain[1] - domain[0])
+          const d = new Date(warp.toT(u))
+          onEventCreate({
+            sourceId: band.sourceId,
+            trackId: band.trackId,
+            docTitle: band.docTitle,
+            trackTitle: band.trackTitle,
+            color: band.color,
+            dateRaw: `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          })
         }}
       >
         {/* 進行中事件右端的淡出漸層 */}
@@ -666,8 +704,10 @@ export function TimelineView({
                 <g
                   key={ev.id}
                   className="cursor-pointer"
-                  // 按在事件上不啟動拖曳，讓 click 正常送達
+                  // 按在事件上不啟動拖曳，讓 click 正常送達；
+                  // 在事件上點兩下也不觸發「新增事件」
                   onPointerDown={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
                   onMouseEnter={() => setHoveredKey(eventKey)}
                   onMouseLeave={() => setHoveredKey((prev) => (prev === eventKey ? null : prev))}
                   onClick={(e) => {

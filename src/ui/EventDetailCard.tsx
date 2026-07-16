@@ -18,6 +18,8 @@ interface Props {
   onUpdate?: (next: HstEvent) => void
   /** 刪除事件。未提供時隱藏刪除按鈕 */
   onDelete?: () => void
+  /** 新增模式：直接開表單，取消＝放棄草稿（關閉卡片） */
+  createMode?: boolean
 }
 
 /** 查證程度的中文標籤與配色 */
@@ -43,18 +45,39 @@ interface FormState {
   confidence: string
 }
 
-export function EventDetailCard({ selection, onClose, onToggleKey, onUpdate, onDelete }: Props) {
+export function EventDetailCard({
+  selection,
+  onClose,
+  onToggleKey,
+  onUpdate,
+  onDelete,
+  createMode = false,
+}: Props) {
   const { event, docTitle, trackTitle, color, clientX, clientY } = selection
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<FormState | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // 換選不同事件時離開編輯模式
+  // 換選不同事件時離開編輯模式；新增模式直接開表單
   useEffect(() => {
-    setEditing(false)
     setFormError(null)
-  }, [selection.key])
+    if (createMode) {
+      setForm({
+        title: event.title,
+        startRaw: isAbsolute(event.start) ? (event.start.raw ?? event.start.value) : '',
+        endRaw: '',
+        description: '',
+        location: '',
+        tags: '',
+        confidence: '',
+      })
+      setEditing(true)
+    } else {
+      setEditing(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection.key, createMode])
 
   // 卡片位置：貼著點擊處，水平不出界；點在畫面下半部就往上開
   const style: CSSProperties = {
@@ -188,7 +211,7 @@ export function EventDetailCard({ selection, onClose, onToggleKey, onUpdate, onD
           style={{ backgroundColor: color }}
         />
         <h3 className="min-w-0 flex-1 text-sm font-bold leading-snug text-slate-800">
-          {editing ? '編輯事件' : event.title}
+          {editing ? (createMode ? '新增事件' : '編輯事件') : event.title}
         </h3>
         <button
           type="button"
@@ -291,8 +314,12 @@ export function EventDetailCard({ selection, onClose, onToggleKey, onUpdate, onD
             <button
               type="button"
               onClick={() => {
-                setEditing(false)
-                setFormError(null)
+                if (createMode) {
+                  onClose() // 放棄新增的草稿
+                } else {
+                  setEditing(false)
+                  setFormError(null)
+                }
               }}
               className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
             >
