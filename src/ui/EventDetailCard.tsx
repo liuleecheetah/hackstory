@@ -20,6 +20,22 @@ interface Props {
   onDelete?: () => void
   /** 新增模式：直接開表單，取消＝放棄草稿（關閉卡片） */
   createMode?: boolean
+  /** 這個事件的關係清單（含方向與對方標題），由 App 從圖層資料算好傳入 */
+  relations?: RelationInfo[]
+  /** 刪除一條關係（依文件內的索引） */
+  onRemoveRelation?: (index: number) => void
+  /** 進入「連結模式」：點選另一個事件建立關係 */
+  onStartLink?: () => void
+}
+
+export interface RelationInfo {
+  /** 在文件 relations 陣列中的索引 */
+  index: number
+  /** out = 此事件指向對方；in = 對方指向此事件 */
+  direction: 'out' | 'in'
+  typeLabel: string
+  label?: string
+  otherTitle: string
 }
 
 /** 查證程度的中文標籤與配色 */
@@ -52,6 +68,9 @@ export function EventDetailCard({
   onUpdate,
   onDelete,
   createMode = false,
+  relations = [],
+  onRemoveRelation,
+  onStartLink,
 }: Props) {
   const { event, docTitle, trackTitle, color, clientX, clientY } = selection
 
@@ -375,6 +394,51 @@ export function EventDetailCard({
                   </span>
                 ))}
               </p>
+            )}
+
+            {(relations.length > 0 || onStartLink) && (
+              <div>
+                <p className="mb-1 text-xs font-semibold text-slate-500">關係</p>
+                {relations.length > 0 && (
+                  <ul className="space-y-1">
+                    {relations.map((r) => (
+                      <li key={r.index} className="flex items-start gap-1 text-xs text-slate-600">
+                        <span className="min-w-0 flex-1 leading-relaxed">
+                          {r.direction === 'out' ? (
+                            <>
+                              此事件<b className="mx-0.5">{r.typeLabel}</b>「{r.otherTitle}」
+                            </>
+                          ) : (
+                            <>
+                              「{r.otherTitle}」<b className="mx-0.5">{r.typeLabel}</b>此事件
+                            </>
+                          )}
+                          {r.label && <span className="text-slate-400">（{r.label}）</span>}
+                        </span>
+                        {onRemoveRelation && (
+                          <button
+                            type="button"
+                            title="刪除這條關係"
+                            onClick={() => onRemoveRelation(r.index)}
+                            className="px-1 text-slate-300 hover:text-red-600"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {onStartLink && (
+                  <button
+                    type="button"
+                    onClick={onStartLink}
+                    className="mt-1.5 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-100"
+                  >
+                    ＋ 連到另一個事件
+                  </button>
+                )}
+              </div>
             )}
 
             {event.sources && event.sources.length > 0 && (

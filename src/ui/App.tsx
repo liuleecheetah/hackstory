@@ -1,11 +1,11 @@
 // ui 層：頁面外殼與工具列。
 // 預設載入「科幻小說的預言」與「現實世界的實現」兩份範本作為兩個圖層，
 // 展示多圖層對比；左側面板可顯示隱藏、排序、改配色，也能載入更多 .hst.json。
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import rawScifiVsReality from '../../examples/scifi-vs-reality.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
 import { loadFromUrl } from '../adapters/remote'
-import type { HstEvent } from '../core'
+import type { HstEvent, Relation, RelationType } from '../core'
 import { parseDateTime } from '../core'
 import { useLayers } from '../compose/useLayers'
 import type {
@@ -15,10 +15,21 @@ import type {
   ScaleRequest,
 } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
+import type { RelationInfo } from './EventDetailCard'
 import { EventDetailCard } from './EventDetailCard'
 import { ExportDialog } from './ExportDialog'
+import { RelationDialog } from './RelationDialog'
 import { ImportDialog } from './ImportDialog'
 import { LayerPanel } from './LayerPanel'
+
+/** 關係類型的中文名稱 */
+const REL_TYPE_LABELS: Record<string, string> = {
+  causes: '導致',
+  responds_to: '回應',
+  derives_from: '衍生自',
+  contradicts: '與之矛盾',
+  same_event: '同一事件',
+}
 
 const SCALE_LABELS: Record<ScaleMode, string> = {
   day: '日',
@@ -54,6 +65,8 @@ export default function App() {
     addEvent,
     replaceEvent,
     removeEvent,
+    addRelation,
+    removeRelation,
   } = useLayers(INITIAL_DOCS)
   const [loadErrors, setLoadErrors] = useState<string[]>(INITIAL_ERRORS)
   const [scaleRequest, setScaleRequest] = useState<ScaleRequest | null>(null)
@@ -99,13 +112,132 @@ export default function App() {
   const [cardVisible, setCardVisible] = useState(false)
   // 新增模式：詳情卡是一張尚未加入圖層的草稿
   const [createMode, setCreateMode] = useState(false)
-
-  // render 層回報：點了事件 → 選取並開卡；點了空白處 → 全部清除
-  const handleEventSelect = useCallback((sel: EventSelection | null) => {
-    setSelection(sel)
-    setCardVisible(sel !== null)
-    setCreateMode(false)
+  // 連結模式：從某事件出發，等使用者點選目標事件來建立關係
+  const [linking, setLinking] = useState<{
+    sourceId: string
+    fromId: string
+    fromTitle: string
+  } | null>(null)
+  // 連結模式點到目標後的「建立關係」表單
+  const [relationDraft, setRelationDraft] = useState<{
+    sourceId: string
+    fromId: string
+    fromTitle: string
+    toId: string
+    toTitle: string
+    clientX: number
+    clientY: number
+  } | null>(null)
+  // 短暫的提示訊息（例如跨檔案連結被擋下的原因）
+  const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimer = useRef<number | undefined>(undefined)
+  const showNotice = useCallback((msg: string) => {
+    setNotice(msg)
+    window.clearTimeout(noticeTimer.current)
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 4000)
   }, [])
+
+  // render 層回報：點了事件 → 選取並開卡；點了空白處 → 全部清除。
+  // 連結模式下，點擊改為「挑選關係的目標事件」
+  const handleEventSelect = useCallback(
+    (sel: EventSelection | null) => {
+      if (linking) {
+        if (!sel) {
+          setLinking(null)
+          setCardVisible(true)
+          return
+        }
+        if (sel.sourceId !== linking.sourceId) {
+          showNotice('關係只能連結同一份檔案內的事件（跨圖層請先合併成同一份 .hst.json）')
+          return
+        }
+        if (sel.event.id === linking.fromId) {
+          showNotice('不能把事件連到自己')
+          return
+        }
+        setRelationDraft({
+          sourceId: linking.sourceId,
+          fromId: linking.fromId,
+          fromTitle: linking.fromTitle,
+          toId: sel.event.id,
+          toTitle: sel.event.title,
+          clientX: sel.clientX,
+          clientY: sel.clientY,
+        })
+        setLinking(null)
+        return
+      }
+      setSelection(sel)
+      setCardVisible(sel !== null)
+      setCreateMode(false)
+    },
+    [linking, showNotice],
+  )
+
+  // 詳情卡的「＋連到另一個事件」：進入連結模式（先把卡片收起來，方便點目標）
+  const handleStartLink = useCallback(() => {
+    if (!selection) return
+    setLinking({
+      sourceId: selection.sourceId,
+      fromId: selection.event.id,
+      fromTitle: selection.event.title,
+    })
+    setCardVisible(false)
+  }, [selection])
+
+  // 建立關係表單的「建立」
+  const handleCreateRelation = useCallback(
+    (type: RelationType, label: string) => {
+      if (!relationDraft) return
+      const relation: Relation = { from: relationDraft.fromId, to: relationDraft.toId, type }
+      if (label.trim() !== '') relation.label = label.trim()
+      addRelation(relationDraft.sourceId, relation)
+      setRelationDraft(null)
+      setCardVisible(true) // 回到來源事件的卡片，可看到新關係
+    },
+    [relationDraft, addRelation],
+  )
+
+  // 目前選取事件的關係清單（含方向與對方標題），給詳情卡顯示
+  const selectedRelations = useMemo<RelationInfo[]>(() => {
+    if (!selection) return []
+    const layer = layers.find((l) => l.id === selection.sourceId)
+    if (!layer) return []
+    const titleOf = (id: string) => layer.doc.events.find((e) => e.id === id)?.title ?? id
+    return (layer.doc.relations ?? []).flatMap((r, index): RelationInfo[] => {
+      if (r.from === selection.event.id) {
+        return [
+          {
+            index,
+            direction: 'out' as const,
+            typeLabel: REL_TYPE_LABELS[r.type] ?? r.type,
+            label: r.label,
+            otherTitle: titleOf(r.to),
+          },
+        ]
+      }
+      if (r.to === selection.event.id) {
+        return [
+          {
+            index,
+            direction: 'in' as const,
+            typeLabel: REL_TYPE_LABELS[r.type] ?? r.type,
+            label: r.label,
+            otherTitle: titleOf(r.from),
+          },
+        ]
+      }
+      return []
+    })
+  }, [selection, layers])
+
+  const handleRemoveRelation = useCallback(
+    (index: number) => {
+      if (!selection) return
+      removeRelation(selection.sourceId, index)
+    },
+    [selection, removeRelation],
+  )
 
   // 在軸線空白處點兩下 → 以該位置的日期開「新增事件」表單
   const handleEventCreate = useCallback((draft: NewEventDraft) => {
@@ -187,7 +319,13 @@ export default function App() {
     if (!selection) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (createMode) {
+      if (relationDraft) {
+        setRelationDraft(null)
+        setCardVisible(true)
+      } else if (linking) {
+        setLinking(null)
+        setCardVisible(true)
+      } else if (createMode) {
         setSelection(null)
         setCardVisible(false)
         setCreateMode(false)
@@ -199,7 +337,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selection, cardVisible, createMode])
+  }, [selection, cardVisible, createMode, linking, relationDraft])
 
   // 關閉詳情卡：新增模式＝放棄草稿，一般模式＝保留選取
   const handleCardClose = useCallback(() => {
@@ -410,6 +548,37 @@ export default function App() {
           onUpdate={createMode ? handleCreateSave : handleUpdateEvent}
           onDelete={createMode ? undefined : handleDeleteEvent}
           createMode={createMode}
+          relations={createMode ? [] : selectedRelations}
+          onRemoveRelation={createMode ? undefined : handleRemoveRelation}
+          onStartLink={createMode ? undefined : handleStartLink}
+        />
+      )}
+
+      {/* 連結模式的提示橫幅 */}
+      {linking && (
+        <div className="fixed left-1/2 top-14 z-50 -translate-x-1/2 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 shadow">
+          連結模式：點選「{linking.fromTitle.slice(0, 12)}
+          {linking.fromTitle.length > 12 && '…'}」要連到的目標事件｜Esc 取消
+        </div>
+      )}
+      {notice && (
+        <div className="fixed left-1/2 top-24 z-50 -translate-x-1/2 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow">
+          {notice}
+        </div>
+      )}
+
+      {/* 建立關係的表單 */}
+      {relationDraft && (
+        <RelationDialog
+          fromTitle={relationDraft.fromTitle}
+          toTitle={relationDraft.toTitle}
+          clientX={relationDraft.clientX}
+          clientY={relationDraft.clientY}
+          onCreate={handleCreateRelation}
+          onCancel={() => {
+            setRelationDraft(null)
+            setCardVisible(true)
+          }}
         />
       )}
     </div>

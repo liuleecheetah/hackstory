@@ -4,7 +4,7 @@
 // 鐵律：只能呼叫比它低的層（render、adapters、core）。
 
 import { useCallback, useMemo, useRef, useState } from 'react'
-import type { HstEvent, TimelineDocument } from '../core'
+import type { HstEvent, Relation, TimelineDocument } from '../core'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -123,6 +123,28 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     )
   }, [])
 
+  /** 新增一條事件關係（畫面上的關係編輯器用）。匯出時會保存 */
+  const addRelation = useCallback((layerId: string, relation: Relation) => {
+    setLayers((prev) =>
+      prev.map((l) =>
+        l.id === layerId
+          ? { ...l, doc: { ...l.doc, relations: [...(l.doc.relations ?? []), relation] } }
+          : l,
+      ),
+    )
+  }, [])
+
+  /** 依索引刪除一條事件關係 */
+  const removeRelation = useCallback((layerId: string, index: number) => {
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== layerId) return l
+        const relations = (l.doc.relations ?? []).filter((_, i) => i !== index)
+        return { ...l, doc: { ...l.doc, relations } }
+      }),
+    )
+  }, [])
+
   /** 重新命名圖層：改的是文件的標題（meta.title），匯出時也會帶著新名字 */
   const renameLayer = useCallback((id: string, title: string) => {
     setLayers((prev) =>
@@ -164,5 +186,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     addEvent,
     replaceEvent,
     removeEvent,
+    addRelation,
+    removeRelation,
   }
 }
