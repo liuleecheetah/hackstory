@@ -13,7 +13,8 @@ import { formatPointLong } from '../render/timeScale'
 interface Props {
   selection: EventSelection
   onClose: () => void
-  onToggleKey: () => void
+  /** 切換關鍵事件。未提供時隱藏（唯讀檢視） */
+  onToggleKey?: () => void
   /** 儲存編輯後的事件。未提供時隱藏編輯功能（嵌入模式） */
   onUpdate?: (next: HstEvent) => void
   /** 刪除事件。未提供時隱藏刪除按鈕 */
@@ -28,6 +29,8 @@ interface Props {
   onStartLink?: () => void
   /** 相對時間下拉選單的選項（同檔案內、排除此事件），由 App 傳入 */
   eventOptions?: Array<{ id: string; title: string }>
+  /** 刪除前的影響預覽（受牽連的相對事件清單），附加在確認訊息裡 */
+  deleteWarning?: string
 }
 
 export interface RelationInfo {
@@ -78,6 +81,7 @@ export function EventDetailCard({
   onRemoveRelation,
   onStartLink,
   eventOptions = [],
+  deleteWarning = '',
 }: Props) {
   const { event, docTitle, trackTitle, color, clientX, clientY } = selection
 
@@ -448,15 +452,17 @@ export function EventDetailCard({
               <p className="text-slate-500">地點：{event.location.name}</p>
             )}
 
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={isKey}
-                onChange={onToggleKey}
-                className="accent-amber-500"
-              />
-              標示為關鍵事件（在時間軸上放大顯示）
-            </label>
+            {onToggleKey && (
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={isKey}
+                  onChange={onToggleKey}
+                  className="accent-amber-500"
+                />
+                標示為關鍵事件（在時間軸上放大顯示）
+              </label>
+            )}
 
             {event.tags && event.tags.length > 0 && (
               <p className="flex flex-wrap gap-1">
@@ -554,11 +560,10 @@ export function EventDetailCard({
                 <button
                   type="button"
                   onClick={() => {
-                    if (
-                      window.confirm(
-                        `確定要刪除「${event.title}」嗎？指向它的關係線也會一併移除。`,
-                      )
-                    ) {
+                    const message =
+                      `確定要刪除「${event.title}」嗎？指向它的關係線也會一併移除。` +
+                      (deleteWarning ? `\n\n${deleteWarning}` : '')
+                    if (window.confirm(message)) {
                       onDelete()
                     }
                   }}

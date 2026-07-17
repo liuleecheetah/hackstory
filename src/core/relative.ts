@@ -8,8 +8,97 @@
 // 2. 循環或互相矛盾的約束不亂畫——收進 unresolved 清單回報，絕不靜默。
 
 import { absolutePointRange } from './time'
-import type { RelativeAnchor, TimelineDocument } from './types'
+import type { HstEvent, RelativeAnchor, TimelineDocument } from './types'
 import { isAbsolute } from './types'
+
+/**
+ * 判斷 candidate 事件的相對時間鏈是否（直接或間接）依賴 target 事件。
+ * 介面用它過濾「之後／之前」下拉選單，防止使用者建立循環。
+ */
+export function relativeDependsOn(
+  doc: TimelineDocument,
+  candidateId: string,
+  targetId: string,
+): boolean {
+  const byId = new Map(doc.events.map((e) => [e.id, e]))
+  const seen = new Set<string>()
+  const walk = (id: string): boolean => {
+    if (id === targetId) return true
+    if (seen.has(id)) return false
+    seen.add(id)
+    const ev = byId.get(id)
+    if (!ev || isAbsolute(ev.start)) return false
+    const rel = (ev.start as RelativeAnchor).relative
+    return (rel.after !== undefined && walk(rel.after)) ||
+      (rel.before !== undefined && walk(rel.before))
+  }
+  return walk(candidateId)
+}
+
+export interface EventRemovalResult {
+  doc: TimelineDocument
+  /** 因失去所有相對時間參考而一併刪除的事件（可能連鎖） */
+  cascadeRemoved: HstEvent[]
+  /** 失去一個參考、但仍保留另一個而繼續存在的事件 */
+  referencesCleaned: HstEvent[]
+}
+
+/**
+ * 從文件中刪除一個事件，並處理所有連鎖影響：
+ * - 指向它的關係線一併移除
+ * - 其他事件的相對時間參考（after／before）指向它的，該參考被清除
+ * - 參考清空後一個不剩的相對事件，連鎖刪除（否則檔案會留下壞資料、無法通過驗證）
+ */
+export function removeEventFromDocument(
+  doc: TimelineDocument,
+  eventId: string,
+): EventRemovalResult {
+  const removedIds = new Set<string>([eventId])
+  let events = doc.events.filter((e) => e.id !== eventId)
+
+  // 反覆清理，直到沒有事件再受影響（連鎖可能一層層傳下去）
+  let changed = true
+  while (changed) {
+    changed = false
+    events = events.flatMap((ev) => {
+      if (isAbsolute(ev.start)) return [ev]
+      const rel = (ev.start as RelativeAnchor).relative
+      const hitAfter = rel.after !== undefined && removedIds.has(rel.after)
+      const hitBefore = rel.before !== undefined && removedIds.has(rel.before)
+      if (!hitAfter && !hitBefore) return [ev]
+      const after = hitAfter ? undefined : rel.after
+      const before = hitBefore ? undefined : rel.before
+      if (after === undefined && before === undefined) {
+        removedIds.add(ev.id)
+        changed = true
+        return []
+      }
+      return [
+        {
+          ...ev,
+          start: { relative: { ...(after ? { after } : {}), ...(before ? { before } : {}) } },
+        },
+      ]
+    })
+  }
+
+  const finalIds = new Set(events.map((e) => e.id))
+  const cascadeRemoved = doc.events.filter((e) => e.id !== eventId && !finalIds.has(e.id))
+  const referencesCleaned = events.filter((e) => {
+    const original = doc.events.find((o) => o.id === e.id)
+    return original !== undefined && original !== e
+  })
+
+  const relations = (doc.relations ?? []).filter(
+    (r) => !removedIds.has(r.from) && !removedIds.has(r.to),
+  )
+
+  return {
+    doc: { ...doc, events, ...(doc.relations ? { relations } : {}) },
+    cascadeRemoved,
+    referencesCleaned,
+  }
+}
 
 export interface UnresolvedRelative {
   id: string

@@ -11,13 +11,14 @@ import {
   svgToPngBlob,
 } from '../adapters/export'
 import type { Layer } from '../compose/useLayers'
+import { validateDocument } from '../core'
 
 interface Props {
   open: boolean
   onClose: () => void
   layers: Layer[]
-  /** 使用者下載了 .hst.json（用來清掉「尚未下載」的提示） */
-  onDownloaded?: () => void
+  /** 使用者下載了 .hst.json。coveredAll = 這次下載涵蓋了所有圖層 */
+  onDownloaded?: (coveredAll: boolean) => void
 }
 
 /** 畫面上時間軸 SVG 的 id（render 層掛的） */
@@ -76,6 +77,34 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
 
   const handleCopyEmbed = () => copy(embedHtml, '嵌入碼')
 
+  /** 下載一個圖層，下載前先做整份文件驗證——不合法就拒絕，避免產出壞檔案 */
+  const downloadLayer = (layer: Layer): boolean => {
+    const check = validateDocument(layer.doc)
+    if (!check.ok) {
+      const first = check.errors[0]
+      say(
+        `「${layer.doc.meta.title}」未通過驗證，未下載：${first ? `${first.path} ${first.message}` : ''}` +
+          (check.errors.length > 1 ? `（共 ${check.errors.length} 個問題）` : ''),
+      )
+      return false
+    }
+    downloadText(`${layer.doc.id}.hst.json`, documentToJson(layer.doc), 'application/json')
+    return true
+  }
+
+  const handleDownloadAll = () => {
+    let ok = 0
+    for (const layer of layers) {
+      if (downloadLayer(layer)) ok++
+    }
+    if (ok === layers.length) {
+      say(`已下載全部 ${ok} 份`)
+      onDownloaded?.(true)
+    } else {
+      say(`已下載 ${ok}／${layers.length} 份——有圖層未通過驗證，請修正後再下載`)
+    }
+  }
+
   // 分享連結與對應的嵌入碼
   const shareBase = `${window.location.origin}${window.location.pathname}`
   const trimmedSrc = shareSrc.trim()
@@ -113,13 +142,10 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      downloadText(
-                        `${layer.doc.id}.hst.json`,
-                        documentToJson(layer.doc),
-                        'application/json',
-                      )
-                      say(`已下載 ${layer.doc.id}.hst.json`)
-                      onDownloaded?.()
+                      if (downloadLayer(layer)) {
+                        say(`已下載 ${layer.doc.id}.hst.json`)
+                        onDownloaded?.(layers.length === 1)
+                      }
                     }}
                     className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
                   >
@@ -131,6 +157,15 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
                 <li className="text-xs text-slate-400">目前沒有圖層</li>
               )}
             </ul>
+            {layers.length > 1 && (
+              <button
+                type="button"
+                onClick={handleDownloadAll}
+                className="mt-2 rounded bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+              >
+                下載全部（{layers.length} 份）
+              </button>
+            )}
           </section>
 
           {/* 分享連結（免後端） */}

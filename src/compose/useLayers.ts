@@ -5,6 +5,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { HstEvent, Relation, TimelineDocument, Track } from '../core'
+import { removeEventFromDocument } from '../core'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -219,17 +220,16 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     )
   }, [])
 
-  /** 刪除事件。指向它的關係線一併移除（否則檔案匯出後會驗證失敗） */
+  /**
+   * 刪除事件。連鎖影響由 core 的 removeEventFromDocument 處理：
+   * 關係線、相對時間參考一併清理，失去所有參考的相對事件連鎖刪除，
+   * 保證刪除後的檔案仍通過 SPEC 驗證。
+   */
   const removeEvent = useCallback((layerId: string, eventId: string) => {
     mutate((prev) =>
-      prev.map((l) => {
-        if (l.id !== layerId) return l
-        const events = l.doc.events.filter((ev) => ev.id !== eventId)
-        const relations = l.doc.relations?.filter(
-          (r) => r.from !== eventId && r.to !== eventId,
-        )
-        return { ...l, doc: { ...l.doc, events, ...(relations ? { relations } : {}) } }
-      }),
+      prev.map((l) =>
+        l.id === layerId ? { ...l, doc: removeEventFromDocument(l.doc, eventId).doc } : l,
+      ),
     )
   }, [])
 

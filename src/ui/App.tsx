@@ -6,7 +6,12 @@ import rawScifiVsReality from '../../examples/scifi-vs-reality.hst.json?raw'
 import { parseHstJson } from '../adapters/json'
 import { loadFromUrl } from '../adapters/remote'
 import type { HstEvent, Relation, RelationType, RelativeAnchor, TimelineDocument } from '../core'
-import { isAbsolute, parseDateTime } from '../core'
+import {
+  isAbsolute,
+  parseDateTime,
+  relativeDependsOn,
+  removeEventFromDocument,
+} from '../core'
 import { useLayers } from '../compose/useLayers'
 import type {
   EventSelection,
@@ -385,13 +390,46 @@ export default function App() {
     [selection, addEvent, relativeNoteFor],
   )
 
-  // 相對時間下拉選單的選項：同一份檔案內、排除自己的所有事件
+  // 相對時間下拉選單的選項：同檔案內、排除自己，
+  // 並過濾掉「其相對時間鏈依賴目前事件」的選項——選了會形成循環
   const eventOptions = useMemo(() => {
     if (!selection) return []
     const layer = layers.find((l) => l.id === selection.sourceId)
-    return (layer?.doc.events ?? [])
-      .filter((e) => e.id !== selection.event.id)
+    if (!layer) return []
+    return layer.doc.events
+      .filter(
+        (e) =>
+          e.id !== selection.event.id &&
+          !relativeDependsOn(layer.doc, e.id, selection.event.id),
+      )
       .map((e) => ({ id: e.id, title: e.title }))
+  }, [selection, layers])
+
+  // 刪除前的影響預覽：哪些相對事件會失去參考、哪些會連鎖刪除（列進確認訊息）
+  const deleteWarning = useMemo(() => {
+    if (!selection) return ''
+    const layer = layers.find((l) => l.id === selection.sourceId)
+    if (!layer) return ''
+    const { cascadeRemoved, referencesCleaned } = removeEventFromDocument(
+      layer.doc,
+      selection.event.id,
+    )
+    const parts: string[] = []
+    if (cascadeRemoved.length > 0) {
+      parts.push(
+        `⚠ 這些相對時間事件將因失去所有參考而一併刪除：${cascadeRemoved
+          .map((e) => `「${e.title}」`)
+          .join('、')}`,
+      )
+    }
+    if (referencesCleaned.length > 0) {
+      parts.push(
+        `這些事件會改用剩下的另一個參考：${referencesCleaned
+          .map((e) => `「${e.title}」`)
+          .join('、')}`,
+      )
+    }
+    return parts.join('\n')
   }, [selection, layers])
 
   // 詳情卡上的「標示為關鍵事件」開關：更新圖層資料，也同步更新卡片顯示。
@@ -467,17 +505,37 @@ export default function App() {
   }, [createMode])
   // 嵌入模式（?embed=1）：只顯示乾淨的時間軸，給 iframe 用
   const isEmbed = new URLSearchParams(window.location.search).has('embed')
+  // 分享連結預設唯讀：看的人按「建立可編輯副本」後才開放編輯（並開始自動存草稿）
+  const isShareView = SHARED_SRC_URLS.length > 0
+  const [editableCopy, setEditableCopy] = useState(false)
+  const readOnly = isShareView && !editableCopy
 
   // ---- 防止編輯成果遺失 ----
   // 開啟時找到上次的草稿 → 詢問是否恢復；決定之前不會自動覆寫舊草稿
   const [pendingDraft, setPendingDraft] = useState<SavedDraft | null>(() => readSavedDraft())
   // 有修改但還沒下載保存
   const [dirty, setDirty] = useState(false)
+  // 草稿保存的真實狀態：畫面上顯示的訊息與實際寫入結果一致
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
-  // 自動保存草稿：任何圖層變動後 0.8 秒寫進瀏覽器
+  /** 立刻同步寫入草稿（自動保存與關頁補存共用） */
+  const writeDraftNow = useCallback((): boolean => {
+    try {
+      const draft: SavedDraft = {
+        savedAt: new Date().toISOString(),
+        layers: layers.map(({ doc, color, visible }) => ({ doc, color, visible })),
+      }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+      return true
+    } catch {
+      return false
+    }
+  }, [layers])
+
+  // 自動保存草稿：任何圖層變動後顯示「正在保存」，0.8 秒後寫入並回報真實結果
   const lastSavedLayersRef = useRef<typeof layers | null>(null)
   useEffect(() => {
-    if (isEmbed || SHARED_SRC_URLS.length > 0) return
+    if (isEmbed || readOnly) return
     if (pendingDraft !== null) return // 還沒決定是否恢復，先別覆寫舊草稿
     if (lastSavedLayersRef.current === null || lastSavedLayersRef.current === layers) {
       lastSavedLayersRef.current = layers // 首次或未變動（開發模式重跑）：不算修改
@@ -485,19 +543,24 @@ export default function App() {
     }
     lastSavedLayersRef.current = layers
     setDirty(true)
+    setSaveStatus('saving')
     const timer = window.setTimeout(() => {
-      try {
-        const draft: SavedDraft = {
-          savedAt: new Date().toISOString(),
-          layers: layers.map(({ doc, color, visible }) => ({ doc, color, visible })),
-        }
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-      } catch {
-        // 儲存空間不足等：略過（不擋操作，下載保存仍可用）
-      }
+      setSaveStatus(writeDraftNow() ? 'saved' : 'error')
     }, 800)
     return () => window.clearTimeout(timer)
-  }, [layers, pendingDraft, isEmbed])
+  }, [layers, pendingDraft, isEmbed, readOnly, writeDraftNow])
+
+  // 關閉頁面時同步補存最後一次修改（堵住 0.8 秒的保存空窗）
+  const flushRef = useRef<() => void>(() => {})
+  flushRef.current = () => {
+    if (isEmbed || readOnly || pendingDraft !== null || !dirty) return
+    writeDraftNow()
+  }
+  useEffect(() => {
+    const handler = () => flushRef.current()
+    window.addEventListener('pagehide', handler)
+    return () => window.removeEventListener('pagehide', handler)
+  }, [])
 
   // 有未下載的修改時，離開頁面前提醒
   useEffect(() => {
@@ -545,11 +608,7 @@ export default function App() {
           />
         </div>
         {selection && cardVisible && (
-          <EventDetailCard
-            selection={selection}
-            onClose={() => setCardVisible(false)}
-            onToggleKey={handleToggleKey}
-          />
+          <EventDetailCard selection={selection} onClose={() => setCardVisible(false)} />
         )}
         {loadErrors.length > 0 && (
           <div className="border-t border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700">
@@ -582,52 +641,95 @@ export default function App() {
           {layers.length} 個圖層，顯示中 {visibleSources.length} 個
         </span>
 
-        <button
-          type="button"
-          onClick={() => setImportOpen(true)}
-          className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          匯入 CSV / Google Sheet
-        </button>
-        <button
-          type="button"
-          onClick={() => setExportOpen(true)}
-          className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          匯出／分享
-        </button>
+        {readOnly ? (
+          <>
+            <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-500">
+              唯讀檢視（分享連結）
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setEditableCopy(true)
+                showNotice('已建立可編輯副本——之後的修改會自動存成這個瀏覽器的草稿')
+              }}
+              className="rounded-md bg-slate-800 px-3 py-1 text-sm text-white hover:bg-slate-700"
+            >
+              建立可編輯副本
+            </button>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              匯出／分享
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              匯入 CSV / Google Sheet
+            </button>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              匯出／分享
+            </button>
 
-        {/* 復原／重做 */}
-        <div className="flex overflow-hidden rounded-md border border-slate-300">
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={!canUndo}
-            title="復原（Ctrl/Cmd+Z）"
-            className="px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30"
-          >
-            ↩
-          </button>
-          <button
-            type="button"
-            onClick={handleRedo}
-            disabled={!canRedo}
-            title="重做（Ctrl/Cmd+Shift+Z）"
-            className="border-l border-slate-300 px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30"
-          >
-            ↪
-          </button>
-        </div>
+            {/* 復原／重做 */}
+            <div className="flex overflow-hidden rounded-md border border-slate-300">
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title="復原（Ctrl/Cmd+Z）"
+                className="px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+              >
+                ↩
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                title="重做（Ctrl/Cmd+Shift+Z）"
+                className="border-l border-slate-300 px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+              >
+                ↪
+              </button>
+            </div>
 
-        {dirty && (
-          <button
-            type="button"
-            onClick={() => setExportOpen(true)}
-            title="修改已自動存為瀏覽器草稿；下載 .hst.json 才是永久保存。點我開啟匯出"
-            className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800 hover:bg-amber-100"
-          >
-            草稿已自動保存（尚未下載）
-          </button>
+            {/* 草稿保存狀態：顯示的訊息與實際寫入結果一致 */}
+            {dirty && saveStatus === 'saving' && (
+              <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
+                正在保存草稿…
+              </span>
+            )}
+            {dirty && saveStatus === 'saved' && (
+              <button
+                type="button"
+                onClick={() => setExportOpen(true)}
+                title="修改已存為瀏覽器草稿；下載 .hst.json 才是永久保存。點我開啟匯出"
+                className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800 hover:bg-amber-100"
+              >
+                草稿已保存（尚未下載）
+              </button>
+            )}
+            {dirty && saveStatus === 'error' && (
+              <button
+                type="button"
+                onClick={() => setExportOpen(true)}
+                title="瀏覽器無法寫入草稿（可能空間不足或被封鎖）。請立即下載 .hst.json 保存"
+                className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+              >
+                ⚠ 草稿保存失敗——請立即下載
+              </button>
+            )}
+          </>
         )}
 
         <span className="ml-auto flex items-center gap-3">
@@ -699,6 +801,7 @@ export default function App() {
         <LayerPanel
           layers={layers}
           errors={loadErrors}
+          readOnly={readOnly}
           onToggle={toggleVisible}
           onMove={moveLayer}
           onRemove={removeLayer}
@@ -722,7 +825,7 @@ export default function App() {
             collapseGaps={collapseGaps}
             selectedKey={selection?.key ?? null}
             onEventSelect={handleEventSelect}
-            onEventCreate={handleEventCreate}
+            onEventCreate={readOnly ? undefined : handleEventCreate}
           />
         </div>
       </div>
@@ -740,20 +843,24 @@ export default function App() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         layers={layers}
-        onDownloaded={() => setDirty(false)}
+        onDownloaded={(coveredAll) => {
+          // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
+          if (coveredAll) setDirty(false)
+        }}
       />
       {selection && cardVisible && (
         <EventDetailCard
           selection={selection}
           onClose={handleCardClose}
-          onToggleKey={handleToggleKey}
-          onUpdate={createMode ? handleCreateSave : handleUpdateEvent}
-          onDelete={createMode ? undefined : handleDeleteEvent}
+          onToggleKey={readOnly ? undefined : handleToggleKey}
+          onUpdate={readOnly ? undefined : createMode ? handleCreateSave : handleUpdateEvent}
+          onDelete={readOnly || createMode ? undefined : handleDeleteEvent}
           createMode={createMode}
           relations={createMode ? [] : selectedRelations}
-          onRemoveRelation={createMode ? undefined : handleRemoveRelation}
-          onStartLink={createMode ? undefined : handleStartLink}
+          onRemoveRelation={readOnly || createMode ? undefined : handleRemoveRelation}
+          onStartLink={readOnly || createMode ? undefined : handleStartLink}
           eventOptions={eventOptions}
+          deleteWarning={deleteWarning}
         />
       )}
 
