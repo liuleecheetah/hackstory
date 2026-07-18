@@ -830,8 +830,19 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
-        滑鼠滾輪：縮放　｜　按住拖曳：平移　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件　｜　左側面板：管理圖層
+      <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
+        <span>
+          滑鼠滾輪：縮放　｜　按住拖曳：平移　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件　｜　左側面板：管理圖層
+        </span>
+        {/* Beta 測試：讓測試者隨手就能回報問題，不必先去讀 README */}
+        <a
+          href="https://github.com/liuleecheetah/hackstory-next/issues/new/choose"
+          target="_blank"
+          rel="noreferrer"
+          className="ml-auto rounded border border-slate-200 px-2 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        >
+          🧪 Beta 測試中，回報問題或給建議
+        </a>
       </footer>
 
       <ImportDialog
