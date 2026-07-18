@@ -96,7 +96,7 @@ npm run preview    # 預覽正式版建置結果
 
 一條時間軸就是一個 `.hst.json` 檔案。完整規格見 [SPEC.md](SPEC.md)；想直接動手的話，[examples/template.hst.json](examples/template.hst.json) 和 [examples/template.csv](examples/template.csv) 是可以拿去改的起手範本。
 
-`examples/` 也收錄真實資料：台灣婚姻平權進程、食安事件、以及預設展示的「科幻預言與現實對照」（科幻小說寫下未來 vs 現實世界實現，用關係線串起「未來遲到的年數」）。`dirty-sample.csv` 故意保留各種壞資料，用來檢驗匯入器。
+`examples/` 也收錄真實資料：台灣婚姻平權進程、二二八事件（國民政府行動／台灣菁英受難／地方抗爭三軸並陳，用關係線串起彼此的因果）、以及預設展示的「科幻預言與現實對照」（科幻小說寫下未來 vs 現實世界實現，用關係線串起「未來遲到的年數」）。`dirty-sample.csv` 故意保留各種壞資料，用來檢驗匯入器。
 
 ---
 

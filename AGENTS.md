@@ -171,7 +171,7 @@
 `examples/` 目錄放真實資料，不要用 `Lorem ipsum`：
 
 - `marriage-equality.hst.json` — 同婚立法 + 平權運動（來自原始 Google Sheet）
-- `food-safety.hst.json` — 食安事件（含模糊日期「2010年6月」）
+- `228-incident.hst.json` — 二二八事件（國民政府與軍事行動／台灣菁英受難／地方抗爭與民間自治，三軸並排、含跨軸關係線）
 - `dirty-sample.csv` — **故意保留所有壞資料**（重複列、欄位錯位、無效日期），用來測匯入器
 
 **規格好不好，用真實的髒資料來檢驗，不要用乾淨的假資料自我感覺良好。**
