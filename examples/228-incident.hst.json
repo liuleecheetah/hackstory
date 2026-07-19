@@ -1,0 +1,349 @@
+{
+  "hackstory": "0.2",
+  "id": "tw-228-incident",
+  "meta": {
+    "title": "二二八事件",
+    "subtitle": "1947 年台灣：國家暴力、菁英受難與地方抗爭三線並陳",
+    "description": "以三條軸線並排整理 1947 年二二八事件：國民政府與軍隊的行動、台灣菁英遭到殺害、各地的抗爭與民間自治。目的是讓「政府做了什麼」「誰因此受難」「民間如何反應」三件事在同一時間尺度上被看見彼此的因果與先後。事件日期以公開史料整理，供公民教育與公共討論使用。",
+    "authors": [
+      { "name": "HackStory 專案", "url": "https://g0v.tw" }
+    ],
+    "license": "CC-BY-4.0",
+    "language": "zh-TW",
+    "topics": ["台灣史", "轉型正義", "二二八", "人權", "國家暴力"],
+    "created": "2026-07-18",
+    "updated": "2026-07-18",
+    "revision": 1,
+    "source": {
+      "type": "manual",
+      "url": "https://www.228.org.tw/"
+    }
+  },
+
+  "tracks": [
+    {
+      "id": "gov",
+      "title": "國民政府與軍事行動",
+      "description": "行政長官公署、軍隊與情治系統的行動：緝菸血案、開槍、調兵登陸、戒嚴與綏靖清鄉。",
+      "color": "#475569",
+      "order": 1
+    },
+    {
+      "id": "elites",
+      "title": "台灣菁英受難",
+      "description": "在清鄉與鎮壓中遭逮捕、失蹤、未經審判即遭處決的地方仕紳、議員、醫師、律師與知識分子。",
+      "color": "#b91c1c",
+      "order": 2
+    },
+    {
+      "id": "resistance",
+      "title": "地方抗爭與民間自治",
+      "description": "各地民眾的反應：處理委員會的政治改革要求、地方民兵武裝，以及二七部隊等武裝抵抗。",
+      "color": "#b45309",
+      "order": 3
+    }
+  ],
+
+  "events": [
+    {
+      "id": "evt-g01",
+      "track": "gov",
+      "title": "國民政府接收臺灣，陳儀出任臺灣省行政長官",
+      "description": "二戰結束後，國民政府於 1945 年 10 月接收臺灣，設臺灣省行政長官公署，陳儀任行政長官兼警備總司令。接收後一年多間，通貨膨脹、米糧短缺、官員貪腐與本省人受排擠的問題不斷累積，成為二二八事件爆發的結構背景。",
+      "start": { "value": "1945-10-25", "precision": "day", "raw": "1945/10/25" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["接收", "陳儀", "背景"]
+    },
+    {
+      "id": "evt-g02",
+      "track": "gov",
+      "title": "天馬茶房緝菸血案：查緝員打傷菸販、槍傷路人致死",
+      "description": "專賣局查緝員在台北市天馬茶房附近查緝私菸，以槍托打傷女菸販林江邁頭部；查緝員傅學通向逃散人群開槍，擊中路人陳文溪（隔日死亡）。此案點燃民眾長期累積的怨氣，隔日擴大為全島性的二二八事件。",
+      "start": { "value": "1947-02-27", "precision": "day", "raw": "1947/2/27" },
+      "location": { "name": "台北市，天馬茶房" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["緝菸血案", "導火線"],
+      "sources": [
+        { "title": "二二八遺址資料庫—天馬茶房（二二八事件紀念基金會）", "url": "https://www.228.org.tw/eseki-view.php?ID=1" }
+      ]
+    },
+    {
+      "id": "evt-g03",
+      "track": "gov",
+      "title": "民眾赴行政長官公署請願，遭衛兵開槍掃射",
+      "description": "2 月 28 日台北罷市罷工，民眾遊行至專賣局抗議，再赴行政長官公署請願，卻遭公署衛兵以機槍掃射，造成傷亡。消息傳開後，抗爭迅速蔓延全島。",
+      "start": { "value": "1947-02-28", "precision": "day", "raw": "1947/2/28" },
+      "location": { "name": "臺灣省行政長官公署，台北" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["長官公署", "開槍", "全島爆發"]
+    },
+    {
+      "id": "evt-g04",
+      "track": "gov",
+      "title": "高雄要塞司令彭孟緝出兵鎮壓（高雄大屠殺）",
+      "description": "高雄要塞司令彭孟緝率軍下山，殺害前來交涉的高雄二二八事件處理委員會代表，並派兵向高雄市政府、火車站一帶開會與聚集的民眾掃射，造成慘重傷亡。這是全島軍事鎮壓中最早、最血腥的行動之一。",
+      "start": { "value": "1947-03-06", "precision": "day", "raw": "1947/3/6" },
+      "location": { "name": "高雄市" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["高雄", "彭孟緝", "屠殺"]
+    },
+    {
+      "id": "evt-g05",
+      "track": "gov",
+      "title": "蔣介石派整編第 21 師由基隆登陸鎮壓",
+      "description": "應陳儀請求，蔣介石自中國調派軍隊來台。3 月 8 日中午起，劉雨卿所率整編第 21 師與憲兵第 4 團約七千兵力陸續自基隆港登陸，另有約三千兵力自高雄港登陸，全台隨即進入大規模軍事鎮壓。",
+      "start": { "value": "1947-03-08", "precision": "day", "raw": "1947/3/8" },
+      "location": { "name": "基隆港" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["整編21師", "登陸", "鎮壓"]
+    },
+    {
+      "id": "evt-g06",
+      "track": "gov",
+      "title": "陳儀宣布全臺戒嚴，解散處理委員會",
+      "description": "軍隊登陸後，3 月 10 日陳儀宣布全臺戒嚴，下令解散二二八事件處理委員會等民間團體，並展開全面的綏靖與清鄉，逮捕與處決行動大量發生。",
+      "start": { "value": "1947-03-10", "precision": "day", "raw": "1947/3/10" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["戒嚴", "解散處委會"]
+    },
+    {
+      "id": "evt-g07",
+      "track": "gov",
+      "title": "綏靖與清鄉（大規模逮捕與處決）",
+      "description": "軍隊登陸後展開的「綏靖」與「清鄉」，以肅清異己為名進行逐戶清查、逮捕與處決，許多地方仕紳與知識菁英在此期間失蹤或被殺，是二二八事件死傷最慘重的階段。清鄉至 5 月中魏道明就任後才對外宣告結束。",
+      "start": { "value": "1947-03-09", "precision": "day", "raw": "1947/3/9" },
+      "end": { "value": "1947-05-16", "precision": "day" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["綏靖", "清鄉"]
+    },
+    {
+      "id": "evt-g08",
+      "track": "gov",
+      "title": "行政院決議撤銷行政長官公署，改設省政府",
+      "description": "4 月 22 日行政院會議決議撤銷臺灣省行政長官公署，改組為臺灣省政府，並任命魏道明為首任省主席。陳儀去職，於 5 月返回南京。",
+      "start": { "value": "1947-04-22", "precision": "day", "raw": "1947/4/22" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["撤銷公署", "陳儀去職"]
+    },
+    {
+      "id": "evt-g09",
+      "track": "gov",
+      "title": "魏道明就任省主席，宣布解除戒嚴、結束清鄉",
+      "description": "5 月 16 日首任臺灣省政府主席魏道明在台北宣誓就職，宣布解除戒嚴令、結束清鄉工作，並廢除新聞、圖書及郵電檢查。二二八事件的公開武力鎮壓階段至此告一段落，但清算與白色恐怖的陰影延續多年。",
+      "start": { "value": "1947-05-16", "precision": "day", "raw": "1947/5/16" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["魏道明", "解除戒嚴"]
+    },
+
+    {
+      "id": "evt-e01",
+      "track": "elites",
+      "title": "林茂生（台大文學院代理院長）遭便衣帶走，從此失蹤",
+      "description": "林茂生為台灣第一位留美哲學博士、時任台灣大學文學院代理院長。3 月 11 日清晨遭數名便衣人員以「長官約談」為由帶走，此後下落不明，遺體始終未尋獲，被視為二二八事件中知識菁英遭祕密處決的代表案例。",
+      "start": { "value": "1947-03-11", "precision": "day", "raw": "1947/3/11" },
+      "location": { "name": "台北" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["林茂生", "失蹤", "知識菁英"]
+    },
+    {
+      "id": "evt-e02",
+      "track": "elites",
+      "title": "王添灯（省參議員、處委會宣傳組長）被捕遇害",
+      "description": "王添灯為台灣省參議員、二二八事件處理委員會宣傳組長，是四十二條處理大綱的主要起草與宣讀者。3 月 11 日遭逮捕，其後遇害，遺體未還，是處理委員會核心成員遭清算的代表。",
+      "start": { "value": "1947-03-11", "precision": "day", "raw": "1947/3/11" },
+      "location": { "name": "台北" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["王添灯", "處委會", "遇害"]
+    },
+    {
+      "id": "evt-e03",
+      "track": "elites",
+      "title": "湯德章律師於台南民生綠園公開槍決",
+      "description": "湯德章為台南律師、二二八事件處理委員會台南市分會治安組長。3 月 12 日被捕，遭反綁懸吊刑求一夜、肋骨被托槍打斷；13 日被反綁雙腕、背插名牌押上卡車遊街，於民生綠園（今湯德章紀念公園）公開槍決，槍決後不准家屬收屍。行政院《二二八事件研究報告》稱「湯德章之死，臺南市民同聲冤」。",
+      "start": { "value": "1947-03-13", "precision": "day", "raw": "1947/3/13" },
+      "location": { "name": "台南，民生綠園（今湯德章紀念公園）" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["湯德章", "台南", "公開槍決"],
+      "sources": [
+        { "title": "湯德章 - 維基百科", "url": "https://zh.wikipedia.org/wiki/%E6%B9%AF%E5%BE%B7%E7%AB%A0" }
+      ]
+    },
+    {
+      "id": "evt-e04",
+      "track": "elites",
+      "title": "陳澄波等嘉義和平談判代表於嘉義車站前公開槍決",
+      "description": "3 月 25 日，代表嘉義市民前往水上機場與國軍和平談判的代表——畫家暨嘉義市參議員陳澄波、醫師潘木枝、牙醫盧鈵欽、戲院經營者柯麟等人，未經任何審判即被押至嘉義火車站前公開槍決示眾。陳澄波是台灣美術史上最重要的油畫家之一。",
+      "start": { "value": "1947-03-25", "precision": "day", "raw": "1947/3/25" },
+      "location": { "name": "嘉義火車站前" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["陳澄波", "嘉義", "談判代表", "公開槍決"],
+      "sources": [
+        { "title": "陳澄波 - 二二八事件紀念基金會", "url": "https://www.228.org.tw/228_elites-view.php?ID=1" }
+      ]
+    },
+    {
+      "id": "evt-e05",
+      "track": "elites",
+      "title": "張七郎與二子在花蓮遭殺害",
+      "description": "張七郎為花蓮縣參議會議長、制憲國民大會代表。4 月 4 日夜，張七郎與兒子張宗仁、張果仁一同被軍隊帶走殺害，父子三人同日罹難，是東部菁英受難的代表案例。",
+      "start": { "value": "1947-04-04", "precision": "day", "raw": "1947/4/4" },
+      "location": { "name": "花蓮" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["張七郎", "花蓮", "父子同難"]
+    },
+
+    {
+      "id": "evt-r01",
+      "track": "resistance",
+      "title": "台中市民大會，謝雪紅號召接收官署、組織民兵",
+      "description": "3 月 2 日謝雪紅在台中召開市民大會，民眾接收縣市機關、警局與武器，組成民兵維持秩序，台中一度由民間掌控，是各地民眾自組武裝反應的代表。",
+      "start": { "value": "1947-03-02", "precision": "day", "raw": "1947/3/2" },
+      "location": { "name": "台中" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["台中", "謝雪紅", "民兵"]
+    },
+    {
+      "id": "evt-r02",
+      "track": "resistance",
+      "title": "二二八事件處理委員會成立",
+      "description": "由台北的緝菸血案調查委員會改組擴大，各地仕紳、議員與民意代表組成二二八事件處理委員會，作為民間與官方交涉、恢復秩序並提出政治改革的自治性組織。3 月 10 日遭陳儀下令解散。",
+      "start": { "value": "1947-03-02", "precision": "day", "raw": "1947/3/2" },
+      "location": { "name": "台北" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["處理委員會", "民間自治"]
+    },
+    {
+      "id": "evt-r03",
+      "track": "resistance",
+      "title": "嘉義民軍圍攻水上機場",
+      "description": "嘉義民眾與各地趕來支援的民軍（含原住民與學生），自 3 月初起包圍國軍據守的水上機場，雙方對峙近半月。後由市參議員等出面與國軍和談，多位談判代表卻反遭逮捕、槍決。",
+      "start": { "value": "1947-03-02", "precision": "day", "raw": "1947/3/2" },
+      "end": { "value": "1947-03-11", "precision": "day" },
+      "location": { "name": "嘉義水上機場" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["嘉義", "民軍", "水上機場"]
+    },
+    {
+      "id": "evt-r04",
+      "track": "resistance",
+      "title": "謝雪紅、鍾逸人在台中組成二七部隊",
+      "description": "3 月 6 日，謝雪紅、鍾逸人等人糾集台灣中部青年與學生約四百餘人組成武裝部隊，以事件導火線之日命名為「二七部隊」，謝雪紅任總指揮、鍾逸人任部隊長，是二二八事件中組織最完整的民間武裝。",
+      "start": { "value": "1947-03-06", "precision": "day", "raw": "1947/3/6" },
+      "location": { "name": "台中" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["二七部隊", "台中", "武裝抵抗"]
+    },
+    {
+      "id": "evt-r05",
+      "track": "resistance",
+      "title": "處理委員會通過四十二條處理大綱",
+      "description": "3 月 7 日，二二八事件處理委員會通過《四十二條處理大綱》，提出撤銷行政長官公署改設省政府、各處長由本省人擔任、縣市長民選、軍警職位優先任用本省人等政治改革要求。隔日國軍即登陸鎮壓。",
+      "start": { "value": "1947-03-07", "precision": "day", "raw": "1947/3/7" },
+      "location": { "name": "台北" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["四十二條", "政治改革"]
+    },
+    {
+      "id": "evt-r06",
+      "track": "resistance",
+      "title": "二七部隊撤往埔里",
+      "description": "面對國軍南下壓境，二七部隊為避免台中市區遭波及、保存實力，於 3 月 12 日決定轉進埔里，抵達時只剩不到兩百人，並嘗試爭取原住民族支援。",
+      "start": { "value": "1947-03-12", "precision": "day", "raw": "1947/3/12" },
+      "location": { "name": "埔里" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["二七部隊", "埔里", "撤退"]
+    },
+    {
+      "id": "evt-r07",
+      "track": "resistance",
+      "title": "烏牛欄之役：二七部隊在埔里烏牛欄橋阻擊國軍",
+      "description": "3 月 16 日，黃金島（黃圳島）率不到四十人的小隊，在埔里烏牛欄橋一帶與兩百餘名國軍激戰，是二二八事件中規模最大的正面武裝衝突。此役後二七部隊彈盡援絕、宣告解散，全島有組織的武裝抵抗至此終結。",
+      "start": { "value": "1947-03-16", "precision": "day", "raw": "1947/3/16" },
+      "location": { "name": "埔里，烏牛欄橋" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["烏牛欄之役", "二七部隊", "最後抵抗"],
+      "sources": [
+        { "title": "二七部隊與烏牛欄之役 - 二二八事件紀念基金會", "url": "https://www.228.org.tw/en/onlineexhibitscarland/14" }
+      ]
+    }
+  ],
+
+  "relations": [
+    {
+      "from": "evt-g02",
+      "to": "evt-g03",
+      "type": "causes",
+      "label": "查緝私菸血案 → 隔日民眾請願遭開槍，事件全島爆發"
+    },
+    {
+      "from": "evt-g03",
+      "to": "evt-r01",
+      "type": "causes",
+      "label": "台北鎮壓消息傳開 → 各地民眾響應、自組民兵"
+    },
+    {
+      "from": "evt-g03",
+      "to": "evt-r02",
+      "type": "causes",
+      "label": "官民衝突擴大 → 民間成立處理委員會謀求善後與改革"
+    },
+    {
+      "from": "evt-r05",
+      "to": "evt-g05",
+      "type": "contradicts",
+      "label": "民間提出政治改革方案的隔日，整編 21 師即登陸鎮壓——談判與武力同時進行"
+    },
+    {
+      "from": "evt-g06",
+      "to": "evt-e01",
+      "type": "causes",
+      "label": "戒嚴清鄉、肅清異己 → 知識菁英遭祕密逮捕、失蹤"
+    },
+    {
+      "from": "evt-g06",
+      "to": "evt-e03",
+      "type": "causes",
+      "label": "全臺清鄉 → 各地仕紳未經審判遭公開處決"
+    },
+    {
+      "from": "evt-r03",
+      "to": "evt-e04",
+      "type": "causes",
+      "label": "嘉義民軍與國軍對峙 → 出面和談的代表反遭逮捕、於車站前槍決"
+    },
+    {
+      "from": "evt-r06",
+      "to": "evt-r07",
+      "type": "causes",
+      "label": "二七部隊撤守埔里 → 烏牛欄橋殊死阻擊，武裝抵抗終結"
+    }
+  ],
+
+  "display": {
+    "orientation": "horizontal",
+    "defaultScale": "month",
+    "range": { "start": "1945-10", "end": "1947-05" },
+    "collapseGaps": true
+  }
+}
