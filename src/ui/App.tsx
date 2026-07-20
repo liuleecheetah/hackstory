@@ -26,6 +26,7 @@ import { ExportDialog } from './ExportDialog'
 import { RelationDialog } from './RelationDialog'
 import { ImportDialog } from './ImportDialog'
 import { LayerPanel } from './LayerPanel'
+import { LibraryDialog } from './LibraryDialog'
 
 /** 關係類型的中文名稱 */
 const REL_TYPE_LABELS: Record<string, string> = {
@@ -121,6 +122,7 @@ export default function App() {
   const [activeMode, setActiveMode] = useState<ScaleMode>('year')
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [showDates, setShowDates] = useState(true)
   const [showYears, setShowYears] = useState(true)
   const [showRelations, setShowRelations] = useState(true)
@@ -668,6 +670,13 @@ export default function App() {
           <>
             <button
               type="button"
+              onClick={() => setLibraryOpen(true)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              共用庫
+            </button>
+            <button
+              type="button"
               onClick={() => setImportOpen(true)}
               className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
             >
@@ -849,6 +858,11 @@ export default function App() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={addLayer}
+      />
+      <LibraryDialog
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onLoad={addLayer}
       />
       <ExportDialog
         open={exportOpen}

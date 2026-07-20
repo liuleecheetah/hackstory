@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "tw-marriage-equality",
+      "title": "台灣婚姻平權進程",
+      "description": "整理 1986–2017 年間，同性婚姻在台灣的法制化過程，以及並行的社會運動動員（立法與運動兩條軸線在同一份文件裡）。",
+      "topics": ["人權", "婚姻平權", "立法"],
+      "period": "1986–2017",
+      "url": "examples/marriage-equality.hst.json"
+    },
+    {
+      "id": "tw-marriage-equality-legislation",
+      "title": "同婚立法進程",
+      "description": "同性婚姻在台灣法制化的官方進程。與「平權運動」是同一份原始資料拆分出的兩條軸，適合各載入一份疊加對比。",
+      "topics": ["婚姻平權", "立法"],
+      "period": "1986–2017",
+      "url": "examples/marriage-legislation.hst.json"
+    },
+    {
+      "id": "tw-equality-movement",
+      "title": "平權運動",
+      "description": "台灣婚姻平權相關的社會運動與公民動員。與「同婚立法進程」是同一份原始資料拆分出的兩條軸，適合各載入一份疊加對比。",
+      "topics": ["婚姻平權", "社會運動"],
+      "period": "2006–2017",
+      "url": "examples/equality-movement.hst.json"
+    },
+    {
+      "id": "tw-228-incident",
+      "title": "二二八事件",
+      "description": "以三條軸線並排整理 1947 年二二八事件：國民政府與軍隊的行動、台灣菁英遭到殺害、各地的抗爭與民間自治，含跨軸關係線。",
+      "topics": ["歷史", "轉型正義"],
+      "period": "1945–1995",
+      "url": "examples/228-incident.hst.json"
+    },
+    {
+      "id": "scifi-vs-reality",
+      "title": "科幻預言與現實對照",
+      "description": "上軸是科幻作品首次描繪某項科技或社會現象的時間，下軸是它在現實世界實現的時刻，關係線把每一組預言與實現連起來。",
+      "topics": ["科技", "科幻"],
+      "period": "1865–2022",
+      "url": "examples/scifi-vs-reality.hst.json"
+    }
+  ]
+}
