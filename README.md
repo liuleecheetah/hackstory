@@ -12,7 +12,7 @@
 
 這個工具正在公開 Beta 測試。**遇到怪怪的、跑不動、或覺得哪裡可以更好，都請告訴我們**：
 
-- 👉 [**回報問題或給建議**](https://github.com/liuleecheetah/hackstory-next/issues/new/choose)（需要一個免費的 GitHub 帳號；有中文範本，照著填就好）
+- 👉 [**回報問題或給建議**](https://github.com/liuleecheetah/hackstory/issues/new/choose)（需要一個免費的 GitHub 帳號；有中文範本，照著填就好）
 - 提醒：目前是**單機版**，你的編輯只存在自己這台電腦的瀏覽器裡。想永久保存，記得用「匯出／分享」下載 `.hst.json` 檔案。
 
 ---

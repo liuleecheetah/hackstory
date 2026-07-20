@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+// 從 vitest/config 匯入，才能在同一份設定裡寫 test 區塊
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { cpSync } from 'node:fs'
@@ -26,4 +27,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), copyExamples()],
   // 相對路徑：讓建置結果放在 GitHub Pages 的子路徑（/hackstory/）也能正常載入
   base: './',
+  test: {
+    // 這台機器的檔案 I/O 很慢（實測型別檢查有 97% 時間在等磁碟），
+    // 高負載時讀檔的測試可能超過 vitest 預設的 5 秒而「因為太慢」被誤判失敗。
+    // 放寬逾時只會消除誤判——真的壞掉的測試仍然會失敗。
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
+  },
 })

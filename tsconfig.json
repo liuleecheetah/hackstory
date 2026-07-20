@@ -13,6 +13,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    // 增量檢查：第二次之後的型別檢查只看改動過的部分，本機驗收才不會每次都等一分多鐘
+    // （產生的 *.tsbuildinfo 已在 .gitignore 內）
+    "incremental": true,
 
     "strict": true,
     "noUnusedLocals": true,
