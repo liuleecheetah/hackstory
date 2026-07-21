@@ -28,12 +28,14 @@ function minimalDoc(): Record<string, unknown> {
 }
 
 describe('真實資料', () => {
-  it('examples/marriage-equality.hst.json（23 筆事件的真實檔案）通過驗證', () => {
+  it('examples/marriage-equality.hst.json（真實檔案）通過驗證且含多筆事件', () => {
     const data = JSON.parse(readFileSync(examplePath, 'utf-8'))
     const result = validateDocument(data)
     expect(result.errors).toEqual([])
     expect(result.ok).toBe(true)
-    expect(result.doc?.events.length).toBe(23)
+    // 精選內容會持續增修，這裡只確保檔案有實際事件、不會被清空，
+    // 不再寫死確切筆數（避免每次擴充內容都要改測試、甚至擋到部署）。
+    expect(result.doc?.events.length).toBeGreaterThanOrEqual(20)
   })
 
   it('examples/ 目錄下每一份 .hst.json 都通過驗證', () => {
