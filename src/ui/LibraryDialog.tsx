@@ -214,7 +214,7 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
           <p className="border-t border-slate-100 pt-3 text-xs text-slate-400">
             想把自己整理的時間軸放上共用庫？
             <a
-              href="https://github.com/liuleecheetah/hackstory-next/issues/new/choose"
+              href="https://github.com/liuleecheetah/hackstory/issues/new/choose"
               target="_blank"
               rel="noreferrer"
               className="underline hover:text-slate-600"

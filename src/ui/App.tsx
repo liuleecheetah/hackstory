@@ -845,7 +845,7 @@ export default function App() {
         </span>
         {/* Beta 測試：讓測試者隨手就能回報問題，不必先去讀 README */}
         <a
-          href="https://github.com/liuleecheetah/hackstory-next/issues/new/choose"
+          href="https://github.com/liuleecheetah/hackstory/issues/new/choose"
           target="_blank"
           rel="noreferrer"
           className="ml-auto rounded border border-slate-200 px-2 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"

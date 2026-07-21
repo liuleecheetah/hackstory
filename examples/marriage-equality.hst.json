@@ -3,17 +3,17 @@
   "id": "tw-marriage-equality",
   "meta": {
     "title": "台灣婚姻平權進程",
-    "subtitle": "從祁家威到釋字第 748 號",
-    "description": "整理 1986–2017 年間，同性婚姻在台灣的法制化過程，以及並行的社會運動動員。資料原始來源為 HackStory 專案的 Google Sheet。",
+    "subtitle": "從祁家威到跨國同婚：1986–2024",
+    "description": "整理 1986–2024 年間，台灣同性婚姻的法制化歷程。三條軸線並排：立法與司法進程（含 2019 專法、跨國同婚與伴侶盟策略性訴訟至兩岸同婚）、婚姻平權運動（挺同動員）、社會事件（反同團體動員與同志族群受害個案）。立法與運動兩軸源自 HackStory 專案的 Google Sheet；社會事件軸與 2018 年後的進展為後續依公開媒體報導補充。",
     "authors": [
       { "name": "HackStory 專案", "url": "https://g0v.tw" }
     ],
     "license": "CC-BY-4.0",
     "language": "zh-TW",
-    "topics": ["人權", "婚姻平權", "立法", "司法"],
+    "topics": ["人權", "婚姻平權", "立法", "司法", "社會運動", "公投"],
     "created": "2016-12-17",
-    "updated": "2026-07-11",
-    "revision": 1,
+    "updated": "2026-07-21",
+    "revision": 3,
     "source": {
       "type": "google-sheet",
       "url": "https://docs.google.com/spreadsheets/d/11hHSbluBcNfMYppvSMTfB9Pg4fHmJMvmduoaHFCXREE"
@@ -30,10 +30,17 @@
     },
     {
       "id": "movement",
-      "title": "社會運動",
-      "description": "街頭動員、遊行、公民團體行動",
+      "title": "婚姻平權運動",
+      "description": "街頭動員、遊行、公民團體行動（挺同陣營）",
       "color": "#d97706",
       "order": 2
+    },
+    {
+      "id": "society",
+      "title": "社會事件",
+      "description": "反同團體的動員，以及同志族群因缺乏婚姻保障而受害的事件",
+      "color": "#7c6f9f",
+      "order": 3
     }
   ],
 
@@ -279,6 +286,252 @@
       "importance": 3,
       "confidence": "verified",
       "tags": ["行政院", "伴侶註記"]
+    },
+    {
+      "id": "evt-024",
+      "track": "society",
+      "title": "「為下一代幸福讚出來」反多元成家大遊行",
+      "description": "下一代幸福聯盟、台灣宗教團體愛護家庭大聯盟（護家盟）等反對多元成家的團體於凱達格蘭大道發起大遊行，反對多元成家法案與性別平等教育。主辦單位稱近 30 萬人參與，警方估計約 15 萬人。",
+      "start": { "value": "2013-11-30", "precision": "day", "raw": "2013/11/30" },
+      "location": { "name": "凱達格蘭大道" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["反同動員", "下福盟", "護家盟", "多元成家"],
+      "sources": [
+        { "title": "維基百科：下一代幸福聯盟", "url": "https://zh.wikipedia.org/zh-tw/下一代幸福聯盟" },
+        { "title": "The News Lens：2013重要大事回顧——多元成家事件總整理", "url": "https://www.thenewslens.com/article/1882" }
+      ]
+    },
+    {
+      "id": "evt-025",
+      "track": "society",
+      "title": "台大教授畢安生墜樓身亡",
+      "description": "法籍台大外文系退休教師畢安生（Jacques Picoux）與同性伴侶曾敬超相伴 35 年。曾敬超於 2015 年因癌症過世，因兩人無法律婚姻關係，畢安生在伴侶病榻前無醫療決定權，事後也無法繼承兩人共同生活的房產。2016 年 10 月 16 日，畢安生於台北住處墜樓，警方研判為自殺，享壽 68 歲。此事被廣泛視為 2016 年底婚姻平權修法急速升溫的催化事件之一。",
+      "start": { "value": "2016-10-16", "precision": "day", "raw": "2016/10/16" },
+      "location": { "name": "台北" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["畢安生", "受害個案", "繼承", "醫療決定權"],
+      "sources": [
+        { "title": "維基百科：畢安生", "url": "https://zh.wikipedia.org/zh-hant/畢安生" },
+        { "title": "上報：思念相伴35年同性伴侶 台大法籍教授畢安生墜樓亡", "url": "https://www.upmedia.mg/news_info.php?Type=24&SerialNo=5922" }
+      ]
+    },
+    {
+      "id": "evt-026",
+      "track": "society",
+      "title": "反同群眾於立法院外集結，抗議婚姻平權修法審查",
+      "description": "下一代幸福聯盟等反同婚團體於立法院外集結，抗議立法院審查婚姻平權民法修正案，主辦單位估計約 2 萬人。",
+      "start": { "value": "2016-11-17", "precision": "day", "raw": "2016/11/17" },
+      "location": { "name": "立法院外" },
+      "importance": 3,
+      "confidence": "reported",
+      "tags": ["反同動員", "下福盟"],
+      "sources": [
+        { "title": "中國時報：白衣人上街 阻平權修法 反同團體衝撞立院", "url": "https://www.chinatimes.com/newspapers/20161118000414-260509" }
+      ]
+    },
+    {
+      "id": "evt-027",
+      "track": "society",
+      "title": "星座專家薇薇安因乳癌病逝，同性伴侶爭遺產",
+      "description": "星座專家薇薇安因乳癌病逝，得年 43 歲。與她共同生活、經營公司十餘年的經紀人 Nemo 自稱為其同性伴侶，主張因缺乏婚姻保障無法分得遺產，於 2017 年底向薇薇安父母提告求償，後撤告。兩人的伴侶關係與求償內容在訴訟中有爭議。",
+      "start": { "value": "2016-11-30", "precision": "day", "raw": "2016/11/30" },
+      "importance": 3,
+      "confidence": "reported",
+      "tags": ["受害個案", "繼承"],
+      "sources": [
+        { "title": "自由時報：薇薇安病逝近1年 同性伴侶提告爭遺產", "url": "https://news.ltn.com.tw/news/society/breakingnews/2239465" }
+      ]
+    },
+    {
+      "id": "evt-028",
+      "track": "society",
+      "title": "反同「婚姻家庭 全民決定」凱道集會",
+      "description": "下一代幸福聯盟串聯多個反同婚團體於凱達格蘭大道舉行「婚姻家庭 全民決定、子女教育 父母決定」集會，反對以民法保障同性婚姻，主辦單位稱約 10 萬人參與。",
+      "start": { "value": "2016-12-03", "precision": "day", "raw": "2016/12/3" },
+      "location": { "name": "凱達格蘭大道" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["反同動員", "下福盟"],
+      "sources": [
+        { "title": "自由時報：反對同性婚姻「下一代幸福聯盟」凱道集結", "url": "https://news.ltn.com.tw/news/life/breakingnews/1885501" }
+      ]
+    },
+    {
+      "id": "evt-029",
+      "track": "society",
+      "title": "平權人士楊凱鈞於反同集會場外遭攻擊、肋骨骨折",
+      "description": "在下福盟凱道反同集會場外，婚姻平權人士楊凱鈞遭反同民眾攻擊，就醫後確認肋骨骨折。下一代幸福聯盟事後僅表示「遺憾」，並稱有人持彩虹旗刻意挑釁激起衝突，未譴責施暴者。",
+      "start": { "value": "2016-12-03", "precision": "day", "raw": "2016/12/3" },
+      "location": { "name": "凱達格蘭大道" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["受害個案", "暴力", "衝突"],
+      "sources": [
+        { "title": "自由時報：反同婚活動 傳平權人士遭攻擊踢斷肋骨", "url": "https://news.ltn.com.tw/news/life/breakingnews/1906393" }
+      ]
+    },
+    {
+      "id": "evt-030",
+      "track": "society",
+      "title": "「愛家公投」：反同三案通過、平權兩案未過",
+      "description": "配合九合一選舉舉行的全國性公民投票中，由下一代幸福聯盟等提出的三項反同婚公投案通過：第10案（民法婚姻限一男一女）、第11案（國中小不實施同志教育）、第12案（以民法以外形式保障同性伴侶）；婚姻平權方提出的第14案（以民法保障同婚）與第15案（性別平等教育）未通過。此結果確立同婚須以專法而非民法方式立法。",
+      "start": { "value": "2018-11-24", "precision": "day", "raw": "2018/11/24" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["反同動員", "公投", "愛家公投"],
+      "sources": [
+        { "title": "維基百科：2018年中華民國全國性公民投票", "url": "https://zh.wikipedia.org/zh-tw/2018年中華民國全國性公民投票" },
+        { "title": "報導者：七個公投案過關了，哪些權益真正改變？", "url": "https://www.twreporter.org/a/2018-referendum-analysis-1" }
+      ]
+    },
+    {
+      "id": "evt-031",
+      "track": "society",
+      "title": "愛家公投後同志社群心理衝擊與輕生案例",
+      "description": "愛家公投的連署與投票期間，反同論述對同志社群造成明顯心理衝擊。有家長公開表示連署過程間接奪走多名年輕同志的生命；公投隔天（11/25），一名出身教會家庭的同志基督徒（化名 Terry）輕生，被報導視為「壓垮駱駝的最後一根稻草」。相關通報多為當事人親友轉述與整體現象，難以逐一查證具體身分，故標為報導程度。",
+      "start": { "value": "2018-11-25", "precision": "day", "raw": "2018/11/25" },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": ["受害個案", "心理健康", "公投"],
+      "sources": [
+        { "title": "中時新聞網：同志基督徒公投後自殺，李茂生評論", "url": "https://www.chinatimes.com/realtimenews/20181225002538-260402" }
+      ]
+    },
+    {
+      "id": "evt-032",
+      "track": "legislation",
+      "title": "立法院三讀通過《司法院釋字第748號解釋施行法》",
+      "description": "立法院三讀通過《司法院釋字第748號解釋施行法》（同婚專法），依釋字第 748 號意旨，讓同性別二人得成立具親密性與排他性的永久結合關係並辦理結婚登記。回應 2018 年公投結果，採專法而非直接修改民法的形式。",
+      "start": { "value": "2019-05-17", "precision": "day", "raw": "2019/5/17" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["立法院", "三讀", "748施行法", "同婚專法"],
+      "sources": [
+        { "title": "維基百科：司法院釋字第七四八號解釋施行法", "url": "https://zh.wikipedia.org/zh-tw/司法院釋字第七四八號解釋施行法" }
+      ]
+    },
+    {
+      "id": "evt-033",
+      "track": "legislation",
+      "title": "同婚專法生效，台灣成為亞洲首個同婚合法國家",
+      "description": "《748施行法》正式生效，首批同性伴侶完成結婚登記，台灣成為亞洲第一個同性婚姻合法化的國家。惟施行法初期不涵蓋「跨國同婚」——若外籍一方的母國未承認同性婚姻，依涉外民事法律適用法無法在台登記，衍生後續爭議。",
+      "start": { "value": "2019-05-24", "precision": "day", "raw": "2019/5/24" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["748施行法", "亞洲首例", "跨國同婚"],
+      "sources": [
+        { "title": "維基百科：司法院釋字第七四八號解釋施行法", "url": "https://zh.wikipedia.org/zh-tw/司法院釋字第七四八號解釋施行法" }
+      ]
+    },
+    {
+      "id": "evt-034",
+      "track": "legislation",
+      "title": "內政部函釋開放跨國同婚登記（中國大陸籍除外）",
+      "description": "歷經多起法院判決承認跨國同性婚姻後，內政部於 2023 年 1 月以變更函釋方式，開放外籍與港澳人士的跨國同性伴侶在台登記結婚，不再要求外籍一方母國承認同婚。惟涉及中國大陸籍配偶者，因適用兩岸人民關係條例，仍不適用。",
+      "start": { "value": "2023-01-19", "precision": "day", "raw": "2023/1/19" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["跨國同婚", "內政部", "函釋"],
+      "sources": [
+        { "title": "自由時報：蘇貞昌拍板 跨國同婚透過函釋解套", "url": "https://news.ltn.com.tw/news/politics/breakingnews/4190385" },
+        { "title": "The News Lens：司法院修法保障跨國同婚，台灣「一國四制」還有哪些伴侶不適用？", "url": "https://www.thenewslens.com/article/146409" }
+      ]
+    },
+    {
+      "id": "evt-035",
+      "track": "legislation",
+      "title": "跨國同婚首例勝訴：台、澳門同性伴侶（信奇×阿古）",
+      "description": "台灣籍信奇與澳門籍阿古在 2019 年同婚專法上路後登記結婚遭拒（澳門未承認同婚），經台灣伴侶權益推動聯盟（伴侶盟）律師團提起行政訴訟。2021 年 5 月 6 日，台北高等行政法院判兩人勝訴，命戶政事務所准予登記，成為跨國同婚首例勝訴。此後台日等跨國伴侶接連勝訴，促成 2023 年內政部函釋開放跨國同婚。",
+      "start": { "value": "2021-05-06", "precision": "day", "raw": "2021/5/6" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["跨國同婚", "伴侶盟", "策略性訴訟", "行政訴訟", "澳門"],
+      "sources": [
+        { "title": "自由時報：跨國同婚登記遭戶政所拒絕 澳門與台灣男伴侶勝訴", "url": "https://news.ltn.com.tw/news/society/breakingnews/3522876" },
+        { "title": "鏡週刊：【跨國同婚勝訴】北高行歷史性判決", "url": "https://www.mirrormedia.mg/story/20210507edi025/" }
+      ]
+    },
+    {
+      "id": "evt-041",
+      "track": "legislation",
+      "title": "台日跨國同婚勝訴（阿樹×有吉英三郎）",
+      "description": "日本籍有吉英三郎與台灣籍阿樹於 2021 年 5 月 7 日向台北市大安區戶政事務所申請結婚登記遭拒，經伴侶盟協助、訴願駁回後提起行政訴訟。2022 年 7 月 21 日，台北高等行政法院判兩人勝訴，命戶政事務所准予登記，為跨國同婚接連勝訴（第 4 例）之一，與台、澳門首例共同推動 2023 年函釋開放跨國同婚。",
+      "start": { "value": "2022-07-21", "precision": "day", "raw": "2022/7/21" },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": ["跨國同婚", "伴侶盟", "策略性訴訟", "行政訴訟", "日本"],
+      "sources": [
+        { "title": "中央社：台日跨國同婚勝訴 法院——例外不再適用外國法律", "url": "https://www.cna.com.tw/news/asoc/202207210346.aspx" },
+        { "title": "台灣伴侶權益推動聯盟：跨國同婚四連勝！台日阿樹有吉案全部勝訴", "url": "https://tapcpr.org/hot-news/press-release/2022/07/21/" }
+      ]
+    },
+    {
+      "id": "evt-036",
+      "track": "legislation",
+      "title": "兩岸同婚策略性訴訟勝訴（Ryan × Righ）",
+      "description": "2023 年內政部函釋開放跨國同婚時，唯獨排除中國籍配偶。台灣籍 Ryan 與中國籍 Righ（2019 年已於美國內華達州結婚）由伴侶盟律師團提起策略性訴訟。歷時約 5 年，2024 年 8 月 8 日台北高等行政法院第二次實質勝訴，裁定移民署應就 Righ 申請來台團聚提供面談等實質審認程序，移民署未上訴。",
+      "start": { "value": "2024-08-08", "precision": "day", "raw": "2024/8/8" },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": ["跨國同婚", "兩岸", "伴侶盟", "策略性訴訟", "中國籍"],
+      "sources": [
+        { "title": "國際特赦組織台灣分會：歷時5年，中台同婚政策終有部分進展！", "url": "https://www.amnesty.tw/node/19775" }
+      ]
+    },
+    {
+      "id": "evt-037",
+      "track": "legislation",
+      "title": "陸委會鬆綁兩岸同婚：得比照第三地結婚辦理登記",
+      "description": "2024 年 9 月 19 日，陸委會宣布兩岸同性伴侶得比照兩岸異性於第三地結婚之規定，自即日起檢附經政府駐外機構驗證的結婚證明文件與相關文件，經面談通過後，向戶政機關辦理結婚登記。此為 2023 年函釋排除中國籍後，政策首度納入兩岸同性伴侶。",
+      "start": { "value": "2024-09-19", "precision": "day", "raw": "2024/9/19" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["跨國同婚", "兩岸", "陸委會", "函釋"],
+      "sources": [
+        { "title": "陸委會新聞稿：兩岸同性伴侶得比照兩岸異性於第三地結婚之規定辦理結婚登記", "url": "https://www.mac.gov.tw/News_Content.aspx?n=B383123AEADAEE52&s=3C669B126B485864" }
+      ]
+    },
+    {
+      "id": "evt-038",
+      "track": "legislation",
+      "title": "全台首例兩岸同婚完成結婚登記",
+      "description": "2024 年 10 月 7 日，台灣籍 Ryan 與中國籍 Righ 在通過移民署面談後，前往高雄市戶政事務所完成結婚登記，成為政策鬆綁後首對完成登記的兩岸同性伴侶。",
+      "start": { "value": "2024-10-07", "precision": "day", "raw": "2024/10/7" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["跨國同婚", "兩岸", "首例"],
+      "sources": [
+        { "title": "公視新聞網：纏訟4年盼到規定鬆綁 全台首例兩岸同婚伴侶完成結婚登記", "url": "https://news.pts.org.tw/article/718390" }
+      ]
+    },
+    {
+      "id": "evt-039",
+      "track": "movement",
+      "title": "伴侶盟展開跨國同婚策略性訴訟（代理信奇／阿古）",
+      "description": "2019 年同婚專法上路後，跨國同性伴侶因外籍一方母國未承認同婚而無法在台登記。台灣伴侶權益推動聯盟（伴侶盟）以策略性訴訟因應——先於 2019 年 10 月陪同台、澳門伴侶信奇、阿古登記遭拒，2020 年 1 月代理兩人向台北高等行政法院提起行政訴訟，挑戰「須依外籍一方本國法」的限制，作為跨國同婚平權的破口。",
+      "start": { "value": "2020-01", "precision": "month", "raw": "2020/1" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["伴侶盟", "策略性訴訟", "跨國同婚"],
+      "sources": [
+        { "title": "自由時報：跨國同婚登記遭戶政所拒絕 澳門與台灣男伴侶勝訴", "url": "https://news.ltn.com.tw/news/society/breakingnews/3522876" }
+      ]
+    },
+    {
+      "id": "evt-040",
+      "track": "movement",
+      "title": "伴侶盟推動兩岸同婚訴訟（代理 Ryan／Righ）",
+      "description": "台灣籍 Ryan 與中國籍 Righ 於 2019 年在美國內華達州結婚，2020 年 Righ 申請來台團聚遭移民署駁回。因 2023 年函釋將中國籍配偶排除在跨國同婚之外，伴侶盟持續以策略性訴訟施壓——2023 年 6 月 14 日提起第二次行政訴訟，主張移民署應予面談，最終促成 2024 年勝訴與政策鬆綁。",
+      "start": { "value": "2023-06-14", "precision": "day", "raw": "2023/6/14" },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": ["伴侶盟", "策略性訴訟", "兩岸", "中國籍"],
+      "sources": [
+        { "title": "苦勞網：兩岸同性配偶第三地結婚 Ryan&Righ 團聚案言詞辯論終結", "url": "https://www.coolloud.org.tw/node/98510" },
+        { "title": "台灣伴侶權益推動聯盟：Ryan&Righ 團聚案", "url": "https://tapcpr.org/main-topics/tssm/case/ryan-righ" }
+      ]
     }
   ],
 
@@ -336,13 +589,115 @@
       "to": "evt-006",
       "type": "causes",
       "label": "訴訟拖延與人身威脅 → 撤銷告訴"
+    },
+    {
+      "from": "evt-008",
+      "to": "evt-024",
+      "type": "contradicts",
+      "label": "民法修正一讀付委 → 反多元成家陣營上街反制"
+    },
+    {
+      "from": "evt-025",
+      "to": "evt-013",
+      "type": "causes",
+      "label": "畢安生之死震撼社會，催化立法院密集召開公聽會"
+    },
+    {
+      "from": "evt-028",
+      "to": "evt-016",
+      "type": "contradicts",
+      "label": "反同凱道集會與挺同音樂會，兩週內針鋒相對"
+    },
+    {
+      "from": "evt-028",
+      "to": "evt-029",
+      "type": "causes",
+      "label": "反同集會場外爆發暴力，平權人士遭攻擊受傷"
+    },
+    {
+      "from": "evt-021",
+      "to": "evt-030",
+      "type": "responds_to",
+      "label": "釋字748後，反同陣營以公投反撲"
+    },
+    {
+      "from": "evt-021",
+      "to": "evt-032",
+      "type": "causes",
+      "label": "釋字748的二年修法期限 → 立法院制定專法"
+    },
+    {
+      "from": "evt-030",
+      "to": "evt-032",
+      "type": "causes",
+      "label": "公投第12案 → 同婚以專法而非民法形式立法"
+    },
+    {
+      "from": "evt-030",
+      "to": "evt-031",
+      "type": "causes",
+      "label": "反同公投通過 → 同志社群心理衝擊與輕生案例"
+    },
+    {
+      "from": "evt-032",
+      "to": "evt-033",
+      "type": "causes",
+      "label": "三讀通過 → 專法生效、首批登記"
+    },
+    {
+      "from": "evt-033",
+      "to": "evt-035",
+      "type": "causes",
+      "label": "專法排除跨國同婚 → 伴侶盟提策略性訴訟，台、澳門首例勝訴"
+    },
+    {
+      "from": "evt-035",
+      "to": "evt-034",
+      "type": "causes",
+      "label": "跨國同婚接連勝訴 → 內政部函釋開放（仍排除中國籍）"
+    },
+    {
+      "from": "evt-041",
+      "to": "evt-034",
+      "type": "causes",
+      "label": "台日等跨國同婚接連勝訴 → 內政部函釋開放（仍排除中國籍）"
+    },
+    {
+      "from": "evt-034",
+      "to": "evt-036",
+      "type": "causes",
+      "label": "函釋獨漏中國籍 → 伴侶盟續打兩岸訴訟勝訴"
+    },
+    {
+      "from": "evt-036",
+      "to": "evt-037",
+      "type": "causes",
+      "label": "勝訴且移民署不上訴 → 陸委會鬆綁兩岸同婚規定"
+    },
+    {
+      "from": "evt-037",
+      "to": "evt-038",
+      "type": "causes",
+      "label": "規定鬆綁 → 首對兩岸同婚伴侶完成登記"
+    },
+    {
+      "from": "evt-039",
+      "to": "evt-035",
+      "type": "causes",
+      "label": "伴侶盟提起跨國同婚訴訟 → 台、澳門首例勝訴"
+    },
+    {
+      "from": "evt-040",
+      "to": "evt-036",
+      "type": "causes",
+      "label": "伴侶盟提起兩岸同婚訴訟 → 2024 年勝訴"
     }
   ],
 
   "display": {
     "orientation": "horizontal",
     "defaultScale": "year",
-    "range": { "start": "1986", "end": "2017" },
+    "range": { "start": "1986", "end": "2024" },
     "collapseGaps": true
   }
 }

@@ -1,0 +1,1706 @@
+{
+  "hackstory": "0.2",
+  "id": "tw-democracy-movement",
+  "meta": {
+    "title": "台灣民主運動史",
+    "subtitle": "從二二八到 2000 年首次政黨輪替",
+    "description": "以五條軸線並排整理台灣的民主化歷程——二二八事件、白色恐怖、黨外與社會運動、體制變革、政黨與選舉，並以跨軸關係線串起壓迫、反抗與改革的因果。內容主軸為 1947 年二二八事件至 2000 年首次政黨輪替；2000 年之後僅以歷次政黨輪替等少數里程碑略作延續，尚未詳盡整理。",
+    "authors": [
+      {
+        "name": "HackStory 專案",
+        "url": "https://g0v.tw"
+      }
+    ],
+    "license": "CC-BY-4.0",
+    "language": "zh-TW",
+    "topics": [
+      "歷史",
+      "民主化",
+      "轉型正義",
+      "人權"
+    ],
+    "created": "2026-07-22",
+    "updated": "2026-07-22",
+    "revision": 1
+  },
+  "tracks": [
+    {
+      "id": "228",
+      "title": "二二八事件",
+      "description": "1947 年二二八事件及其鎮壓（原三細軸合併）",
+      "color": "#8c2f2f",
+      "order": 1
+    },
+    {
+      "id": "whiteterror",
+      "title": "白色恐怖",
+      "description": "戒嚴時期的政治壓迫、政治案件與受難",
+      "color": "#5b6472",
+      "order": 2
+    },
+    {
+      "id": "dangwai",
+      "title": "黨外與社會運動",
+      "description": "戒嚴前後的政治反對運動與各領域社會運動：黨外雜誌與街頭抗爭、勞工、性別、族群（原住民／客家）、環境、農民與獨立媒體",
+      "color": "#2f8c5a",
+      "order": 3
+    },
+    {
+      "id": "reform",
+      "title": "體制變革",
+      "description": "解嚴、修憲、國會改選、總統直選等制度轉型",
+      "color": "#3b6ea5",
+      "order": 4
+    },
+    {
+      "id": "election",
+      "title": "政黨與選舉",
+      "description": "政黨成立、重大選舉與政黨輪替",
+      "color": "#7c5aa8",
+      "order": 5
+    }
+  ],
+  "events": [
+    {
+      "id": "evt-g01",
+      "track": "228",
+      "title": "國民政府接收臺灣，陳儀出任臺灣省行政長官",
+      "description": "二戰結束後，國民政府於 1945 年 10 月接收臺灣，設臺灣省行政長官公署，陳儀任行政長官兼警備總司令。接收後一年多間，通貨膨脹、米糧短缺、官員貪腐與本省人受排擠的問題不斷累積，成為二二八事件爆發的結構背景。",
+      "start": {
+        "value": "1945-10-25",
+        "precision": "day",
+        "raw": "1945/10/25"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": [
+        "接收",
+        "陳儀",
+        "背景"
+      ]
+    },
+    {
+      "id": "evt-g02",
+      "track": "228",
+      "title": "天馬茶房緝菸血案：查緝員打傷菸販、槍傷路人致死",
+      "description": "專賣局查緝員在台北市天馬茶房附近查緝私菸，以槍托打傷女菸販林江邁頭部；查緝員傅學通向逃散人群開槍，擊中路人陳文溪（隔日死亡）。此案點燃民眾長期累積的怨氣，隔日擴大為全島性的二二八事件。",
+      "start": {
+        "value": "1947-02-27",
+        "precision": "day",
+        "raw": "1947/2/27"
+      },
+      "location": {
+        "name": "台北市，天馬茶房"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "緝菸血案",
+        "導火線"
+      ],
+      "sources": [
+        {
+          "title": "二二八遺址資料庫—天馬茶房（二二八事件紀念基金會）",
+          "url": "https://www.228.org.tw/eseki-view.php?ID=1"
+        }
+      ]
+    },
+    {
+      "id": "evt-g03",
+      "track": "228",
+      "title": "民眾赴行政長官公署請願，遭衛兵開槍掃射",
+      "description": "2 月 28 日台北罷市罷工，民眾遊行至專賣局抗議，再赴行政長官公署請願，卻遭公署衛兵以機槍掃射，造成傷亡。消息傳開後，抗爭迅速蔓延全島。",
+      "start": {
+        "value": "1947-02-28",
+        "precision": "day",
+        "raw": "1947/2/28"
+      },
+      "location": {
+        "name": "臺灣省行政長官公署，台北"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "長官公署",
+        "開槍",
+        "全島爆發"
+      ]
+    },
+    {
+      "id": "evt-g04",
+      "track": "228",
+      "title": "高雄要塞司令彭孟緝出兵鎮壓（高雄大屠殺）",
+      "description": "高雄要塞司令彭孟緝率軍下山，殺害前來交涉的高雄二二八事件處理委員會代表，並派兵向高雄市政府、火車站一帶開會與聚集的民眾掃射，造成慘重傷亡。這是全島軍事鎮壓中最早、最血腥的行動之一。",
+      "start": {
+        "value": "1947-03-06",
+        "precision": "day",
+        "raw": "1947/3/6"
+      },
+      "location": {
+        "name": "高雄市"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "高雄",
+        "彭孟緝",
+        "屠殺"
+      ]
+    },
+    {
+      "id": "evt-g05",
+      "track": "228",
+      "title": "蔣介石派整編第 21 師由基隆登陸鎮壓",
+      "description": "應陳儀請求，蔣介石自中國調派軍隊來台。3 月 8 日中午起，劉雨卿所率整編第 21 師與憲兵第 4 團約七千兵力陸續自基隆港登陸，另有約三千兵力自高雄港登陸，全台隨即進入大規模軍事鎮壓。",
+      "start": {
+        "value": "1947-03-08",
+        "precision": "day",
+        "raw": "1947/3/8"
+      },
+      "location": {
+        "name": "基隆港"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "整編21師",
+        "登陸",
+        "鎮壓"
+      ]
+    },
+    {
+      "id": "evt-g06",
+      "track": "228",
+      "title": "陳儀宣布全臺戒嚴，解散處理委員會",
+      "description": "軍隊登陸後，3 月 10 日陳儀宣布全臺戒嚴，下令解散二二八事件處理委員會等民間團體，並展開全面的綏靖與清鄉，逮捕與處決行動大量發生。",
+      "start": {
+        "value": "1947-03-10",
+        "precision": "day",
+        "raw": "1947/3/10"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "戒嚴",
+        "解散處委會"
+      ]
+    },
+    {
+      "id": "evt-g07",
+      "track": "228",
+      "title": "綏靖與清鄉（大規模逮捕與處決）",
+      "description": "軍隊登陸後展開的「綏靖」與「清鄉」，以肅清異己為名進行逐戶清查、逮捕與處決，許多地方仕紳與知識菁英在此期間失蹤或被殺，是二二八事件死傷最慘重的階段。清鄉至 5 月中魏道明就任後才對外宣告結束。",
+      "start": {
+        "value": "1947-03-09",
+        "precision": "day",
+        "raw": "1947/3/9"
+      },
+      "end": {
+        "value": "1947-05-16",
+        "precision": "day"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": [
+        "綏靖",
+        "清鄉"
+      ]
+    },
+    {
+      "id": "evt-g08",
+      "track": "228",
+      "title": "行政院決議撤銷行政長官公署，改設省政府",
+      "description": "4 月 22 日行政院會議決議撤銷臺灣省行政長官公署，改組為臺灣省政府，並任命魏道明為首任省主席。陳儀去職，於 5 月返回南京。",
+      "start": {
+        "value": "1947-04-22",
+        "precision": "day",
+        "raw": "1947/4/22"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": [
+        "撤銷公署",
+        "陳儀去職"
+      ]
+    },
+    {
+      "id": "evt-g09",
+      "track": "228",
+      "title": "魏道明就任省主席，宣布解除戒嚴、結束清鄉",
+      "description": "5 月 16 日首任臺灣省政府主席魏道明在台北宣誓就職，宣布解除戒嚴令、結束清鄉工作，並廢除新聞、圖書及郵電檢查。二二八事件的公開武力鎮壓階段至此告一段落，但清算與白色恐怖的陰影延續多年。",
+      "start": {
+        "value": "1947-05-16",
+        "precision": "day",
+        "raw": "1947/5/16"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": [
+        "魏道明",
+        "解除戒嚴"
+      ]
+    },
+    {
+      "id": "evt-e01",
+      "track": "228",
+      "title": "林茂生（台大文學院代理院長）遭便衣帶走，從此失蹤",
+      "description": "林茂生為台灣第一位留美哲學博士、時任台灣大學文學院代理院長。3 月 11 日清晨遭數名便衣人員以「長官約談」為由帶走，此後下落不明，遺體始終未尋獲，被視為二二八事件中知識菁英遭祕密處決的代表案例。",
+      "start": {
+        "value": "1947-03-11",
+        "precision": "day",
+        "raw": "1947/3/11"
+      },
+      "location": {
+        "name": "台北"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "林茂生",
+        "失蹤",
+        "知識菁英"
+      ]
+    },
+    {
+      "id": "evt-e02",
+      "track": "228",
+      "title": "王添灯（省參議員、處委會宣傳組長）被捕遇害",
+      "description": "王添灯為台灣省參議員、二二八事件處理委員會宣傳組長，是四十二條處理大綱的主要起草與宣讀者。3 月 11 日遭逮捕，其後遇害，遺體未還，是處理委員會核心成員遭清算的代表。",
+      "start": {
+        "value": "1947-03-11",
+        "precision": "day",
+        "raw": "1947/3/11"
+      },
+      "location": {
+        "name": "台北"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "王添灯",
+        "處委會",
+        "遇害"
+      ]
+    },
+    {
+      "id": "evt-e03",
+      "track": "228",
+      "title": "湯德章律師於台南民生綠園公開槍決",
+      "description": "湯德章為台南律師、二二八事件處理委員會台南市分會治安組長。3 月 12 日被捕，遭反綁懸吊刑求一夜、肋骨被托槍打斷；13 日被反綁雙腕、背插名牌押上卡車遊街，於民生綠園（今湯德章紀念公園）公開槍決，槍決後不准家屬收屍。行政院《二二八事件研究報告》稱「湯德章之死，臺南市民同聲冤」。",
+      "start": {
+        "value": "1947-03-13",
+        "precision": "day",
+        "raw": "1947/3/13"
+      },
+      "location": {
+        "name": "台南，民生綠園（今湯德章紀念公園）"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "湯德章",
+        "台南",
+        "公開槍決"
+      ],
+      "sources": [
+        {
+          "title": "湯德章 - 維基百科",
+          "url": "https://zh.wikipedia.org/wiki/%E6%B9%AF%E5%BE%B7%E7%AB%A0"
+        }
+      ]
+    },
+    {
+      "id": "evt-e04",
+      "track": "228",
+      "title": "陳澄波等嘉義和平談判代表於嘉義車站前公開槍決",
+      "description": "3 月 25 日，代表嘉義市民前往水上機場與國軍和平談判的代表——畫家暨嘉義市參議員陳澄波、醫師潘木枝、牙醫盧鈵欽、戲院經營者柯麟等人，未經任何審判即被押至嘉義火車站前公開槍決示眾。陳澄波是台灣美術史上最重要的油畫家之一。",
+      "start": {
+        "value": "1947-03-25",
+        "precision": "day",
+        "raw": "1947/3/25"
+      },
+      "location": {
+        "name": "嘉義火車站前"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "陳澄波",
+        "嘉義",
+        "談判代表",
+        "公開槍決"
+      ],
+      "sources": [
+        {
+          "title": "陳澄波 - 二二八事件紀念基金會",
+          "url": "https://www.228.org.tw/228_elites-view.php?ID=1"
+        }
+      ]
+    },
+    {
+      "id": "evt-e05",
+      "track": "228",
+      "title": "張七郎與二子在花蓮遭殺害",
+      "description": "張七郎為花蓮縣參議會議長、制憲國民大會代表。4 月 4 日夜，張七郎與兒子張宗仁、張果仁一同被軍隊帶走殺害，父子三人同日罹難，是東部菁英受難的代表案例。",
+      "start": {
+        "value": "1947-04-04",
+        "precision": "day",
+        "raw": "1947/4/4"
+      },
+      "location": {
+        "name": "花蓮"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": [
+        "張七郎",
+        "花蓮",
+        "父子同難"
+      ]
+    },
+    {
+      "id": "evt-r01",
+      "track": "228",
+      "title": "台中市民大會，謝雪紅號召接收官署、組織民兵",
+      "description": "3 月 2 日謝雪紅在台中召開市民大會，民眾接收縣市機關、警局與武器，組成民兵維持秩序，台中一度由民間掌控，是各地民眾自組武裝反應的代表。",
+      "start": {
+        "value": "1947-03-02",
+        "precision": "day",
+        "raw": "1947/3/2"
+      },
+      "location": {
+        "name": "台中"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": [
+        "台中",
+        "謝雪紅",
+        "民兵"
+      ]
+    },
+    {
+      "id": "evt-r02",
+      "track": "228",
+      "title": "二二八事件處理委員會成立",
+      "description": "由台北的緝菸血案調查委員會改組擴大，各地仕紳、議員與民意代表組成二二八事件處理委員會，作為民間與官方交涉、恢復秩序並提出政治改革的自治性組織。3 月 10 日遭陳儀下令解散。",
+      "start": {
+        "value": "1947-03-02",
+        "precision": "day",
+        "raw": "1947/3/2"
+      },
+      "location": {
+        "name": "台北"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": [
+        "處理委員會",
+        "民間自治"
+      ]
+    },
+    {
+      "id": "evt-r03",
+      "track": "228",
+      "title": "嘉義民軍圍攻水上機場",
+      "description": "嘉義民眾與各地趕來支援的民軍（含原住民與學生），自 3 月初起包圍國軍據守的水上機場，雙方對峙近半月。後由市參議員等出面與國軍和談，多位談判代表卻反遭逮捕、槍決。",
+      "start": {
+        "value": "1947-03-02",
+        "precision": "day",
+        "raw": "1947/3/2"
+      },
+      "end": {
+        "value": "1947-03-11",
+        "precision": "day"
+      },
+      "location": {
+        "name": "嘉義水上機場"
+      },
+      "importance": 4,
+      "confidence": "reported",
+      "tags": [
+        "嘉義",
+        "民軍",
+        "水上機場"
+      ]
+    },
+    {
+      "id": "evt-r04",
+      "track": "228",
+      "title": "謝雪紅、鍾逸人在台中組成二七部隊",
+      "description": "3 月 6 日，謝雪紅、鍾逸人等人糾集台灣中部青年與學生約四百餘人組成武裝部隊，以事件導火線之日命名為「二七部隊」，謝雪紅任總指揮、鍾逸人任部隊長，是二二八事件中組織最完整的民間武裝。",
+      "start": {
+        "value": "1947-03-06",
+        "precision": "day",
+        "raw": "1947/3/6"
+      },
+      "location": {
+        "name": "台中"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "二七部隊",
+        "台中",
+        "武裝抵抗"
+      ]
+    },
+    {
+      "id": "evt-r05",
+      "track": "228",
+      "title": "處理委員會通過四十二條處理大綱",
+      "description": "3 月 7 日，二二八事件處理委員會通過《四十二條處理大綱》，提出撤銷行政長官公署改設省政府、各處長由本省人擔任、縣市長民選、軍警職位優先任用本省人等政治改革要求。隔日國軍即登陸鎮壓。",
+      "start": {
+        "value": "1947-03-07",
+        "precision": "day",
+        "raw": "1947/3/7"
+      },
+      "location": {
+        "name": "台北"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "tags": [
+        "四十二條",
+        "政治改革"
+      ]
+    },
+    {
+      "id": "evt-r06",
+      "track": "228",
+      "title": "二七部隊撤往埔里",
+      "description": "面對國軍南下壓境，二七部隊為避免台中市區遭波及、保存實力，於 3 月 12 日決定轉進埔里，抵達時只剩不到兩百人，並嘗試爭取原住民族支援。",
+      "start": {
+        "value": "1947-03-12",
+        "precision": "day",
+        "raw": "1947/3/12"
+      },
+      "location": {
+        "name": "埔里"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "tags": [
+        "二七部隊",
+        "埔里",
+        "撤退"
+      ]
+    },
+    {
+      "id": "evt-r07",
+      "track": "228",
+      "title": "烏牛欄之役：二七部隊在埔里烏牛欄橋阻擊國軍",
+      "description": "3 月 16 日，黃金島（黃圳島）率不到四十人的小隊，在埔里烏牛欄橋一帶與兩百餘名國軍激戰，是二二八事件中規模最大的正面武裝衝突。此役後二七部隊彈盡援絕、宣告解散，全島有組織的武裝抵抗至此終結。",
+      "start": {
+        "value": "1947-03-16",
+        "precision": "day",
+        "raw": "1947/3/16"
+      },
+      "location": {
+        "name": "埔里，烏牛欄橋"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "tags": [
+        "烏牛欄之役",
+        "二七部隊",
+        "最後抵抗"
+      ],
+      "sources": [
+        {
+          "title": "二七部隊與烏牛欄之役 - 二二八事件紀念基金會",
+          "url": "https://www.228.org.tw/en/onlineexhibitscarland/14"
+        }
+      ]
+    },
+    {
+      "id": "wt-01",
+      "track": "whiteterror",
+      "title": "台灣省戒嚴令頒布，翌日生效",
+      "description": "臺灣省主席兼警備總司令陳誠奉蔣中正之命頒布《臺灣省戒嚴令》，5 月 20 日生效。此戒嚴延續至 1987 年，長達 38 年，是白色恐怖的法制起點。",
+      "start": {
+        "value": "1949-05-19",
+        "precision": "day",
+        "raw": "1949/5/19"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣省戒嚴令",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣省戒嚴令"
+        }
+      ]
+    },
+    {
+      "id": "wt-02",
+      "track": "whiteterror",
+      "title": "立法院通過《懲治叛亂條例》",
+      "description": "立法院三讀通過《懲治叛亂條例》，其中「二條一」對叛亂罪處唯一死刑，成為白色恐怖時期政治整肅的主要法律依據。",
+      "start": {
+        "value": "1949-05-24",
+        "precision": "day",
+        "raw": "1949/5/24"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣白色恐怖時期",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣白色恐怖時期"
+        }
+      ]
+    },
+    {
+      "id": "wt-03",
+      "track": "whiteterror",
+      "title": "《動員戡亂時期檢肅匪諜條例》公布",
+      "description": "此條例大幅擴張「匪諜」的認定範圍與檢肅手段，使情治單位得以廣泛逮捕、告密與連坐，是白色恐怖案件激增的關鍵。",
+      "start": {
+        "value": "1950-06-13",
+        "precision": "day",
+        "raw": "1950/6/13"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣白色恐怖時期",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣白色恐怖時期"
+        }
+      ]
+    },
+    {
+      "id": "wt-04",
+      "track": "whiteterror",
+      "title": "台灣省工作委員會遭全面破獲（省工委案）",
+      "description": "中國共產黨在台地下組織「台灣省工作委員會」自 1949 年《光明報》事件曝光後遭情治單位全面破獲，1950 年韓戰爆發後展開密集逮捕與槍決，數以千計相關者受難。",
+      "start": {
+        "value": "1950",
+        "precision": "year",
+        "raw": "1950"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣白色恐怖時期",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣白色恐怖時期"
+        }
+      ]
+    },
+    {
+      "id": "wt-05",
+      "track": "whiteterror",
+      "title": "鹿窟事件",
+      "description": "軍警包圍台北南港、汐止山區的鹿窟，以搜捕「鹿窟武裝基地」為名大規模逮捕村民，是白色恐怖規模最大的政治案件之一，牽連者眾。",
+      "start": {
+        "value": "1952-12",
+        "precision": "month",
+        "raw": "1952/12"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：鹿窟事件",
+          "url": "https://zh.wikipedia.org/zh-tw/鹿窟事件"
+        }
+      ]
+    },
+    {
+      "id": "wt-06",
+      "track": "whiteterror",
+      "title": "泰源事件",
+      "description": "關押於台東泰源監獄的政治犯發動起義，事敗後鄭金河等 5 人遭槍決。被視為台獨政治犯反抗國民黨統治的重要事件。",
+      "start": {
+        "value": "1970-02-08",
+        "precision": "day",
+        "raw": "1970/2/8"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：泰源事件",
+          "url": "https://zh.wikipedia.org/zh-tw/泰源事件"
+        }
+      ]
+    },
+    {
+      "id": "wt-07",
+      "track": "whiteterror",
+      "title": "余登發父子被捕（涉吳泰安匪諜案）",
+      "description": "前高雄縣長、黨外大老余登發與其子余瑞言遭情治單位以涉入「匪諜吳泰安案」、「知匪不報」逮捕。此案觸發翌日的橋頭示威。",
+      "start": {
+        "value": "1979-01-21",
+        "precision": "day",
+        "raw": "1979/1/21"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：橋頭事件",
+          "url": "https://zh.wikipedia.org/zh-tw/橋頭事件"
+        }
+      ]
+    },
+    {
+      "id": "wt-08",
+      "track": "whiteterror",
+      "title": "林宅血案",
+      "description": "美麗島事件被告林義雄遭羈押期間，其位於台北的住宅發生兇殺案，母親與雙胞胎女兒罹難、長女重傷。案件至今未破，普遍認為與情治單位有關。",
+      "start": {
+        "value": "1980-02-28",
+        "precision": "day",
+        "raw": "1980/2/28"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：林宅血案",
+          "url": "https://zh.wikipedia.org/zh-tw/林宅血案"
+        }
+      ]
+    },
+    {
+      "id": "wt-09",
+      "track": "whiteterror",
+      "title": "陳文成事件",
+      "description": "旅美學者陳文成返台探親，遭警備總部約談後隔日陳屍台灣大學校園。官方稱畏罪自殺，外界廣泛質疑為政治謀殺。",
+      "start": {
+        "value": "1981-07-03",
+        "precision": "day",
+        "raw": "1981/7/3"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：陳文成事件",
+          "url": "https://zh.wikipedia.org/zh-tw/陳文成事件"
+        }
+      ]
+    },
+    {
+      "id": "wt-10",
+      "track": "whiteterror",
+      "title": "江南案",
+      "description": "撰寫《蔣經國傳》的旅美作家劉宜良（筆名江南）在美國舊金山灣區遭竹聯幫份子暗殺，事後查出係國防部情報局指使，引發美方強烈反應。",
+      "start": {
+        "value": "1984-10-15",
+        "precision": "day",
+        "raw": "1984/10/15"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：江南案",
+          "url": "https://zh.wikipedia.org/zh-tw/江南案"
+        }
+      ]
+    },
+    {
+      "id": "wt-11",
+      "track": "whiteterror",
+      "title": "獨台會案",
+      "description": "調查局以《懲治叛亂條例》拘捕清華大學研究生廖偉程等人，指涉「獨立台灣會」叛亂，引發學界與社會強烈抗議、靜坐。",
+      "start": {
+        "value": "1991-05-09",
+        "precision": "day",
+        "raw": "1991/5/9"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：獨立台灣會案",
+          "url": "https://zh.wikipedia.org/zh-tw/獨立台灣會案"
+        }
+      ]
+    },
+    {
+      "id": "wt-12",
+      "track": "whiteterror",
+      "title": "立法院廢除《懲治叛亂條例》",
+      "description": "在獨台會案引爆的抗議聲中，立法院三讀廢除《懲治叛亂條例》（5 月 22 日公布廢止），白色恐怖最主要的法律工具正式走入歷史。",
+      "start": {
+        "value": "1991-05-17",
+        "precision": "day",
+        "raw": "1991/5/17"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣白色恐怖時期",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣白色恐怖時期"
+        }
+      ]
+    },
+    {
+      "id": "dw-01",
+      "track": "dangwai",
+      "title": "橋頭事件",
+      "description": "余登發父子被捕翌日，許信良、黃信介、陳菊、陳婉真等黨外人士前往余登發故鄉高雄橋頭遊行、要求釋放余氏父子。這是戒嚴近 30 年來台灣第一次的示威遊行；許信良因參與而遭省府停職。",
+      "start": {
+        "value": "1979-01-22",
+        "precision": "day",
+        "raw": "1979/1/22"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：橋頭事件",
+          "url": "https://zh.wikipedia.org/zh-tw/橋頭事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-02",
+      "track": "dangwai",
+      "title": "鄭南榕自焚",
+      "description": "《自由時代》週刊創辦人鄭南榕因刊登「台灣共和國新憲法草案」被控涉嫌叛亂，主張「百分之百言論自由」而拒絕出庭、自囚雜誌社 71 天。1989 年 4 月 7 日警方攻堅時，鄭南榕於總編輯室自焚身亡。4 月 7 日後被訂為「言論自由日」。",
+      "start": {
+        "value": "1989-04-07",
+        "precision": "day",
+        "raw": "1989/4/7"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：鄭南榕",
+          "url": "https://zh.wikipedia.org/zh-tw/鄭南榕"
+        }
+      ]
+    },
+    {
+      "id": "dw-03",
+      "track": "dangwai",
+      "title": "雷震《自由中國》與中國民主黨組黨受挫",
+      "description": "《自由中國》半月刊發行人雷震等人結合本省籍政治人物籌組反對黨「中國民主黨」，挑戰一黨獨大。1960 年 9 月 4 日雷震以「包庇匪諜、煽動叛亂」被捕、判刑十年，雜誌停刊，組黨行動胎死腹中，成為戰後反對運動的重要前史。",
+      "start": {
+        "value": "1960-09-04",
+        "precision": "day",
+        "raw": "1960/9/4"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：雷震事件",
+          "url": "https://zh.wikipedia.org/zh-tw/雷震事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-04",
+      "track": "dangwai",
+      "title": "《台灣政論》創刊",
+      "description": "黃信介、康寧祥等人創辦《台灣政論》，是戰後由本土政治人物主導的重要黨外政論雜誌先聲，同年底出滿五期即遭停刊查禁，卻替 1970 年代末的黨外運動鋪路。",
+      "start": {
+        "value": "1975-08",
+        "precision": "month",
+        "raw": "1975/8"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：台灣政論",
+          "url": "https://zh.wikipedia.org/zh-tw/台灣政論"
+        }
+      ]
+    },
+    {
+      "id": "dw-05",
+      "track": "dangwai",
+      "title": "中壢事件",
+      "description": "桃園縣長選舉中，民眾懷疑國民黨在中壢國小投票所作票，群眾聚集包圍中壢警察分局，警民衝突並焚燒警局、警車。這是戰後首次大規模群眾自發抗議選舉舞弊，壯大了黨外聲勢。",
+      "start": {
+        "value": "1977-11-19",
+        "precision": "day",
+        "raw": "1977/11/19"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：中壢事件",
+          "url": "https://zh.wikipedia.org/zh-tw/中壢事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-06",
+      "track": "dangwai",
+      "title": "《美麗島》雜誌創刊",
+      "description": "以黃信介為發行人的《美麗島》雜誌創刊，各地設服務處、串連全台黨外人士，形同一個沒有黨名的政治組織，是美麗島事件前黨外動員的核心。",
+      "start": {
+        "value": "1979-08",
+        "precision": "month",
+        "raw": "1979/8"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：美麗島事件",
+          "url": "https://zh.wikipedia.org/zh-tw/美麗島事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-07",
+      "track": "dangwai",
+      "title": "美麗島事件（高雄事件）",
+      "description": "《美麗島》雜誌社於世界人權日在高雄舉辦紀念大會遊行，遭鎮暴部隊包圍、噴煙引發衝突。事後黃信介、施明德、林義雄、呂秀蓮等黨外領袖遭大規模逮捕，是二二八以來規模最大的警民衝突，深刻影響台灣民主化。",
+      "start": {
+        "value": "1979-12-10",
+        "precision": "day",
+        "raw": "1979/12/10"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：美麗島事件",
+          "url": "https://zh.wikipedia.org/zh-tw/美麗島事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-08",
+      "track": "dangwai",
+      "title": "美麗島大審",
+      "description": "軍事法庭以叛亂罪公開審判黃信介等八名美麗島事件被告，連續開庭九天。在國內外關注下審判過程罕見公開，辯護律師群（含陳水扁、謝長廷、蘇貞昌等）與被告的陳詞經媒體傳播，反而凝聚了社會對黨外的同情與支持。",
+      "start": {
+        "value": "1980-03-18",
+        "precision": "day",
+        "raw": "1980/3/18"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：美麗島事件",
+          "url": "https://zh.wikipedia.org/zh-tw/美麗島事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-09",
+      "track": "dangwai",
+      "title": "鹿港反杜邦運動",
+      "description": "彰化鹿港居民反對美國杜邦公司設二氧化鈦廠，1986 年 6 月 24 日發起街頭遊行，展開長達 400 餘天的抗爭。1987 年 3 月杜邦宣布取消設廠，成為台灣首件迫使外商撤資的環保抗爭，也促成同年環保署成立。",
+      "start": {
+        "value": "1986-06-24",
+        "precision": "day",
+        "raw": "1986/6/24"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：鹿港居民反杜邦設廠事件",
+          "url": "https://zh.wikipedia.org/zh-tw/鹿港居民反杜邦設廠事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-10",
+      "track": "dangwai",
+      "title": "綠色小組成立",
+      "description": "王智章、李三沖、傅島等人自購電子攝影機成立「綠色小組」，以鏡頭穿梭於黨外與各社運抗爭現場，用非正式管道流通錄影帶，突破黨國三台的資訊封鎖。至 1990 年共留下約 3000 小時影像，是解嚴前後最重要的非主流媒體與行動主義紀錄片濫觴。",
+      "start": {
+        "value": "1986-10",
+        "precision": "month",
+        "raw": "1986/10"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：綠色小組",
+          "url": "https://zh.wikipedia.org/zh-tw/綠色小組"
+        }
+      ]
+    },
+    {
+      "id": "dw-11",
+      "track": "dangwai",
+      "title": "華西街反雛妓大遊行",
+      "description": "婦女救援與教會團體發起遊行，走上以雛妓問題著稱的台北華西街，抗議未成年少女被迫從娼、要求政府正視人口販運。這是戰後重要的婦女與人權運動，也開啟後續救援雛妓的立法推動。",
+      "start": {
+        "value": "1987-01-10",
+        "precision": "day",
+        "raw": "1987/1/10"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：華西街大遊行",
+          "url": "https://zh.wikipedia.org/zh-tw/華西街大遊行"
+        }
+      ]
+    },
+    {
+      "id": "dw-12",
+      "track": "dangwai",
+      "title": "520農民運動",
+      "description": "雲林農權會林國華、蕭裕珍等率農民北上，抗議政府擴大開放美國農產品進口，提出農保、稻穀保價收購、設農業部等七大訴求。下午在立法院前與鎮暴警察爆發激烈流血衝突、逾 130 人被捕，是解嚴後第一場大規模警民流血衝突。",
+      "start": {
+        "value": "1988-05-20",
+        "precision": "day",
+        "raw": "1988/5/20"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：1988年臺灣農民運動",
+          "url": "https://zh.wikipedia.org/zh-tw/1988年臺灣農民運動"
+        }
+      ]
+    },
+    {
+      "id": "dw-13",
+      "track": "dangwai",
+      "title": "原住民族還我土地大遊行",
+      "description": "逾兩千名原住民走上台北街頭，要求歸還遭國家與財團侵占的傳統領域土地，是解嚴後首場大型原住民運動。1988 至 1993 年間共發動三次還我土地遊行，推動了日後原住民族權利的相關立法。",
+      "start": {
+        "value": "1988-08-25",
+        "precision": "day",
+        "raw": "1988/8/25"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "新台灣和平基金會：原住民族還我土地大遊行",
+          "url": "https://www.twpeace.org.tw/wordpress/?p=2984"
+        }
+      ]
+    },
+    {
+      "id": "dw-14",
+      "track": "dangwai",
+      "title": "客家還我母語運動",
+      "description": "客家知識分子與團體發起「還我母語」大遊行，抗議獨尊國語政策、要求開放客語廣播電視，是戰後客家族群意識與語言權利運動的起點。",
+      "start": {
+        "value": "1988-12-28",
+        "precision": "day",
+        "raw": "1988/12/28"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：還我母語運動",
+          "url": "https://zh.wikipedia.org/zh-tw/還我母語運動"
+        }
+      ]
+    },
+    {
+      "id": "dw-15",
+      "track": "dangwai",
+      "title": "遠東化纖罷工",
+      "description": "新竹新埔遠東化纖工會因幹部徐正焜遭調職，於 1989 年 5 月 15 日至 25 日發動罷工，資方與政府出動保全、鎮暴警察與水車強力鎮壓，工會領袖羅美文事後遭解僱。此前工會於 1988 年 2 月發動解嚴後第一場罷工；遠化罷工是 1987–1989 年工潮高峰的尾聲。",
+      "start": {
+        "value": "1989-05",
+        "precision": "month",
+        "raw": "1989/5"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：1989年遠東化纖罷工事件",
+          "url": "https://zh.wikipedia.org/zh-tw/1989年遠東化纖罷工事件"
+        }
+      ]
+    },
+    {
+      "id": "dw-16",
+      "track": "dangwai",
+      "title": "婦女新知雜誌社成立",
+      "description": "李元貞、曹愛蘭、鄭至慧、劉毓秀、尤美女等人創立婦女新知雜誌社，發行《婦女新知》月刊（英文名 Awakening）。在戒嚴時期以合法雜誌社為掩護推動婦女運動，1987 年進一步成立婦女新知基金會，是台灣戰後婦女運動的重要起點。",
+      "start": {
+        "value": "1982",
+        "precision": "year",
+        "raw": "1982"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "婦女新知基金會：成立緣起",
+          "url": "https://www.awakening.org.tw/content/5"
+        }
+      ]
+    },
+    {
+      "id": "dw-17",
+      "track": "dangwai",
+      "title": "519綠色行動",
+      "description": "鄭南榕、江蓋世等黨外人士於台北龍山寺集結，抗議國民政府實施戒嚴長達 37 年、要求解除戒嚴。數百名參與者遭鎮暴警察包圍，對峙達 12 小時，是解嚴前要求終結戒嚴的重要街頭行動。",
+      "start": {
+        "value": "1986-05-19",
+        "precision": "day",
+        "raw": "1986/5/19"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：519綠色行動",
+          "url": "https://zh.wikipedia.org/zh-tw/519綠色行動"
+        }
+      ]
+    },
+    {
+      "id": "dw-18",
+      "track": "dangwai",
+      "title": "鹽寮反核自救會成立，反核四運動興起",
+      "description": "台電計畫在台北縣貢寮鄉鹽寮興建第四核能發電廠，當地居民於 1988 年 3 月 6 日成立鹽寮反核自救會並展開示威，同年 4 月有反核四遊行。反核四自此成為台灣延續數十年的環境與能源運動主線。",
+      "start": {
+        "value": "1988-03-06",
+        "precision": "day",
+        "raw": "1988/3/6"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣反核遊行",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣反核遊行"
+        }
+      ]
+    },
+    {
+      "id": "dw-19",
+      "track": "dangwai",
+      "title": "野百合學運",
+      "description": "國民大會通過自行延長任期的臨時條款修正案，引發各校大學生自 3 月 16 日起在中正紀念堂廣場靜坐，人數近六千，提出「解散國民大會」「廢除動員戡亂時期臨時條款」「召開國是會議」「訂定政經改革時間表」四大訴求。3 月 21 日李登輝當選總統後接見學生代表、承諾召開國是會議，學運於 22 日落幕。是遷台以來最大規模學生運動，直接推動後續憲政改革。",
+      "start": {
+        "value": "1990-03-16",
+        "precision": "day",
+        "raw": "1990/3/16"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：野百合學運",
+          "url": "https://zh.wikipedia.org/zh-tw/野百合學運"
+        }
+      ]
+    },
+    {
+      "id": "dw-20",
+      "track": "dangwai",
+      "title": "100行動聯盟發起（反刑法100條）",
+      "description": "中研院院士李鎮源與陳師孟、林山田、廖宜恩等學者發起「100 行動聯盟」，主張《刑法》第 100 條普通內亂罪箝制言論自由、應予廢除，並於 10 月發動「反閱兵、廢惡法」靜坐抗爭。此運動促成 1992 年刑法第 100 條修正、言論內亂除罪。",
+      "start": {
+        "value": "1991-09-21",
+        "precision": "day",
+        "raw": "1991/9/21"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "國家人權記憶庫：100行動聯盟",
+          "url": "https://memory.nhrm.gov.tw/NormalNode/Detail/12"
+        }
+      ]
+    },
+    {
+      "id": "dw-21",
+      "track": "dangwai",
+      "title": "祁家威公開出櫃，台灣同志運動起點",
+      "description": "祁家威於台北一家麥當勞召開國際記者會，公開出櫃表明男同志身分，並發表〈對社會大眾及同性戀者的懇切聲明及呼籲〉。同年 8 月他遭警總約談、扣押達 162 日。此舉被視為台灣同志運動的重要起點。",
+      "start": {
+        "value": "1986-03",
+        "precision": "month",
+        "raw": "1986/3"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：祁家威",
+          "url": "https://zh.wikipedia.org/zh-tw/祁家威"
+        }
+      ]
+    },
+    {
+      "id": "dw-22",
+      "track": "dangwai",
+      "title": "無殼蝸牛運動（萬人夜宿忠孝東路）",
+      "description": "面對 1986 年起連續數年的房價飆漲，國小教師李幸長等人組成「無住屋者團結組織」，於 1989 年 8 月 26 日發起「萬人夜宿忠孝東路」行動，約五萬人帶著草蓆睡在當時台北地價最高的忠孝東路，抗議高房價與政府縱容炒作。這是解嚴後第一場以公共議題為核心、規模空前的自發性公民運動，也是台灣居住正義運動的起點。",
+      "start": {
+        "value": "1989-08-26",
+        "precision": "day",
+        "raw": "1989/8/26"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：無殼蝸牛運動",
+          "url": "https://zh.wikipedia.org/zh-tw/無殼蝸牛運動"
+        }
+      ]
+    },
+    {
+      "id": "dw-23",
+      "track": "dangwai",
+      "title": "「我們之間」女同志團體成立",
+      "description": "台灣第一個女同性戀團體「我們之間」成立，同年加入亞洲女同志聯盟。與祁家威的公開行動並列，標誌台灣同志社群自我組織的開端。",
+      "start": {
+        "value": "1990-02-23",
+        "precision": "day",
+        "raw": "1990/2/23"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：台灣LGBT歷史",
+          "url": "https://zh.wikipedia.org/zh-tw/台灣LGBT歷史"
+        }
+      ]
+    },
+    {
+      "id": "dw-24",
+      "track": "dangwai",
+      "title": "中華民國殘障聯盟成立",
+      "description": "1987 年底愛國獎券停售、身心障礙者生計受衝擊而走上街頭；作家劉俠（杏林子）串連各團體，1989 年成立「促進殘障福利法修正行動委員會」，並於 1990 年 6 月 30 日正式成立「中華民國殘障聯盟」，是國內第一個身心障礙團體的結盟組織，推動身心障礙人權與福利立法。",
+      "start": {
+        "value": "1990-06-30",
+        "precision": "day",
+        "raw": "1990/6/30"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：中華民國身心障礙聯盟",
+          "url": "https://zh.wikipedia.org/zh-tw/中華民國身心障礙聯盟"
+        }
+      ]
+    },
+    {
+      "id": "sys-01",
+      "track": "reform",
+      "title": "解除戒嚴",
+      "description": "總統蔣經國宣布台灣地區自 7 月 15 日起解除戒嚴，結束長達 38 年的戒嚴體制。集會、結社、言論、出版自由逐步鬆綁，是台灣民主化的關鍵轉捩點。",
+      "start": {
+        "value": "1987-07-15",
+        "precision": "day",
+        "raw": "1987/7/15"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：臺灣省戒嚴令",
+          "url": "https://zh.wikipedia.org/zh-tw/臺灣省戒嚴令"
+        }
+      ]
+    },
+    {
+      "id": "sys-02",
+      "track": "reform",
+      "title": "開放赴大陸探親",
+      "description": "繼解嚴後，蔣經國於 1987 年 9 月宣布開放大陸探親，行政院通過辦法，11 月 2 日起開放民眾赴大陸探親，打破兩岸近 40 年的隔絕。",
+      "start": {
+        "value": "1987-11-02",
+        "precision": "day",
+        "raw": "1987/11/2"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "觀察雜誌：開放大陸探親大事記",
+          "url": "https://www.observer-taipei.com/book2021/item/2453"
+        }
+      ]
+    },
+    {
+      "id": "sys-03",
+      "track": "reform",
+      "title": "報禁解除",
+      "description": "政府解除自 1951 年起實施的報禁，開放報紙登記與增張，新聞出版自由大幅開放。",
+      "start": {
+        "value": "1988-01-01",
+        "precision": "day",
+        "raw": "1988/1/1"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：報禁",
+          "url": "https://zh.wikipedia.org/zh-tw/報禁"
+        }
+      ]
+    },
+    {
+      "id": "sys-04",
+      "track": "reform",
+      "title": "蔣經國逝世，李登輝繼任總統",
+      "description": "總統蔣經國逝世，副總統李登輝依憲法繼任總統，成為首位台灣本省籍總統，開啟其後一系列民主化與本土化改革。",
+      "start": {
+        "value": "1988-01-13",
+        "precision": "day",
+        "raw": "1988/1/13"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：李登輝",
+          "url": "https://zh.wikipedia.org/zh-tw/李登輝"
+        }
+      ]
+    },
+    {
+      "id": "sys-05",
+      "track": "reform",
+      "title": "國是會議召開",
+      "description": "在野百合學運推動下，朝野各界於台北圓山飯店召開國是會議，就國會改革、地方制度、中央政府體制、兩岸關係與修憲方式協商，達成終止動員戡亂、回歸憲法、廢除臨時條款等共識，替後續憲政改革定調。",
+      "start": {
+        "value": "1990-06-28",
+        "precision": "day",
+        "raw": "1990/6/28"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：國是會議",
+          "url": "https://zh.wikipedia.org/zh-hant/國是會議"
+        }
+      ]
+    },
+    {
+      "id": "sys-06",
+      "track": "reform",
+      "title": "終止動員戡亂時期、廢止臨時條款",
+      "description": "李登輝宣告自 1991 年 5 月 1 日起終止動員戡亂時期、廢止《動員戡亂時期臨時條款》，解除長期凍結憲法的緊急體制，並形同承認兩岸分治的現實。",
+      "start": {
+        "value": "1991-05-01",
+        "precision": "day",
+        "raw": "1991/5/1"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：動員戡亂時期臨時條款",
+          "url": "https://zh.wikipedia.org/zh-tw/動員戡亂時期臨時條款"
+        }
+      ]
+    },
+    {
+      "id": "sys-07",
+      "track": "reform",
+      "title": "資深中央民代全面退職（萬年國會終結）",
+      "description": "依大法官釋字第 261 號解釋，自 1948 年選出、長期未改選的第一屆資深中央民意代表（俗稱萬年國會）於 1991 年底全面退職，為國會全面改選鋪路。",
+      "start": {
+        "value": "1991-12-31",
+        "precision": "day",
+        "raw": "1991/12/31"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：萬年國會",
+          "url": "https://zh.wikipedia.org/zh-tw/萬年國會"
+        }
+      ]
+    },
+    {
+      "id": "sys-08",
+      "track": "reform",
+      "title": "刑法第100條修正（言論內亂除罪）",
+      "description": "立法院修正《刑法》第 100 條，將「意圖」層次的言論內亂行為除罪，僅處罰以強暴脅迫著手實行者。言論、思想與學術自由自此獲得法律保障，白色恐怖的言論箝制正式終結。",
+      "start": {
+        "value": "1992-05-15",
+        "precision": "day",
+        "raw": "1992/5/15"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：中華民國刑法第一百條",
+          "url": "https://zh.wikipedia.org/zh-tw/中華民國刑法第一百條"
+        }
+      ]
+    },
+    {
+      "id": "sys-09",
+      "track": "reform",
+      "title": "第二屆立委選舉：國會全面改選",
+      "description": "第二屆立法委員選舉舉行，選出 161 席立委，是 1948 年以來立法院首次全面改選，國會終於全面反映台灣民意。",
+      "start": {
+        "value": "1992-12-19",
+        "precision": "day",
+        "raw": "1992/12/19"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：1992年中華民國立法委員選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/1992年中華民國立法委員選舉"
+        }
+      ]
+    },
+    {
+      "id": "sys-10",
+      "track": "reform",
+      "title": "首屆省長暨直轄市長民選",
+      "description": "首屆台灣省長與直轄市長由公民直接選舉產生（省長宋楚瑜、台北市長陳水扁、高雄市長吳敦義當選），地方最高首長邁入民選。",
+      "start": {
+        "value": "1994-12-03",
+        "precision": "day",
+        "raw": "1994/12/3"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：1994年中華民國省市長選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/1994年中華民國省市長選舉"
+        }
+      ]
+    },
+    {
+      "id": "sys-11",
+      "track": "reform",
+      "title": "首次總統公民直選",
+      "description": "中華民國首次由公民直接選舉正副總統，李登輝、連戰當選。選前中國於台海試射飛彈施壓（台海飛彈危機），台灣仍完成史上首次總統直選，民主化邁入新階段。",
+      "start": {
+        "value": "1996-03-23",
+        "precision": "day",
+        "raw": "1996/3/23"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：1996年中華民國總統選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/1996年中華民國總統選舉"
+        }
+      ]
+    },
+    {
+      "id": "sys-12",
+      "track": "reform",
+      "title": "第四次修憲：凍省（精省）",
+      "description": "國民大會通過第四次修憲，將台灣省虛級化（凍省／精省），省長與省議員選舉停辦，1998 年底正式實施，大幅調整中央與地方的權力結構。",
+      "start": {
+        "value": "1997-07-18",
+        "precision": "day",
+        "raw": "1997/7/18"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：中華民國憲法增修條文",
+          "url": "https://zh.wikipedia.org/zh-tw/中華民國憲法增修條文"
+        }
+      ]
+    },
+    {
+      "id": "sys-13",
+      "track": "reform",
+      "title": "廢除國民大會（第七次修憲）",
+      "description": "任務型國民大會複決通過第七次修憲：立委席次減半、改採單一選區兩票制、任期改四年，並廢除國民大會、將修憲複決權交由公民。延續近一世紀的國民大會走入歷史。",
+      "start": {
+        "value": "2005-06-07",
+        "precision": "day",
+        "raw": "2005/6/7"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：中華民國國民大會",
+          "url": "https://zh.wikipedia.org/zh-tw/國民大會"
+        }
+      ]
+    },
+    {
+      "id": "el-01",
+      "track": "election",
+      "title": "民主進步黨成立",
+      "description": "在戒嚴與黨禁尚未解除下，黨外人士於台北圓山大飯店宣布組成「民主進步黨」，是台灣第一個具實力的本土反對黨。此舉突破黨禁，隔年政府解嚴、其後開放組黨，台灣邁入政黨政治。",
+      "start": {
+        "value": "1986-09-28",
+        "precision": "day",
+        "raw": "1986/9/28"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：民主進步黨",
+          "url": "https://zh.wikipedia.org/zh-tw/民主進步黨"
+        }
+      ]
+    },
+    {
+      "id": "el-02",
+      "track": "election",
+      "title": "民進黨通過台獨黨綱",
+      "description": "民進黨於全國黨員代表大會修正黨綱，增列「建立主權獨立自主的台灣共和國」（俗稱台獨黨綱），確立其台灣獨立的基本主張。",
+      "start": {
+        "value": "1991-10-13",
+        "precision": "day",
+        "raw": "1991/10/13"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "新台灣和平基金會：台獨綱領通過日",
+          "url": "https://www.twpeace.org.tw/wordpress/?p=2315"
+        }
+      ]
+    },
+    {
+      "id": "el-03",
+      "track": "election",
+      "title": "新黨成立",
+      "description": "趙少康等「新國民黨連線」成員脫離中國國民黨，於 1993 年 8 月成立新黨，是解嚴後政黨政治走向多元化的指標之一。",
+      "start": {
+        "value": "1993-08-10",
+        "precision": "day",
+        "raw": "1993/8/10"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：新黨歷史",
+          "url": "https://zh.wikipedia.org/zh-tw/新黨歷史"
+        }
+      ]
+    },
+    {
+      "id": "el-04",
+      "track": "election",
+      "title": "首次政黨輪替（陳水扁當選）",
+      "description": "第十任總統選舉，民進黨籍陳水扁、呂秀蓮以約 39% 得票當選，5 月 20 日就職。執政逾半世紀的中國國民黨首次和平交出中央政權，台灣完成史上首次政黨輪替。",
+      "start": {
+        "value": "2000-03-18",
+        "precision": "day",
+        "raw": "2000/3/18"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：2000年中華民國總統選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/2000年中華民國總統選舉"
+        }
+      ]
+    },
+    {
+      "id": "el-05",
+      "track": "election",
+      "title": "二次政黨輪替（馬英九當選）",
+      "description": "第十二任總統選舉，中國國民黨籍馬英九當選，民進黨交出政權，台灣完成第二次政黨輪替，政黨輪替趨於常態。",
+      "start": {
+        "value": "2008-03-22",
+        "precision": "day",
+        "raw": "2008/3/22"
+      },
+      "importance": 4,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：2008年中華民國總統選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/2008年中華民國總統選舉"
+        }
+      ]
+    },
+    {
+      "id": "el-06",
+      "track": "election",
+      "title": "第三次政黨輪替（蔡英文當選，首位女總統）",
+      "description": "第十四任總統選舉，民進黨籍蔡英文當選，成為中華民國首位女性總統；民進黨同時首次取得立法院過半，達成第三次政黨輪替與首次「完全執政」。",
+      "start": {
+        "value": "2016-01-16",
+        "precision": "day",
+        "raw": "2016/1/16"
+      },
+      "importance": 5,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：2016年中華民國總統選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/2016年中華民國總統選舉"
+        }
+      ]
+    },
+    {
+      "id": "el-07",
+      "track": "election",
+      "title": "賴清德當選（民進黨連三任）",
+      "description": "第十六任總統選舉，民進黨籍賴清德當選，民進黨連續第三屆執政，惟立法院未過半，形成朝小野大格局。",
+      "start": {
+        "value": "2024-01-13",
+        "precision": "day",
+        "raw": "2024/1/13"
+      },
+      "importance": 3,
+      "confidence": "verified",
+      "sources": [
+        {
+          "title": "維基百科：2024年中華民國總統選舉",
+          "url": "https://zh.wikipedia.org/zh-tw/2024年中華民國總統選舉"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "evt-g02",
+      "to": "evt-g03",
+      "type": "causes",
+      "label": "查緝私菸血案 → 隔日民眾請願遭開槍，事件全島爆發"
+    },
+    {
+      "from": "evt-g03",
+      "to": "evt-r01",
+      "type": "causes",
+      "label": "台北鎮壓消息傳開 → 各地民眾響應、自組民兵"
+    },
+    {
+      "from": "evt-g03",
+      "to": "evt-r02",
+      "type": "causes",
+      "label": "官民衝突擴大 → 民間成立處理委員會謀求善後與改革"
+    },
+    {
+      "from": "evt-r05",
+      "to": "evt-g05",
+      "type": "contradicts",
+      "label": "民間提出政治改革方案的隔日，整編 21 師即登陸鎮壓——談判與武力同時進行"
+    },
+    {
+      "from": "evt-g06",
+      "to": "evt-e01",
+      "type": "causes",
+      "label": "戒嚴清鄉、肅清異己 → 知識菁英遭祕密逮捕、失蹤"
+    },
+    {
+      "from": "evt-g06",
+      "to": "evt-e03",
+      "type": "causes",
+      "label": "全臺清鄉 → 各地仕紳未經審判遭公開處決"
+    },
+    {
+      "from": "evt-r03",
+      "to": "evt-e04",
+      "type": "causes",
+      "label": "嘉義民軍與國軍對峙 → 出面和談的代表反遭逮捕、於車站前槍決"
+    },
+    {
+      "from": "evt-r06",
+      "to": "evt-r07",
+      "type": "causes",
+      "label": "二七部隊撤守埔里 → 烏牛欄橋殊死阻擊，武裝抵抗終結"
+    },
+    {
+      "from": "wt-07",
+      "to": "dw-01",
+      "type": "causes",
+      "label": "余登發父子被捕 → 黨外首次街頭示威（橋頭事件）"
+    },
+    {
+      "from": "wt-11",
+      "to": "wt-12",
+      "type": "causes",
+      "label": "獨台會案引爆抗議 → 立法院廢除懲治叛亂條例"
+    },
+    {
+      "from": "dw-07",
+      "to": "wt-08",
+      "type": "causes",
+      "label": "林義雄因美麗島案被羈押期間，家中遭滅門（林宅血案）"
+    },
+    {
+      "from": "dw-07",
+      "to": "dw-08",
+      "type": "causes",
+      "label": "美麗島事件大逮捕 → 軍事法庭公開大審"
+    },
+    {
+      "from": "dw-19",
+      "to": "sys-05",
+      "type": "causes",
+      "label": "野百合學運四大訴求 → 召開國是會議"
+    },
+    {
+      "from": "sys-05",
+      "to": "sys-06",
+      "type": "causes",
+      "label": "國是會議共識 → 終止動員戡亂、廢止臨時條款"
+    },
+    {
+      "from": "sys-06",
+      "to": "sys-07",
+      "type": "causes",
+      "label": "廢止臨時條款 → 萬年國會全面退職"
+    },
+    {
+      "from": "sys-07",
+      "to": "sys-09",
+      "type": "causes",
+      "label": "資深民代退職 → 國會全面改選"
+    },
+    {
+      "from": "dw-20",
+      "to": "sys-08",
+      "type": "causes",
+      "label": "100行動聯盟反惡法 → 刑法100條修正"
+    },
+    {
+      "from": "sys-01",
+      "to": "sys-03",
+      "type": "causes",
+      "label": "解嚴 → 報禁解除"
+    },
+    {
+      "from": "dw-08",
+      "to": "el-01",
+      "type": "causes",
+      "label": "美麗島大審凝聚黨外 → 組成民主進步黨"
+    }
+  ],
+  "display": {
+    "orientation": "horizontal",
+    "defaultScale": "year",
+    "range": {
+      "start": "1945",
+      "end": "2024"
+    },
+    "collapseGaps": true
+  }
+}
