@@ -10,6 +10,7 @@ import {
   serializeSvg,
   svgToPngBlob,
 } from '../adapters/export'
+import { documentToMarkdown } from '../adapters/markdown'
 import type { Layer } from '../compose/useLayers'
 import { validateDocument } from '../core'
 
@@ -105,6 +106,12 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
     }
   }
 
+  /** 下載一個圖層的 Markdown 大事記（純文字，不影響 dirty 狀態——這是衍生輸出，不算「保存」） */
+  const downloadMarkdown = (layer: Layer) => {
+    downloadText(`${layer.doc.id}.md`, documentToMarkdown(layer.doc), 'text/markdown')
+    say(`已下載大事記 ${layer.doc.id}.md`)
+  }
+
   // 分享連結與對應的嵌入碼
   const shareBase = `${window.location.origin}${window.location.pathname}`
   const trimmedSrc = shareSrc.trim()
@@ -166,6 +173,37 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
                 下載全部（{layers.length} 份）
               </button>
             )}
+          </section>
+
+          {/* Markdown 大事記 */}
+          <section>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">
+              匯出大事記（Markdown）
+            </h3>
+            <p className="mb-2 text-xs text-slate-400">
+              依時間排序的中文大事記，可直接貼進 HackMD、共筆或報導草稿。適合對外說明；要完整資料仍請用上面的
+              .hst.json。
+            </p>
+            <ul className="space-y-1">
+              {layers.map((layer) => (
+                <li key={layer.id} className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                    {layer.doc.meta.title}
+                    <span className="ml-2 text-xs text-slate-400">
+                      {layer.doc.events.length} 筆事件
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => downloadMarkdown(layer)}
+                    className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                  >
+                    下載 .md
+                  </button>
+                </li>
+              ))}
+              {layers.length === 0 && <li className="text-xs text-slate-400">目前沒有圖層</li>}
+            </ul>
           </section>
 
           {/* 分享連結（免後端） */}
