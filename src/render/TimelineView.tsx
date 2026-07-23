@@ -279,7 +279,24 @@ export function TimelineView({
     return () => ro.disconnect()
   }, [])
 
-  // ui 層的尺度按鈕：日/週/月 → 以目前中心切換跨度；年 → 回到全貌
+  // 目前被選取事件的位置（壓縮座標 u）。找不到或沒選取為 null。
+  // 切刻度置中、以及「回到選取事件」浮動鈕都靠這個。
+  const selectedU = useMemo(() => {
+    if (!selectedKey) return null
+    for (const source of sources) {
+      for (const ev of source.doc.events) {
+        if (`${source.id}/${ev.id}` !== selectedKey) continue
+        const t = isAbsolute(ev.start)
+          ? spanMidpoint(timePointToSpan(ev.start))
+          : resolvedBySource.get(source.id)?.positions.get(ev.id)
+        return t != null ? warp.toU(t) : null
+      }
+    }
+    return null
+  }, [selectedKey, sources, resolvedBySource, warp])
+
+  // ui 層的尺度按鈕：日/週/月 → 切換跨度；年 → 回到全貌。
+  // 有選取事件時以「該事件」為中心縮放（切刻度不再讓事件跑出畫面）；否則沿用畫面中心。
   useEffect(() => {
     if (!scaleRequest) return
     if (scaleRequest.mode === 'year') {
@@ -288,7 +305,7 @@ export function TimelineView({
     }
     const span = SCALE_SPANS[scaleRequest.mode]
     const [a, b] = domainRef.current
-    const center = (a + b) / 2
+    const center = selectedU ?? (a + b) / 2
     setDomainState([center - span / 2, center + span / 2])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scaleRequest?.nonce])
@@ -327,6 +344,15 @@ export function TimelineView({
   const draggedRef = useRef(false)
   // 滑鼠懸停的事件：不用點擊，關係線就會先亮起來
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
+  // 滑鼠懸停的軸線（band key）：hover 時才浮現「跳到最早／最新事件」按鈕，平常不佔畫面
+  const [hoveredBand, setHoveredBand] = useState<string | null>(null)
+
+  // 跳到某個位置（u 座標）：保持目前跨度、把該位置置中
+  const jumpToU = (u: number) => {
+    const [a, b] = domainRef.current
+    const span = b - a
+    setDomainState([u - span / 2, u + span / 2])
+  }
 
   // ---- 排版計算 ----
   const layout = useMemo(() => {
@@ -421,6 +447,9 @@ export function TimelineView({
               shapeR = cx + dotR
             }
 
+            // 事件在壓縮座標 u 的位置（與目前縮放無關），供「跳到最早／最新事件」定位
+            const u = warp.toU(kind === 'dot' ? spanMidpoint(startSpan) : startSpan.start.getTime())
+
             const text = truncate(ev.title, 16)
             // 日期前綴（「顯示事件日期」「含年份」兩個勾選框控制）。
             // 推估位置永遠標示「（推估）」——明確告訴讀者這不是真實日期
@@ -445,6 +474,7 @@ export function TimelineView({
                 relativeNote,
                 shapeL,
                 shapeR,
+                u,
                 label: text,
                 dateLabel,
                 labelSide,
@@ -461,6 +491,14 @@ export function TimelineView({
         const bandH = M.trackLabelH + laneCount * M.laneH + 6
         y += bandH + M.bandGap
 
+        // 這條軸線最早／最新事件的位置（u 座標），供 hover 浮現的跳轉按鈕使用
+        let firstU = Infinity
+        let lastU = -Infinity
+        for (const it of items) {
+          if (it.u < firstU) firstU = it.u
+          if (it.u > lastU) lastU = it.u
+        }
+
         return {
           key: `${source.id}/${track.id}`,
           sourceId: source.id,
@@ -471,6 +509,8 @@ export function TimelineView({
           color,
           bandTop,
           bandH,
+          firstU: items.length > 0 ? firstU : null,
+          lastU: items.length > 0 ? lastU : null,
           items: items.map((it, j) => ({
             ...it,
             lane: lanes[j],
@@ -560,8 +600,23 @@ export function TimelineView({
   // 壓縮座標 → 像素（畫斷軸記號用）
   const xOfU = (u: number) => ((u - domain[0]) / (domain[1] - domain[0])) * width
 
+  // 「回到選取的事件」：選取的事件被平移／縮放到畫面外時，往它的方向浮現一顆小鈕拉它回來。
+  // 事件在畫面內時鈕自動消失——平常完全不佔畫面。
+  const selectionDir: 'left' | 'right' | null =
+    selectedU == null || (selectedU >= domain[0] && selectedU <= domain[1])
+      ? null
+      : selectedU < domain[0]
+        ? 'left'
+        : 'right'
+  const returnToSelection = () => {
+    if (selectedU == null) return
+    const span = domain[1] - domain[0]
+    setDomainState([selectedU - span / 2, selectedU + span / 2])
+  }
+
   return (
-    <div ref={containerRef} className="h-full w-full select-none overflow-y-auto">
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full select-none overflow-y-auto">
       <svg
         ref={svgRef}
         id="hackstory-timeline-svg"
@@ -575,6 +630,11 @@ export function TimelineView({
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
         onPointerMove={(e) => {
+          // 依游標的 Y 判斷停在哪條軸線上（hover 才浮現跳轉按鈕）
+          const rect = e.currentTarget.getBoundingClientRect()
+          const yPix = e.clientY - rect.top
+          const band = layout.bands.find((bd) => yPix >= bd.bandTop && yPix <= bd.bandTop + bd.bandH)
+          setHoveredBand(band ? band.key : null)
           const drag = dragState.current
           if (!drag) return
           if (Math.abs(e.clientX - drag.startX) > 4) draggedRef.current = true
@@ -582,6 +642,7 @@ export function TimelineView({
           const dt = ((e.clientX - drag.startX) / width) * (b - a)
           setDomainState([a - dt, b - dt])
         }}
+        onPointerLeave={() => setHoveredBand(null)}
         onPointerUp={() => (dragState.current = null)}
         onPointerCancel={() => (dragState.current = null)}
         onClick={() => {
@@ -906,7 +967,50 @@ export function TimelineView({
               ))}
           </g>
         )}
+
+        {/* hover 某條軸線時浮現「跳到最早／最新事件」按鈕（⇤／⇥），平常完全不佔畫面 */}
+        {layout.bands
+          .filter((bd) => bd.key === hoveredBand && bd.firstU != null)
+          .map((bd) => {
+            const by = bd.bandTop + 4
+            const btn = (bx: number, glyph: string, u: number, tip: string) => (
+              <g
+                key={glyph}
+                className="cursor-pointer"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  jumpToU(u)
+                }}
+              >
+                <title>{tip}</title>
+                <rect x={bx} y={by} width={26} height={20} rx={5} fill="#ffffff" stroke="#cbd5e1" />
+                <text x={bx + 13} y={by + 14} textAnchor="middle" fontSize={13} fill="#475569">
+                  {glyph}
+                </text>
+              </g>
+            )
+            return (
+              <g key={`${bd.key}-nav`}>
+                {btn(width - 62, '⇤', bd.firstU!, '跳到這條軸線最早的事件')}
+                {btn(width - 32, '⇥', bd.lastU!, '跳到這條軸線最新的事件')}
+              </g>
+            )
+          })}
       </svg>
+      </div>
+      {selectionDir && (
+        <button
+          type="button"
+          onClick={returnToSelection}
+          className={
+            'absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 rounded-full border border-amber-300 bg-amber-50/95 px-3 py-1.5 text-xs font-medium text-amber-800 shadow-md hover:bg-amber-100 ' +
+            (selectionDir === 'left' ? 'left-3' : 'right-3')
+          }
+        >
+          {selectionDir === 'left' ? '← 回到選取的事件' : '回到選取的事件 →'}
+        </button>
+      )}
     </div>
   )
 }
