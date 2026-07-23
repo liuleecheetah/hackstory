@@ -122,8 +122,9 @@ export function useLayers(initialDocs: TimelineDocument[]) {
   }, [])
 
   /**
-   * 標示／取消關鍵事件：關鍵事件記成 importance 5（沿用 SPEC 既有欄位，檔案格式不變），
+   * 設為／取消「這份時間軸的重點」：記成布林的 featured（SPEC 0.3），
    * 在時間軸上會放大顯示。匯出時會一併保存。
+   * 一併清掉舊欄位 importance，避免兩者並存造成衝突。
    */
   const setKeyEvent = useCallback((layerId: string, eventId: string, key: boolean) => {
     mutate((prev) =>
@@ -133,10 +134,11 @@ export function useLayers(initialDocs: TimelineDocument[]) {
           if (ev.id !== eventId) return ev
           const next = { ...ev }
           if (key) {
-            next.importance = 5
+            next.featured = true
           } else {
-            delete next.importance
+            delete next.featured
           }
+          delete next.importance
           return next
         })
         return { ...l, doc: { ...l.doc, events } }
@@ -148,7 +150,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
   const createBlankLayer = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10)
     const doc: TimelineDocument = {
-      hackstory: '0.2',
+      hackstory: '0.3',
       id: `timeline-${Date.now().toString(36)}`,
       meta: {
         title: '新的時間軸',

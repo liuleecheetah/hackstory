@@ -8,6 +8,7 @@ import { loadFromUrl } from '../adapters/remote'
 import type { HstEvent, Relation, RelationType, RelativeAnchor, TimelineDocument } from '../core'
 import {
   isAbsolute,
+  isFeatured,
   parseDateTime,
   relativeDependsOn,
   removeEventFromDocument,
@@ -434,19 +435,21 @@ export default function App() {
     return parts.join('\n')
   }, [selection, layers])
 
-  // 詳情卡上的「標示為關鍵事件」開關：更新圖層資料，也同步更新卡片顯示。
+  // 詳情卡上的「設為這份時間軸的重點」開關：更新圖層資料，也同步更新卡片顯示。
   // 注意：副作用（setKeyEvent 等）不能放進 setSelection 的更新函式裡——
   // React 開發模式會把更新函式執行兩次，副作用就會重複
   const handleToggleKey = useCallback(() => {
     if (!selection) return
-    const nextKey = (selection.event.importance ?? 0) < 5
+    const nextKey = !isFeatured(selection.event)
     setKeyEvent(selection.sourceId, selection.event.id, nextKey)
     const event = { ...selection.event }
     if (nextKey) {
-      event.importance = 5
+      event.featured = true
     } else {
-      delete event.importance
+      delete event.featured
     }
+    // 一併清掉舊欄位，避免 featured 與 importance 並存造成衝突
+    delete event.importance
     setSelection({ ...selection, event })
   }, [selection, setKeyEvent])
 

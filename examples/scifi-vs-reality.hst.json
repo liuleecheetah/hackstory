@@ -1,21 +1,27 @@
 {
-  "hackstory": "0.1",
+  "hackstory": "0.3",
   "id": "scifi-vs-reality",
   "meta": {
     "title": "科幻預言與現實對照",
     "subtitle": "未來被寫下的那一刻，與它真正到來的那一天",
     "description": "上軸是科幻作品首次描繪某項科技或社會現象的時間，下軸是它在現實世界實現的時刻，關係線把每一組預言與實現連起來——兩點之間的水平距離，就是未來遲到的年數。",
     "authors": [
-      { "name": "HackStory 專案", "url": "https://g0v.tw" }
+      {
+        "name": "HackStory 專案",
+        "url": "https://g0v.tw"
+      }
     ],
     "license": "CC-BY-4.0",
     "language": "zh-TW",
-    "topics": ["科幻", "科技史", "文學"],
+    "topics": [
+      "科幻",
+      "科技史",
+      "文學"
+    ],
     "created": "2026-07-12",
     "updated": "2026-07-12",
     "revision": 2
   },
-
   "tracks": [
     {
       "id": "scifi",
@@ -32,19 +38,27 @@
       "order": 2
     }
   ],
-
   "events": [
     {
       "id": "evt-verne-moon",
       "track": "scifi",
       "title": "《從地球到月球》：以巨砲送人上月球",
       "description": "儒勒·凡爾納描寫三名乘客乘砲彈飛向月球，發射地點設在美國佛羅里達——與一百多年後阿波羅計畫的發射地不謀而合。",
-      "start": { "value": "1865", "precision": "year" },
-      "importance": 5,
+      "start": {
+        "value": "1865",
+        "precision": "year"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["凡爾納", "太空"],
+      "tags": [
+        "凡爾納",
+        "太空"
+      ],
       "sources": [
-        { "title": "維基百科：從地球到月球", "url": "https://zh.wikipedia.org/wiki/從地球到月球" }
+        {
+          "title": "維基百科：從地球到月球",
+          "url": "https://zh.wikipedia.org/wiki/從地球到月球"
+        }
       ]
     },
     {
@@ -52,62 +66,100 @@
       "track": "scifi",
       "title": "《海底兩萬里》：電力潛艇鸚鵡螺號",
       "description": "凡爾納筆下尼莫船長的「鸚鵡螺號」以電力驅動、可長期潛航，遠遠超前當時的潛艇技術。",
-      "start": { "value": "1870", "precision": "year" },
-      "importance": 4,
+      "start": {
+        "value": "1870",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["凡爾納", "海洋"]
+      "tags": [
+        "凡爾納",
+        "海洋"
+      ]
     },
     {
       "id": "evt-bellamy",
       "track": "scifi",
       "title": "《回顧》：預言「信用卡」",
       "description": "愛德華·貝拉米的烏托邦小說《回顧：2000-1887》中，公民持一張卡片消費，「credit card」一詞由此誕生。",
-      "start": { "value": "1888", "precision": "year" },
-      "importance": 3,
+      "start": {
+        "value": "1888",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["經濟", "烏托邦"]
+      "tags": [
+        "經濟",
+        "烏托邦"
+      ]
     },
     {
       "id": "evt-rur",
       "track": "scifi",
       "title": "《R.U.R.》：「robot」一詞誕生",
       "description": "卡雷爾·恰佩克的舞台劇《羅梭的萬能工人》首次使用「robot」稱呼人造勞工，源自捷克語 robota（勞役）。",
-      "start": { "value": "1920", "precision": "year" },
-      "importance": 4,
+      "start": {
+        "value": "1920",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["機器人", "戲劇"]
+      "tags": [
+        "機器人",
+        "戲劇"
+      ]
     },
     {
       "id": "evt-brave-new-world",
       "track": "scifi",
       "title": "《美麗新世界》：體外受精成為常態",
       "description": "阿道斯·赫胥黎描寫嬰兒在「孵化與制約中心」的瓶中培養、體外受精取代自然生育的社會。",
-      "start": { "value": "1932", "precision": "year" },
-      "importance": 4,
+      "start": {
+        "value": "1932",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["生物科技", "反烏托邦"]
+      "tags": [
+        "生物科技",
+        "反烏托邦"
+      ]
     },
     {
       "id": "evt-clarke-satellite",
       "track": "scifi",
       "title": "克拉克提出同步衛星通訊構想",
       "description": "科幻作家亞瑟·克拉克在《Wireless World》雜誌撰文，提出在地球同步軌道部署三顆衛星即可覆蓋全球通訊。這條軌道後來被稱為「克拉克軌道」。",
-      "start": { "value": "1945-10", "precision": "month", "raw": "1945年10月" },
-      "importance": 4,
+      "start": {
+        "value": "1945-10",
+        "precision": "month",
+        "raw": "1945年10月"
+      },
       "confidence": "verified",
-      "tags": ["克拉克", "衛星", "通訊"]
+      "tags": [
+        "克拉克",
+        "衛星",
+        "通訊"
+      ]
     },
     {
       "id": "evt-1984",
       "track": "scifi",
       "title": "《一九八四》：無所不在的監視",
       "description": "喬治·歐威爾筆下的「電幕」同時播送與監看，「老大哥在看著你」成為極權監控的代名詞。",
-      "start": { "value": "1949-06-08", "precision": "day", "raw": "1949/6/8" },
-      "importance": 5,
+      "start": {
+        "value": "1949-06-08",
+        "precision": "day",
+        "raw": "1949/6/8"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["歐威爾", "監控", "反烏托邦"],
+      "tags": [
+        "歐威爾",
+        "監控",
+        "反烏托邦"
+      ],
       "sources": [
-        { "title": "維基百科：一九八四", "url": "https://zh.wikipedia.org/wiki/一九八四" }
+        {
+          "title": "維基百科：一九八四",
+          "url": "https://zh.wikipedia.org/wiki/一九八四"
+        }
       ]
     },
     {
@@ -115,42 +167,71 @@
       "track": "scifi",
       "title": "《華氏451度》：塞進耳朵的「貝殼」",
       "description": "雷·布萊伯利描寫人們耳中塞著名為「貝殼」的微型無線收音機，日夜灌送聲音——形貌與使用情境都神似今日的無線耳機。",
-      "start": { "value": "1953", "precision": "year" },
-      "importance": 3,
+      "start": {
+        "value": "1953",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["布萊伯利", "媒體"]
+      "tags": [
+        "布萊伯利",
+        "媒體"
+      ]
     },
     {
       "id": "evt-star-trek",
       "track": "scifi",
       "title": "《星艦迷航記》首播：翻蓋通訊器",
       "description": "影集中艦隊人員使用的掌上翻蓋通訊器，日後被行動電話發明者 Martin Cooper 點名為靈感來源。",
-      "start": { "value": "1966-09-08", "precision": "day", "raw": "1966/9/8" },
-      "importance": 4,
+      "start": {
+        "value": "1966-09-08",
+        "precision": "day",
+        "raw": "1966/9/8"
+      },
       "confidence": "verified",
-      "tags": ["星艦迷航記", "通訊"]
+      "tags": [
+        "星艦迷航記",
+        "通訊"
+      ]
     },
     {
       "id": "evt-2001",
       "track": "scifi",
       "title": "《2001：太空漫遊》：新聞平板與 HAL 9000",
       "description": "克拉克與庫柏力克描繪太空人邊吃飯邊在薄型「新聞平板」（Newspad）上讀新聞，以及會對話、下棋、也會出錯的人工智慧 HAL 9000。",
-      "start": { "value": "1968", "precision": "year" },
-      "importance": 5,
+      "start": {
+        "value": "1968",
+        "precision": "year"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["克拉克", "人工智慧", "平板"]
+      "tags": [
+        "克拉克",
+        "人工智慧",
+        "平板"
+      ]
     },
     {
       "id": "evt-neuromancer",
       "track": "scifi",
       "title": "《神經喚術士》：「網際空間」定型",
       "description": "威廉·吉布森筆下的 cyberspace——「數十億合法操作者每日經歷的交感幻覺」——為尚未誕生的全球資訊網路提供了語言與想像。",
-      "start": { "value": "1984-07-01", "precision": "day", "raw": "1984/7/1" },
-      "importance": 5,
+      "start": {
+        "value": "1984-07-01",
+        "precision": "day",
+        "raw": "1984/7/1"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["吉布森", "網路", "賽博龐克"],
+      "tags": [
+        "吉布森",
+        "網路",
+        "賽博龐克"
+      ],
       "sources": [
-        { "title": "維基百科：神經喚術士", "url": "https://zh.wikipedia.org/wiki/神经漫游者" }
+        {
+          "title": "維基百科：神經喚術士",
+          "url": "https://zh.wikipedia.org/wiki/神经漫游者"
+        }
       ]
     },
     {
@@ -158,63 +239,98 @@
       "track": "scifi",
       "title": "《潰雪》：「元宇宙」一詞誕生",
       "description": "尼爾·史蒂文森描寫人們以虛擬化身在「Metaverse」中生活與交易，這個詞三十年後被科技產業直接拿去命名自己的未來。",
-      "start": { "value": "1992", "precision": "year" },
-      "importance": 4,
+      "start": {
+        "value": "1992",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["史蒂文森", "虛擬實境"]
+      "tags": [
+        "史蒂文森",
+        "虛擬實境"
+      ]
     },
-
     {
       "id": "evt-diners-club",
       "track": "reality",
       "title": "大來卡問世：第一張簽帳卡",
       "description": "Diners Club 推出可在多家商店通用的簽帳卡。距離《回顧》寫下「credit card」一詞，過了 62 年。",
-      "start": { "value": "1950", "precision": "year" },
-      "importance": 3,
+      "start": {
+        "value": "1950",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["經濟"]
+      "tags": [
+        "經濟"
+      ]
     },
     {
       "id": "evt-nautilus",
       "track": "reality",
       "title": "核動力潛艇「鸚鵡螺號」下水",
       "description": "美國海軍第一艘核動力潛艇 USS Nautilus 下水，艦名直接取自《海底兩萬里》中的潛艇——84 年後，尼莫船長的船有了真身。",
-      "start": { "value": "1954-01-21", "precision": "day", "raw": "1954/1/21" },
-      "importance": 4,
+      "start": {
+        "value": "1954-01-21",
+        "precision": "day",
+        "raw": "1954/1/21"
+      },
       "confidence": "verified",
-      "tags": ["海洋", "軍事"]
+      "tags": [
+        "海洋",
+        "軍事"
+      ]
     },
     {
       "id": "evt-unimate",
       "track": "reality",
       "title": "第一台工業機器人 Unimate 上線",
       "description": "Unimate 在通用汽車生產線開始搬運高溫鑄件。距離《R.U.R.》發明「robot」一詞，過了 41 年。",
-      "start": { "value": "1961", "precision": "year" },
-      "importance": 4,
+      "start": {
+        "value": "1961",
+        "precision": "year"
+      },
       "confidence": "verified",
-      "tags": ["機器人", "製造業"]
+      "tags": [
+        "機器人",
+        "製造業"
+      ]
     },
     {
       "id": "evt-syncom3",
       "track": "reality",
       "title": "Syncom 3 進入地球同步軌道",
       "description": "第一顆真正的地球同步軌道衛星升空，並轉播了東京奧運。克拉克 1945 年在雜誌上畫的藍圖，19 年後掛上了天空。",
-      "start": { "value": "1964-08-19", "precision": "day", "raw": "1964/8/19" },
-      "importance": 4,
+      "start": {
+        "value": "1964-08-19",
+        "precision": "day",
+        "raw": "1964/8/19"
+      },
       "confidence": "verified",
-      "tags": ["衛星", "通訊"]
+      "tags": [
+        "衛星",
+        "通訊"
+      ]
     },
     {
       "id": "evt-apollo11",
       "track": "reality",
       "title": "阿波羅 11 號登月",
       "description": "人類首次踏上月球。火箭從佛羅里達發射——與《從地球到月球》寫的發射地相同，距離小說出版 104 年。",
-      "start": { "value": "1969-07-20", "precision": "day", "raw": "1969/7/20" },
-      "importance": 5,
+      "start": {
+        "value": "1969-07-20",
+        "precision": "day",
+        "raw": "1969/7/20"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["太空", "NASA"],
+      "tags": [
+        "太空",
+        "NASA"
+      ],
       "sources": [
-        { "title": "維基百科：阿波羅11號", "url": "https://zh.wikipedia.org/wiki/阿波罗11号" }
+        {
+          "title": "維基百科：阿波羅11號",
+          "url": "https://zh.wikipedia.org/wiki/阿波罗11号"
+        }
       ]
     },
     {
@@ -222,32 +338,54 @@
       "track": "reality",
       "title": "第一通手機電話撥出",
       "description": "Motorola 工程師 Martin Cooper 在紐約街頭用手持行動電話撥出第一通電話。他日後表示，靈感來自《星艦迷航記》的通訊器。",
-      "start": { "value": "1973-04-03", "precision": "day", "raw": "1973/4/3" },
-      "importance": 4,
+      "start": {
+        "value": "1973-04-03",
+        "precision": "day",
+        "raw": "1973/4/3"
+      },
       "confidence": "verified",
-      "tags": ["通訊", "行動電話"]
+      "tags": [
+        "通訊",
+        "行動電話"
+      ]
     },
     {
       "id": "evt-ivf",
       "track": "reality",
       "title": "第一位試管嬰兒誕生",
       "description": "Louise Brown 在英國誕生，體外受精從《美麗新世界》的反烏托邦設定，變成幫助無數家庭的醫療技術——相隔 46 年。",
-      "start": { "value": "1978-07-25", "precision": "day", "raw": "1978/7/25" },
-      "importance": 4,
+      "start": {
+        "value": "1978-07-25",
+        "precision": "day",
+        "raw": "1978/7/25"
+      },
       "confidence": "verified",
-      "tags": ["生物科技", "醫療"]
+      "tags": [
+        "生物科技",
+        "醫療"
+      ]
     },
     {
       "id": "evt-www",
       "track": "reality",
       "title": "全球資訊網對外公開",
       "description": "Tim Berners-Lee 在新聞群組公開 World Wide Web 專案。《神經喚術士》筆下的網際空間，7 年後開始有了入口。",
-      "start": { "value": "1991-08-06", "precision": "day", "raw": "1991/8/6" },
-      "importance": 5,
+      "start": {
+        "value": "1991-08-06",
+        "precision": "day",
+        "raw": "1991/8/6"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["網路", "WWW"],
+      "tags": [
+        "網路",
+        "WWW"
+      ],
       "sources": [
-        { "title": "維基百科：全球資訊網", "url": "https://zh.wikipedia.org/wiki/万维网" }
+        {
+          "title": "維基百科：全球資訊網",
+          "url": "https://zh.wikipedia.org/wiki/万维网"
+        }
       ]
     },
     {
@@ -255,53 +393,83 @@
       "track": "reality",
       "title": "iPad 發表",
       "description": "薄型平板電腦成為日常用品，與《2001：太空漫遊》裡太空人餐桌上的「新聞平板」相隔 42 年。",
-      "start": { "value": "2010-01-27", "precision": "day", "raw": "2010/1/27" },
-      "importance": 3,
+      "start": {
+        "value": "2010-01-27",
+        "precision": "day",
+        "raw": "2010/1/27"
+      },
       "confidence": "verified",
-      "tags": ["平板", "蘋果"]
+      "tags": [
+        "平板",
+        "蘋果"
+      ]
     },
     {
       "id": "evt-snowden",
       "track": "reality",
       "title": "史諾登揭露大規模監控計畫",
       "description": "前情報承包商員工史諾登揭露美國國安局的全球監控系統。《一九八四》出版 64 年後，「老大哥」從文學隱喻變成新聞頭條。",
-      "start": { "value": "2013-06-06", "precision": "day", "raw": "2013/6/6" },
-      "importance": 5,
+      "start": {
+        "value": "2013-06-06",
+        "precision": "day",
+        "raw": "2013/6/6"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["監控", "隱私"]
+      "tags": [
+        "監控",
+        "隱私"
+      ]
     },
     {
       "id": "evt-airpods",
       "track": "reality",
       "title": "AirPods 上市",
       "description": "無線耳機成為街頭日常。《華氏451度》裡塞在耳中的「貝殼」，63 年後在現實世界大賣。",
-      "start": { "value": "2016-12-13", "precision": "day", "raw": "2016/12/13" },
-      "importance": 3,
+      "start": {
+        "value": "2016-12-13",
+        "precision": "day",
+        "raw": "2016/12/13"
+      },
       "confidence": "verified",
-      "tags": ["媒體", "蘋果"]
+      "tags": [
+        "媒體",
+        "蘋果"
+      ]
     },
     {
       "id": "evt-meta",
       "track": "reality",
       "title": "Facebook 改名 Meta",
       "description": "全球最大社群平台以「元宇宙」重新命名自己——這個詞直接取自《潰雪》，相隔 29 年。",
-      "start": { "value": "2021-10-28", "precision": "day", "raw": "2021/10/28" },
-      "importance": 3,
+      "start": {
+        "value": "2021-10-28",
+        "precision": "day",
+        "raw": "2021/10/28"
+      },
       "confidence": "verified",
-      "tags": ["虛擬實境", "社群平台"]
+      "tags": [
+        "虛擬實境",
+        "社群平台"
+      ]
     },
     {
       "id": "evt-chatgpt",
       "track": "reality",
       "title": "ChatGPT 發布",
       "description": "對話式人工智慧在兩個月內達到上億使用者，《2001：太空漫遊》中 HAL 9000 引發的想像與警惕，54 年後成為全球日常話題。",
-      "start": { "value": "2022-11-30", "precision": "day", "raw": "2022/11/30" },
-      "importance": 5,
+      "start": {
+        "value": "2022-11-30",
+        "precision": "day",
+        "raw": "2022/11/30"
+      },
+      "featured": true,
       "confidence": "verified",
-      "tags": ["人工智慧"]
+      "tags": [
+        "人工智慧"
+      ]
     }
   ],
-
   "relations": [
     {
       "from": "evt-apollo11",
@@ -382,11 +550,13 @@
       "label": "29 年後，科技巨頭以元宇宙為名"
     }
   ],
-
   "display": {
     "orientation": "horizontal",
     "defaultScale": "year",
-    "range": { "start": "1860", "end": "2025" },
+    "range": {
+      "start": "1860",
+      "end": "2025"
+    },
     "collapseGaps": true
   }
 }

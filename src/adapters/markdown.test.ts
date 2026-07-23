@@ -106,7 +106,7 @@ describe('documentToMarkdown — 事件依時間排序', () => {
 })
 
 describe('documentToMarkdown — 事件細節', () => {
-  it('關鍵事件加星號，地點／標籤／來源列成清單', () => {
+  it('重點事件加星號，地點／標籤／來源列成清單', () => {
     const md = documentToMarkdown(
       makeDoc({
         events: [
@@ -116,7 +116,7 @@ describe('documentToMarkdown — 事件細節', () => {
             title: '釋字 748',
             description: '大法官宣告違憲。',
             start: { value: '2017-05-24', precision: 'day' },
-            importance: 5,
+            featured: true,
             location: { name: '司法院，台北' },
             tags: ['釋憲', '大法官'],
             confidence: 'verified',

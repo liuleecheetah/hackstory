@@ -11,7 +11,7 @@ import type {
   RelativeResolution,
   TimelineDocument,
 } from '../core'
-import { isAbsolute, resolveRelativeEvents } from '../core'
+import { isAbsolute, isFeatured, resolveRelativeEvents } from '../core'
 import type { TimeWarp } from './gaps'
 import { buildWarp, formatSkipped } from './gaps'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
@@ -357,8 +357,8 @@ export function TimelineView({
               relativeNote = parts.join('、')
             }
 
-            // 關鍵事件（importance 5）：放大、粗體、光暈，一眼看到
-            const isKey = (ev.importance ?? 0) >= 5
+            // 重點事件（featured）：放大、粗體、光暈，一眼看到
+            const isKey = isFeatured(ev)
             const dotR = isKey ? DOT_R + 2.5 : DOT_R
 
             // 進行中事件（ongoing 且沒有 end）：長條一路畫到「今天」，右端淡出。

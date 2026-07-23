@@ -5,7 +5,7 @@
 // 只呼叫 core；不碰畫面、不碰資料來源。
 
 import type { AbsoluteTimePoint, HstEvent, RelativeAnchor, TimelineDocument } from '../core'
-import { absolutePointRange, isAbsolute, resolveRelativeEvents } from '../core'
+import { absolutePointRange, isAbsolute, isFeatured, resolveRelativeEvents } from '../core'
 
 /** 關係類型的中文名稱（與介面一致） */
 const REL_TYPE_LABELS: Record<string, string> = {
@@ -162,7 +162,7 @@ export function documentToMarkdown(doc: TimelineDocument): string {
 
   for (const { ev } of ordered) {
     const dateStr = eventDateString(ev, resolved, titleOf)
-    const marker = ev.importance === 5 ? '★ ' : ''
+    const marker = isFeatured(ev) ? '★ ' : ''
     lines.push('')
     lines.push(`### ${dateStr}｜${marker}${ev.title || '（未命名事件）'}`)
 

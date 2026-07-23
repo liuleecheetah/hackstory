@@ -1,5 +1,5 @@
 {
-  "hackstory": "0.2",
+  "hackstory": "0.3",
   "id": "tw-democracy-movement",
   "meta": {
     "title": "台灣民主運動史",
@@ -71,7 +71,6 @@
         "precision": "day",
         "raw": "1945/10/25"
       },
-      "importance": 3,
       "confidence": "verified",
       "tags": [
         "接收",
@@ -92,7 +91,7 @@
       "location": {
         "name": "台北市，天馬茶房"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "緝菸血案",
@@ -118,7 +117,7 @@
       "location": {
         "name": "臺灣省行政長官公署，台北"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "長官公署",
@@ -139,7 +138,7 @@
       "location": {
         "name": "高雄市"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "高雄",
@@ -160,7 +159,7 @@
       "location": {
         "name": "基隆港"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "整編21師",
@@ -178,7 +177,7 @@
         "precision": "day",
         "raw": "1947/3/10"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "戒嚴",
@@ -199,7 +198,6 @@
         "value": "1947-05-16",
         "precision": "day"
       },
-      "importance": 4,
       "confidence": "verified",
       "tags": [
         "綏靖",
@@ -216,7 +214,6 @@
         "precision": "day",
         "raw": "1947/4/22"
       },
-      "importance": 3,
       "confidence": "verified",
       "tags": [
         "撤銷公署",
@@ -233,7 +230,6 @@
         "precision": "day",
         "raw": "1947/5/16"
       },
-      "importance": 3,
       "confidence": "verified",
       "tags": [
         "魏道明",
@@ -253,7 +249,7 @@
       "location": {
         "name": "台北"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "林茂生",
@@ -274,7 +270,7 @@
       "location": {
         "name": "台北"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "王添灯",
@@ -295,7 +291,7 @@
       "location": {
         "name": "台南，民生綠園（今湯德章紀念公園）"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "湯德章",
@@ -322,7 +318,7 @@
       "location": {
         "name": "嘉義火車站前"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "陳澄波",
@@ -350,7 +346,6 @@
       "location": {
         "name": "花蓮"
       },
-      "importance": 4,
       "confidence": "verified",
       "tags": [
         "張七郎",
@@ -371,7 +366,6 @@
       "location": {
         "name": "台中"
       },
-      "importance": 4,
       "confidence": "verified",
       "tags": [
         "台中",
@@ -392,7 +386,6 @@
       "location": {
         "name": "台北"
       },
-      "importance": 4,
       "confidence": "verified",
       "tags": [
         "處理委員會",
@@ -416,7 +409,6 @@
       "location": {
         "name": "嘉義水上機場"
       },
-      "importance": 4,
       "confidence": "reported",
       "tags": [
         "嘉義",
@@ -437,7 +429,7 @@
       "location": {
         "name": "台中"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "二七部隊",
@@ -458,7 +450,6 @@
       "location": {
         "name": "台北"
       },
-      "importance": 4,
       "confidence": "verified",
       "tags": [
         "四十二條",
@@ -478,7 +469,6 @@
       "location": {
         "name": "埔里"
       },
-      "importance": 3,
       "confidence": "verified",
       "tags": [
         "二七部隊",
@@ -499,7 +489,7 @@
       "location": {
         "name": "埔里，烏牛欄橋"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "tags": [
         "烏牛欄之役",
@@ -523,7 +513,7 @@
         "precision": "day",
         "raw": "1949/5/19"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -542,7 +532,6 @@
         "precision": "day",
         "raw": "1949/5/24"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -561,7 +550,6 @@
         "precision": "day",
         "raw": "1950/6/13"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -580,7 +568,6 @@
         "precision": "year",
         "raw": "1950"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -599,7 +586,6 @@
         "precision": "month",
         "raw": "1952/12"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -618,7 +604,6 @@
         "precision": "day",
         "raw": "1970/2/8"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -637,7 +622,6 @@
         "precision": "day",
         "raw": "1979/1/21"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -656,7 +640,7 @@
         "precision": "day",
         "raw": "1980/2/28"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -675,7 +659,6 @@
         "precision": "day",
         "raw": "1981/7/3"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -694,7 +677,6 @@
         "precision": "day",
         "raw": "1984/10/15"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -713,7 +695,6 @@
         "precision": "day",
         "raw": "1991/5/9"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -732,7 +713,6 @@
         "precision": "day",
         "raw": "1991/5/17"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -751,7 +731,7 @@
         "precision": "day",
         "raw": "1979/1/22"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -770,7 +750,7 @@
         "precision": "day",
         "raw": "1989/4/7"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -789,7 +769,6 @@
         "precision": "day",
         "raw": "1960/9/4"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -808,7 +787,6 @@
         "precision": "month",
         "raw": "1975/8"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -827,7 +805,7 @@
         "precision": "day",
         "raw": "1977/11/19"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -846,7 +824,6 @@
         "precision": "month",
         "raw": "1979/8"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -865,7 +842,7 @@
         "precision": "day",
         "raw": "1979/12/10"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -884,7 +861,7 @@
         "precision": "day",
         "raw": "1980/3/18"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -903,7 +880,6 @@
         "precision": "day",
         "raw": "1986/6/24"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -922,7 +898,6 @@
         "precision": "month",
         "raw": "1986/10"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -941,7 +916,6 @@
         "precision": "day",
         "raw": "1987/1/10"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -960,7 +934,7 @@
         "precision": "day",
         "raw": "1988/5/20"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -979,7 +953,6 @@
         "precision": "day",
         "raw": "1988/8/25"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -998,7 +971,6 @@
         "precision": "day",
         "raw": "1988/12/28"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1017,7 +989,6 @@
         "precision": "month",
         "raw": "1989/5"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1036,7 +1007,6 @@
         "precision": "year",
         "raw": "1982"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1055,7 +1025,6 @@
         "precision": "day",
         "raw": "1986/5/19"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1074,7 +1043,6 @@
         "precision": "day",
         "raw": "1988/3/6"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1093,7 +1061,7 @@
         "precision": "day",
         "raw": "1990/3/16"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1112,7 +1080,6 @@
         "precision": "day",
         "raw": "1991/9/21"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1131,7 +1098,6 @@
         "precision": "month",
         "raw": "1986/3"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1150,7 +1116,7 @@
         "precision": "day",
         "raw": "1989/8/26"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1169,7 +1135,6 @@
         "precision": "day",
         "raw": "1990/2/23"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1188,7 +1153,6 @@
         "precision": "day",
         "raw": "1990/6/30"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1207,7 +1171,7 @@
         "precision": "day",
         "raw": "1987/7/15"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1226,7 +1190,6 @@
         "precision": "day",
         "raw": "1987/11/2"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1245,7 +1208,6 @@
         "precision": "day",
         "raw": "1988/1/1"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1264,7 +1226,7 @@
         "precision": "day",
         "raw": "1988/1/13"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1283,7 +1245,6 @@
         "precision": "day",
         "raw": "1990/6/28"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1302,7 +1263,7 @@
         "precision": "day",
         "raw": "1991/5/1"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1321,7 +1282,6 @@
         "precision": "day",
         "raw": "1991/12/31"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1340,7 +1300,6 @@
         "precision": "day",
         "raw": "1992/5/15"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1359,7 +1318,7 @@
         "precision": "day",
         "raw": "1992/12/19"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1378,7 +1337,6 @@
         "precision": "day",
         "raw": "1994/12/3"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1397,7 +1355,7 @@
         "precision": "day",
         "raw": "1996/3/23"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1416,7 +1374,6 @@
         "precision": "day",
         "raw": "1997/7/18"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1435,7 +1392,6 @@
         "precision": "day",
         "raw": "2005/6/7"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1454,7 +1410,7 @@
         "precision": "day",
         "raw": "1986/9/28"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1473,7 +1429,6 @@
         "precision": "day",
         "raw": "1991/10/13"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1492,7 +1447,6 @@
         "precision": "day",
         "raw": "1993/8/10"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {
@@ -1511,7 +1465,7 @@
         "precision": "day",
         "raw": "2000/3/18"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1530,7 +1484,6 @@
         "precision": "day",
         "raw": "2008/3/22"
       },
-      "importance": 4,
       "confidence": "verified",
       "sources": [
         {
@@ -1549,7 +1502,7 @@
         "precision": "day",
         "raw": "2016/1/16"
       },
-      "importance": 5,
+      "featured": true,
       "confidence": "verified",
       "sources": [
         {
@@ -1568,7 +1521,6 @@
         "precision": "day",
         "raw": "2024/1/13"
       },
-      "importance": 3,
       "confidence": "verified",
       "sources": [
         {

@@ -114,7 +114,16 @@ export interface HstEvent {
    */
   ongoing?: boolean
   location?: EventLocation
-  /** 1–5，縮小時決定哪些事件優先顯示 */
+  /**
+   * 「作者選來優先呈現的重點」。true = 在軸上放大、加光暈、粗體顯示。
+   * 語意是編輯選擇（作者的取捨），不是客觀分數。SPEC 0.3 新增，取代 importance。
+   */
+  featured?: boolean
+  /**
+   * @deprecated 舊欄位（0.3 之前）。原為 1–5 的重要性分數，但實務上只有 5 有效果，
+   * 已由布林的 featured 取代。仍可讀取（importance >= 5 視為 featured）；
+   * 新建與新匯出的檔案只寫 featured。等 1.0 才正式移除。
+   */
   importance?: number
   confidence?: Confidence
   tags?: string[]

@@ -6,14 +6,14 @@
 import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
 import type { AbsoluteTimePoint, Confidence, HstEvent, RelativeAnchor } from '../core'
-import { isAbsolute, parseDateTime } from '../core'
+import { isAbsolute, isFeatured, parseDateTime } from '../core'
 import type { EventSelection } from '../render/TimelineView'
 import { formatPointLong } from '../render/timeScale'
 
 interface Props {
   selection: EventSelection
   onClose: () => void
-  /** 切換關鍵事件。未提供時隱藏（唯讀檢視） */
+  /** 切換「這份時間軸的重點」（featured）。未提供時隱藏（唯讀檢視） */
   onToggleKey?: () => void
   /** 儲存編輯後的事件。未提供時隱藏編輯功能（嵌入模式） */
   onUpdate?: (next: HstEvent) => void
@@ -136,7 +136,7 @@ export function EventDetailCard({
         ? '至今仍持續'
         : null
   const confidence = event.confidence ? CONFIDENCE[event.confidence] : null
-  const isKey = (event.importance ?? 0) >= 5
+  const isKey = isFeatured(event)
 
   const startEdit = () => {
     const relative = isAbsolute(event.start) ? null : (event.start as RelativeAnchor).relative
@@ -460,7 +460,7 @@ export function EventDetailCard({
                   onChange={onToggleKey}
                   className="accent-amber-500"
                 />
-                標示為關鍵事件（在時間軸上放大顯示）
+                設為這份時間軸的重點（在軸上放大顯示）
               </label>
             )}
 

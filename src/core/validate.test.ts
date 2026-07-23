@@ -141,10 +141,26 @@ describe('事件與引用完整性', () => {
     expect(validateDocument(doc).ok).toBe(false)
   })
 
-  it('importance 超出 1–5 → 錯誤', () => {
+  it('importance 超出 1–5 → 錯誤（舊欄位仍會驗證）', () => {
     const doc = minimalDoc()
     ;(doc.events as Record<string, unknown>[])[0].importance = 9
     expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('featured 不是布林 → 錯誤', () => {
+    const doc = minimalDoc()
+    ;(doc.events as Record<string, unknown>[])[0].featured = 'yes'
+    expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('featured 與舊欄位 importance 同時存在 → 通過但警告', () => {
+    const doc = minimalDoc()
+    const evt = (doc.events as Record<string, unknown>[])[0]
+    evt.featured = true
+    evt.importance = 5
+    const result = validateDocument(doc)
+    expect(result.ok).toBe(true)
+    expect(result.warnings.some((w) => w.message.includes('以 featured 為準'))).toBe(true)
   })
 
   it('結束時間早於開始時間 → 警告（不擋，讓使用者自己看著辦）', () => {

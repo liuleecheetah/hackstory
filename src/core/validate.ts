@@ -28,7 +28,7 @@ export interface ValidationResult {
 
 // 本程式支援的規格版本
 const SUPPORTED_MAJOR = 0
-const SUPPORTED_MINOR = 2
+const SUPPORTED_MINOR = 3
 
 const PRECISIONS: Precision[] = ['year', 'month', 'day', 'minute']
 const CONFIDENCES = ['verified', 'reported', 'disputed', 'unknown']
@@ -220,6 +220,10 @@ export function validateDocument(data: unknown): ValidationResult {
       if (e.ongoing === true && e.end !== undefined && e.end !== null) {
         warn(`${path}.ongoing`, `事件${label}同時有結束時間與 ongoing，以結束時間為準`)
       }
+      if (e.featured !== undefined && typeof e.featured !== 'boolean') {
+        err(`${path}.featured`, 'featured 應為 true/false')
+      }
+      // importance 為 0.3 之前的舊欄位，仍可讀取但已由 featured 取代
       if (e.importance !== undefined) {
         if (
           typeof e.importance !== 'number' ||
@@ -228,6 +232,12 @@ export function validateDocument(data: unknown): ValidationResult {
           e.importance > 5
         ) {
           err(`${path}.importance`, 'importance 應為 1–5 的整數')
+        }
+        if (e.featured !== undefined) {
+          warn(
+            `${path}.importance`,
+            `事件${label}同時有 featured 與舊欄位 importance，以 featured 為準（建議移除 importance）`,
+          )
         }
       }
       if (e.confidence !== undefined && !CONFIDENCES.includes(e.confidence as string)) {
