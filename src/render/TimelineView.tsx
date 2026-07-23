@@ -318,11 +318,21 @@ export function TimelineView({
     onScaleModeChange?.(mode)
   }, [domain, onScaleModeChange])
 
-  // 滑鼠滾輪縮放（以游標位置為錨點）。需要 passive: false 才能擋掉頁面捲動
+  // 滑鼠滾輪縮放（以游標位置為錨點）。需要 passive: false 才能擋掉頁面捲動。
+  // Shift＋滾輪改為上下捲動軸線（給沒有觸控板、只能用滾輪的使用者）。
   useEffect(() => {
     const el = svgRef.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
+      // Shift＋滾輪：上下捲動軸線（部分系統會把捲動量放到 deltaX，兩者取其一）
+      if (e.shiftKey) {
+        const c = containerRef.current
+        if (c) {
+          e.preventDefault()
+          c.scrollTop += e.deltaY || e.deltaX
+        }
+        return
+      }
       e.preventDefault()
       const rect = el.getBoundingClientRect()
       const f = (e.clientX - rect.left) / rect.width
@@ -338,8 +348,14 @@ export function TimelineView({
     return () => el.removeEventListener('wheel', onWheel)
   }, [sources.length > 0]) // 空狀態沒有 svg，出現後要重掛監聽
 
-  // 拖曳平移
-  const dragState = useRef<{ startX: number; domain: [number, number] } | null>(null)
+  // 拖曳：左右＝平移時間，上下＝捲動軸線（第一次超過門檻時鎖定方向，避免斜拖抖動）
+  const dragState = useRef<{
+    startX: number
+    startY: number
+    domain: [number, number]
+    startScrollTop: number
+    axis: 'x' | 'y' | null
+  } | null>(null)
   // 這次按下之後有沒有實際拖動（拖動結束的 click 不應該被當成「點空白處取消選取」）
   const draggedRef = useRef(false)
   // 滑鼠懸停的事件：不用點擊，關係線就會先亮起來
@@ -625,7 +641,13 @@ export function TimelineView({
         className="block cursor-grab bg-white active:cursor-grabbing"
         style={{ touchAction: 'none' }}
         onPointerDown={(e) => {
-          dragState.current = { startX: e.clientX, domain }
+          dragState.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            domain,
+            startScrollTop: containerRef.current?.scrollTop ?? 0,
+            axis: null,
+          }
           draggedRef.current = false
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
@@ -637,10 +659,21 @@ export function TimelineView({
           setHoveredBand(band ? band.key : null)
           const drag = dragState.current
           if (!drag) return
-          if (Math.abs(e.clientX - drag.startX) > 4) draggedRef.current = true
-          const [a, b] = drag.domain
-          const dt = ((e.clientX - drag.startX) / width) * (b - a)
-          setDomainState([a - dt, b - dt])
+          const dx = e.clientX - drag.startX
+          const dy = e.clientY - drag.startY
+          if (Math.abs(dx) > 4 || Math.abs(dy) > 4) draggedRef.current = true
+          // 第一次超過門檻時鎖定方向：水平＝平移時間，垂直＝捲動軸線
+          if (!drag.axis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+            drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
+          }
+          if (drag.axis === 'y') {
+            // 抓著畫面上下拉：往上拉看下面的軸線（grab 捲動）
+            if (containerRef.current) containerRef.current.scrollTop = drag.startScrollTop - dy
+          } else if (drag.axis === 'x') {
+            const [a, b] = drag.domain
+            const dt = (dx / width) * (b - a)
+            setDomainState([a - dt, b - dt])
+          }
         }}
         onPointerLeave={() => setHoveredBand(null)}
         onPointerUp={() => (dragState.current = null)}
