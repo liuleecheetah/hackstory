@@ -124,7 +124,6 @@ export function useLayers(initialDocs: TimelineDocument[]) {
   /**
    * 設為／取消「這份時間軸的重點」：記成布林的 featured（SPEC 0.3），
    * 在時間軸上會放大顯示。匯出時會一併保存。
-   * 一併清掉舊欄位 importance，避免兩者並存造成衝突。
    */
   const setKeyEvent = useCallback((layerId: string, eventId: string, key: boolean) => {
     mutate((prev) =>
@@ -138,7 +137,6 @@ export function useLayers(initialDocs: TimelineDocument[]) {
           } else {
             delete next.featured
           }
-          delete next.importance
           return next
         })
         return { ...l, doc: { ...l.doc, events } }

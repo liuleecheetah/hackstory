@@ -140,7 +140,7 @@ HackStory 不要求登入 Google、不碰你的帳號權限，所以試算表必
 | `end` | | 填了就畫成長條 |
 | `ongoing` | | 填 `true` 表示事件**仍在持續**：長條畫到「今天」、右端淡出，詳情卡顯示「至今仍持續」。與 `end` 擇一使用 |
 | `description` | | 點開事件看到的完整說明 |
-| `importance` | | **填 `5` 就是關鍵事件**，在軸上放大顯示 |
+| `featured` | | **填 `true` 就是這份時間軸的重點**，在軸上放大顯示 |
 | `confidence` | | `verified`（已查證）／`reported`（據報導）／`disputed`（有爭議）／`unknown` |
 | `tags`、`location`、`sources` | | 標籤陣列、`{ "name": "地點" }`、`[{ "title": "...", "url": "..." }]` |
 

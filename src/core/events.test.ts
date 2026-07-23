@@ -1,4 +1,4 @@
-// isFeatured 的測試：布林新欄位、相容舊 importance、兩者並存的優先權
+// isFeatured 的測試：featured 是布林——有標記才是重點，沒標記就不是
 import { describe, expect, it } from 'vitest'
 import type { HstEvent } from './types'
 import { isFeatured } from './events'
@@ -22,19 +22,7 @@ describe('isFeatured', () => {
     expect(isFeatured(ev({ featured: false }))).toBe(false)
   })
 
-  it('沒有 featured 也沒有 importance → 不是重點', () => {
+  it('沒有 featured → 不是重點', () => {
     expect(isFeatured(ev({}))).toBe(false)
-  })
-
-  it('相容舊檔：沒有 featured、importance 為 5 → 視為重點', () => {
-    expect(isFeatured(ev({ importance: 5 }))).toBe(true)
-  })
-
-  it('相容舊檔：importance 為 1–4 → 不是重點', () => {
-    expect(isFeatured(ev({ importance: 3 }))).toBe(false)
-  })
-
-  it('兩者並存時以 featured 為準（featured:false 蓋過 importance:5）', () => {
-    expect(isFeatured(ev({ featured: false, importance: 5 }))).toBe(false)
   })
 })

@@ -223,22 +223,13 @@ export function validateDocument(data: unknown): ValidationResult {
       if (e.featured !== undefined && typeof e.featured !== 'boolean') {
         err(`${path}.featured`, 'featured 應為 true/false')
       }
-      // importance 為 0.3 之前的舊欄位，仍可讀取但已由 featured 取代
+      // importance 已於 0.3 移除，改用布林的 featured。
+      // 讀到殘留的舊欄位就提醒（它不再有任何作用），而不是靜靜忽略讓人納悶。
       if (e.importance !== undefined) {
-        if (
-          typeof e.importance !== 'number' ||
-          !Number.isInteger(e.importance) ||
-          e.importance < 1 ||
-          e.importance > 5
-        ) {
-          err(`${path}.importance`, 'importance 應為 1–5 的整數')
-        }
-        if (e.featured !== undefined) {
-          warn(
-            `${path}.importance`,
-            `事件${label}同時有 featured 與舊欄位 importance，以 featured 為準（建議移除 importance）`,
-          )
-        }
+        warn(
+          `${path}.importance`,
+          `事件${label}有已移除的舊欄位 importance，它不再有作用，請改用 featured（true = 這份時間軸的重點）`,
+        )
       }
       if (e.confidence !== undefined && !CONFIDENCES.includes(e.confidence as string)) {
         err(`${path}.confidence`, `confidence「${String(e.confidence)}」不在允許值中（${CONFIDENCES.join(' / ')}）`)

@@ -6,9 +6,7 @@
 
 > 版本歷史：
 > - 0.2 新增 `events[].ongoing`（進行中事件）。
-> - 0.3 以布林的 `events[].featured` 取代 `events[].importance`（見第 6 節）。`importance` 標為舊欄位、仍可讀取（`importance >= 5` 視為 `featured`），等 1.0 才正式移除。
->
-> 依第 10 節規則，舊版本的檔案仍可正常讀取。
+> - 0.3 以布林的 `events[].featured` 取代 `events[].importance`（見第 6 節）。因 `importance` 尚未公開發布，**直接移除、不再保留**——這是 0.x 草稿階段允許的清理（見第 10 節）。舊檔仍載得進來，只是殘留的 `importance` 不再有作用，驗證器會提醒改用 `featured`。
 
 ---
 
@@ -212,8 +210,7 @@
 | `end` | ❌ | TimePoint。有 `end` = 區間事件（畫成長條），無 = 點事件 |
 | `ongoing` | ❌ | `true` = 事件仍在持續中：畫成從 `start` 延伸到「今天」的長條，右端以淡出表示未結束。與 `end` 擇一使用（兩者都有時以 `end` 為準）。0.2 新增 |
 | `location` | ❌ | `{ name, lat?, lng? }`。留 `lat/lng` 位置給未來的地圖功能 |
-| `featured` | ❌ | 布林。`true` = **這份時間軸的作者選來優先呈現的重點**，在軸上放大、加光暈、粗體顯示（介面上「設為這份時間軸的重點」）。語意是**編輯選擇**，不是客觀分數——見下方說明。0.3 新增，取代 `importance` |
-| `importance` | ❌ | **舊欄位（0.3 之前）**。原為 1–5 的重要性分數。仍可讀取（`importance >= 5` 視為 `featured`），但新建與新匯出的檔案只寫 `featured`；兩者並存時以 `featured` 為準。等 1.0 才正式移除 |
+| `featured` | ❌ | 布林。`true` = **這份時間軸的作者選來優先呈現的重點**，在軸上放大、加光暈、粗體顯示（介面上「設為這份時間軸的重點」）。語意是**編輯選擇**，不是客觀分數——見下方說明。0.3 新增，取代舊的 `importance` 分數 |
 | `confidence` | ❌ | `verified` / `reported` / `disputed` / `unknown` |
 | `tags` | ❌ | 字串陣列 |
 | `sources` | ❌ | `{ title, url }` 陣列 |
@@ -331,6 +328,7 @@
 - `hackstory` 版本號採 `major.minor`
 - **新增選填欄位** → minor +1，舊檔案仍可讀
 - **移除或改變既有欄位語意** → major +1，必須提供轉換器
+- **0.x 草稿階段例外**：格式尚未凍結（見文件開頭）。在 `0.x` 期間、且該欄位**尚未公開發布**時，可直接清理而不升 major——例如 0.3 移除從未發布的 `importance`。此例外在 `1.0` 定稿之後失效。
 - 程式讀到不認識的欄位時**保留不動**（forward compatibility），存檔時原樣寫回
 
 ---

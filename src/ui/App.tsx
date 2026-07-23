@@ -448,8 +448,6 @@ export default function App() {
     } else {
       delete event.featured
     }
-    // 一併清掉舊欄位，避免 featured 與 importance 並存造成衝突
-    delete event.importance
     setSelection({ ...selection, event })
   }, [selection, setKeyEvent])
 

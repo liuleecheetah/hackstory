@@ -57,7 +57,7 @@
     {
       "id": "evt-002",
       "track": "main",
-      "title": "關鍵事件（importance 填 5 會在軸上放大顯示）",
+      "title": "重點事件（featured 設 true 會在軸上放大顯示）",
       "start": {
         "value": "2024-06-10",
         "precision": "day"
