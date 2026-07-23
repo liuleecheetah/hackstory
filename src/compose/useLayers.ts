@@ -301,14 +301,17 @@ export function useLayers(initialDocs: TimelineDocument[]) {
       layers
         .filter((l) => l.visible)
         .map(({ id, doc, color }) => {
+          // 「本來是不是多軸」以原始文件為準，傳給 render 決定標題與配色，
+          // 這樣隱藏到只剩一條時，那條軸仍保留軸線名與軸線配色
+          const multiTrack = doc.tracks.length > 1
           // 這個圖層沒有任何被隱藏的軸線 → 原樣傳下去，保持物件 identity 避免不必要的重算
           const hidden = new Set(
             doc.tracks.map((t) => t.id).filter((tid) => hiddenTracks.has(`${id}/${tid}`)),
           )
-          if (hidden.size === 0) return { id, doc, color }
+          if (hidden.size === 0) return { id, doc, color, multiTrack }
           const tracks = doc.tracks.filter((t) => !hidden.has(t.id))
           const events = doc.events.filter((e) => !hidden.has(e.track))
-          return { id, doc: { ...doc, tracks, events }, color }
+          return { id, doc: { ...doc, tracks, events }, color, multiTrack }
         })
         // 整份文件的軸線都被隱藏 → 這個圖層暫時不畫
         .filter((s) => s.doc.tracks.length > 0),

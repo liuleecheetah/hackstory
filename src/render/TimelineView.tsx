@@ -38,6 +38,12 @@ export interface TimelineSource {
   id: string
   doc: TimelineDocument
   color?: string
+  /**
+   * 這份文件「本來」是不是多軸（依原始文件，不受暫時隱藏軸線影響）。
+   * 決定軸線標題要不要帶軸線名、以及配色以軸線色或圖層色為主。
+   * 由 compose 層算好傳入——render 因此不需要知道「有軸線被隱藏」這回事。
+   */
+  multiTrack?: boolean
 }
 
 /** 使用者點選了一個事件：render 層回報給 ui 層，由 ui 顯示詳情卡 */
@@ -334,11 +340,14 @@ export function TimelineView({
     const bands = sources.flatMap((source) => {
       const tracks = [...source.doc.tracks].sort((t1, t2) => (t1.order ?? 0) - (t2.order ?? 0))
       const resolvedForSource = resolvedBySource.get(source.id)
+      // 「本來是不是多軸」以原始文件為準（compose 傳入的 multiTrack），
+      // 這樣把多軸文件隱藏到只剩一條時，仍當多軸處理——保留軸線名與軸線配色
+      const multiTrack = source.multiTrack ?? tracks.length > 1
       return tracks.map((track) => {
         // 顏色優先序：多軸文件以文件內的軸線配色區分（圖層色只當後備）；
         // 單軸文件以圖層色為主（面板改色才會生效）
         const color =
-          tracks.length > 1
+          multiTrack
             ? track.color ?? source.color ?? PALETTE[bandIndex % PALETTE.length]
             : source.color ?? track.color ?? PALETTE[bandIndex % PALETTE.length]
         // 單軸文件直接用文件標題；多軸文件標成「文件｜軸線」。
@@ -347,7 +356,7 @@ export function TimelineView({
           source.doc.events.some((e) => e.id === u.id && e.track === track.id),
         ).length
         const label =
-          (tracks.length === 1
+          (!multiTrack
             ? source.doc.meta.title
             : `${source.doc.meta.title}｜${track.title}`) +
           (unresolvedCount > 0 ? `（${unresolvedCount} 筆相對時間無法推估）` : '')
@@ -656,7 +665,9 @@ export function TimelineView({
                 stroke="#cbd5e1"
                 strokeDasharray="2 6"
               />
-              <text x={xg} y={AXIS_H - 10} textAnchor="middle" fontSize={10} fill="#94a3b8">
+              {/* 「略過多久」放在頂部上排（與可視範圍文字同排），
+                  避開下排的刻度數字，兩者不再擦到 */}
+              <text x={xg} y={14} textAnchor="middle" fontSize={10} fill="#94a3b8">
                 {formatSkipped(g.skippedMs)}
               </text>
             </g>
