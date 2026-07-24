@@ -1,6 +1,6 @@
 // 時間解析器的測試。所有測試案例都來自 SPEC 與真實資料（同婚／食安 Google Sheet）。
 import { describe, expect, it } from 'vitest'
-import { parseDateTime } from './time'
+import { absolutePointRange, parseDateTime } from './time'
 
 /** 方便斷言：解析必須成功並回傳 start */
 function expectOk(dateRaw: string, timeRaw?: string) {
@@ -49,6 +49,19 @@ describe('日期格式（來自真實資料的各種寫法）', () => {
       expect(r.start.value).toBe('1986')
       expect(r.start.precision).toBe('year')
     }
+  })
+
+  it('模糊到年代：「1980年代」「1980s」→ 1980（decade）', () => {
+    for (const raw of ['1980年代', '1980 年代', '1980s']) {
+      const r = expectOk(raw)
+      expect(r.start.value).toBe('1980')
+      expect(r.start.precision).toBe('decade')
+    }
+  })
+
+  it('年代必須是 0 結尾：「1985年代」無法解析（不亂猜）', () => {
+    const r = parseDateTime('1985年代')
+    expect(r.ok).toBe(false)
   })
 
   it('ISO 分鐘格式直接接受：「2016-11-24T09:00」→ minute', () => {
@@ -134,5 +147,22 @@ describe('無法解析與不存在的日期（絕不靜默丟棄）', () => {
   it('空字串 → 失敗（由上層決定要略過還是待修正）', () => {
     expect(parseDateTime('').ok).toBe(false)
     expect(parseDateTime('   ').ok).toBe(false)
+  })
+})
+
+describe('absolutePointRange — 年代誠實涵蓋整整十年', () => {
+  it('1980 年代 → 1980-01-01 至 1990-01-01（不假裝知道是哪一年）', () => {
+    const r = absolutePointRange({ value: '1980', precision: 'decade' })
+    expect(new Date(r.start).getFullYear()).toBe(1980)
+    expect(new Date(r.end).getFullYear()).toBe(1990)
+  })
+
+  it('年代的跨度是「年」的十倍', () => {
+    const decade = absolutePointRange({ value: '1980', precision: 'decade' })
+    const year = absolutePointRange({ value: '1980', precision: 'year' })
+    const span = (x: { start: number; end: number }) => x.end - x.start
+    // 兩者都從 1980-01-01 起算，年代結束於 1990、年結束於 1981
+    expect(decade.start).toBe(year.start)
+    expect(span(decade)).toBeGreaterThan(span(year) * 9)
   })
 })

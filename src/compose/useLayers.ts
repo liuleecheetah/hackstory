@@ -163,7 +163,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
   const createBlankLayer = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10)
     const doc: TimelineDocument = {
-      hackstory: '0.3',
+      hackstory: '0.4',
       id: `timeline-${Date.now().toString(36)}`,
       meta: {
         title: '新的時間軸',

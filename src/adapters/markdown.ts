@@ -34,6 +34,8 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 function formatAbsolute(p: AbsoluteTimePoint): string {
   const circa = p.circa ? '約 ' : ''
   switch (p.precision) {
+    case 'decade':
+      return `${circa}${p.value} 年代`
     case 'year':
       return `${circa}${p.value} 年`
     case 'month': {

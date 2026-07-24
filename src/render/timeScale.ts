@@ -55,6 +55,8 @@ export function formatPointShort(point: AbsoluteTimePoint, withYear = true): str
   const [datePart, timePart] = point.value.split('T')
   const [y, m, d] = datePart.split('-')
   switch (point.precision) {
+    case 'decade':
+      return `${y}年代`
     case 'year':
       return y
     case 'month':
@@ -74,6 +76,9 @@ export function formatPointLong(point: AbsoluteTimePoint): string {
   const [y, m, d] = datePart.split('-').map(Number)
   let text: string
   switch (point.precision) {
+    case 'decade':
+      text = `${y} 年代`
+      break
     case 'year':
       text = `${y} 年`
       break

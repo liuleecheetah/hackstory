@@ -149,7 +149,7 @@ export function draftsToDocument(
 
   const today = new Date().toISOString().slice(0, 10)
   return {
-    hackstory: '0.3',
+    hackstory: '0.4',
     id: `imported-${Date.now()}`,
     meta: {
       title: options.title,

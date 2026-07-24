@@ -25,6 +25,15 @@ export type DateTimeParseResult = ParsedDateTime | ParseFailure
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
+/** 精度的中文名稱（給錯誤與警告訊息用）。Record 型別確保新增精度時不會漏掉 */
+const PRECISION_LABEL: Record<Precision, string> = {
+  decade: '年代',
+  year: '年',
+  month: '月',
+  day: '日',
+  minute: '分',
+}
+
 function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
 }
@@ -43,6 +52,12 @@ export function checkCalendarValue(value: string, precision: Precision): string 
   const m = value.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}))?)?)?$/)
   if (!m) return `值「${value}」不符合 ${precision} 精度的格式`
   const year = Number(m[1])
+  if (precision === 'decade') {
+    if (m[2] !== undefined) return `年代「${value}」只能寫年份（例如 1980）`
+    return value.endsWith('0')
+      ? null
+      : `年代「${value}」必須是 0 結尾的年份（例如 1980 表示 1980 年代）`
+  }
   if (precision === 'year') return null
   const month = Number(m[2])
   if (m[2] === undefined || month < 1 || month > 12) return `月份「${m[2] ?? ''}」超出 1–12 的範圍`
@@ -66,6 +81,11 @@ export function checkCalendarValue(value: string, precision: Precision): string 
 export function absolutePointRange(point: AbsoluteTimePoint): { start: number; end: number } {
   const v = point.value
   switch (point.precision) {
+    case 'decade': {
+      // 年代誠實涵蓋整整十年（1980 → 1980-01-01 至 1989-12-31）
+      const y = Number(v)
+      return { start: new Date(y, 0, 1).getTime(), end: new Date(y + 10, 0, 1).getTime() }
+    }
     case 'year': {
       const y = Number(v)
       return { start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime() }
@@ -92,6 +112,8 @@ export function absolutePointRange(point: AbsoluteTimePoint): { start: number; e
 
 // 接受的分隔符號：/ - . 與中文的 年 月 日
 const RE_YEAR = /^(\d{4})\s*年?$/
+// 年代：「1980年代」「1980 年代」「1980s」。只認四位數，"80年代" 太曖昧（1980？2080？）不猜
+const RE_DECADE = /^(\d{4})\s*(?:年代|s)$/i
 const RE_MONTH = /^(\d{4})\s*[/\-.年]\s*(\d{1,2})\s*月?$/
 const RE_DAY = /^(\d{4})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?$/
 const RE_ISO_MINUTE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
@@ -126,6 +148,14 @@ function parseDateParts(raw: string): DateParts | { error: string } | null {
     const [year, month] = [Number(m[1]), Number(m[2])]
     if (month < 1 || month > 12) return { error: `月份「${m[2]}」超出 1–12 的範圍` }
     return { value: `${year}-${pad2(month)}`, precision: 'month' }
+  }
+
+  m = s.match(RE_DECADE)
+  if (m) {
+    if (!m[1].endsWith('0')) {
+      return { error: `年代要用 0 結尾的年份（例如 1980年代），「${s}」無法解讀` }
+    }
+    return { value: m[1], precision: 'decade' }
   }
 
   m = s.match(RE_YEAR)
@@ -189,6 +219,7 @@ function parseTimeOfDayParts(
  * - "2017/5/24"、"2017/02/20"、"2017-3-24"、"2017.5.24"、"2010年6月3日" → day
  * - "2010年6月"、"2010/6"、"2010-06" → month
  * - "1986"、"1986年" → year
+ * - "1980年代"、"1980s" → decade（涵蓋整整十年，不假裝知道是哪一年）
  * - 日期 + "09:00"        → minute（單一時間點）
  * - 日期 + "09:00-18:00"  → start 09:00、end 18:00（同日）
  * - "2016/12/10 13:00" 這種日期時間寫在同一格的也接受
@@ -241,7 +272,9 @@ export function parseDateTime(dateRaw: string, timeRaw?: string): DateTimeParseR
     if (date.precision === 'minute') {
       warnings.push(`日期本身已含時間，額外的時間欄「${timePart}」已忽略`)
     } else {
-      warnings.push(`日期只精確到「${date.precision === 'year' ? '年' : '月'}」，時間欄「${timePart}」已忽略`)
+      warnings.push(
+        `日期只精確到「${PRECISION_LABEL[date.precision]}」，時間欄「${timePart}」已忽略`,
+      )
     }
     return {
       ok: true,

@@ -2,12 +2,15 @@
 // 依 SPEC.md 定義 .hst.json 的所有型別。
 // 鐵律：此檔案不准 import 任何其他層。
 
-/** 時間精度：現實世界的時間是模糊的，不能全部壓扁成假精確的日期 */
-export type Precision = 'year' | 'month' | 'day' | 'minute'
+/** 時間精度：現實世界的時間是模糊的，不能全部壓扁成假精確的日期。由粗到細排列 */
+export type Precision = 'decade' | 'year' | 'month' | 'day' | 'minute'
 
 /** 絕對時間點。value 格式依 precision 而定（見 SPEC 第 4 節） */
 export interface AbsoluteTimePoint {
-  /** year: "2010"｜month: "2010-06"｜day: "2017-05-24"｜minute: "2016-11-24T09:00" */
+  /**
+   * decade: "1980"（該年代的起始年，須為 0 結尾）｜year: "2010"｜month: "2010-06"
+   * ｜day: "2017-05-24"｜minute: "2016-11-24T09:00"
+   */
   value: string
   precision: Precision
   /** 「大約」，畫面上以虛化邊緣表示 */
@@ -136,8 +139,23 @@ export type RelationType =
   | 'same_event' // 同一事件的不同記載（跨圖層知識整合的關鍵）
 
 export interface Relation {
+  /**
+   * 文件內唯一的識別碼（選填）。Phase 2 的評論、修訂合併需要一個穩定的把手
+   * 來指認「這是同一條關係」——事件有 id，關係也該有。SPEC 0.4 新增
+   */
+  id?: string
   from: string
   to: string
+  /**
+   * from 所屬的「其他文件」全域 id（選填）。省略 = 本文件內的事件。
+   *
+   * 跨文件關係（尤其 same_event：兩人整理的軸中其實是同一件事）是把「圖層疊加」
+   * 從視覺並列升級成知識整合的關鍵。**欄位先預留，Phase 2 才實作繪製**——
+   * 就像相對時間當初預留 relative 一樣。SPEC 0.4 新增
+   */
+  fromDoc?: string
+  /** to 所屬的其他文件全域 id（選填）。省略 = 本文件內的事件。見 fromDoc */
+  toDoc?: string
   type: RelationType
   label?: string
 }

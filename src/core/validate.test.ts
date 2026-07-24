@@ -126,6 +126,16 @@ describe('事件與引用完整性', () => {
     expect(validateDocument(doc).ok).toBe(false)
   })
 
+  it('年代精度：1980 合法，1985 錯誤（年代必須是 0 結尾）', () => {
+    const ok = minimalDoc()
+    ;(ok.events as Record<string, unknown>[])[0].start = { value: '1980', precision: 'decade' }
+    expect(validateDocument(ok).errors).toEqual([])
+
+    const bad = minimalDoc()
+    ;(bad.events as Record<string, unknown>[])[0].start = { value: '1985', precision: 'decade' }
+    expect(validateDocument(bad).ok).toBe(false)
+  })
+
   it('value 沒補零（2010-6）→ 錯誤，格式必須是 YYYY-MM', () => {
     const doc = minimalDoc()
     ;(doc.events as Record<string, unknown>[])[0].start = { value: '2010-6', precision: 'month' }
@@ -223,6 +233,35 @@ describe('relations 與 display', () => {
     events.push({ ...events[0], id: 'evt-002' })
     doc.relations = [{ from: 'evt-001', to: 'evt-002', type: 'friends_with' }]
     expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('關係 id 重複 → 錯誤（Phase 2 靠它指認同一條關係）', () => {
+    const doc = minimalDoc()
+    const events = doc.events as Record<string, unknown>[]
+    events.push({ ...events[0], id: 'evt-002' })
+    doc.relations = [
+      { id: 'rel-1', from: 'evt-001', to: 'evt-002', type: 'causes' },
+      { id: 'rel-1', from: 'evt-002', to: 'evt-001', type: 'responds_to' },
+    ]
+    expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('關係 id 不重複 → 通過', () => {
+    const doc = minimalDoc()
+    const events = doc.events as Record<string, unknown>[]
+    events.push({ ...events[0], id: 'evt-002' })
+    doc.relations = [{ id: 'rel-1', from: 'evt-001', to: 'evt-002', type: 'causes' }]
+    expect(validateDocument(doc).errors).toEqual([])
+  })
+
+  it('跨文件關係（toDoc）：不因為本文件找不到該事件而報錯，但會提醒尚未實作', () => {
+    const doc = minimalDoc()
+    doc.relations = [
+      { from: 'evt-001', to: 'evt-777', toDoc: 'other-timeline', type: 'same_event' },
+    ]
+    const result = validateDocument(doc)
+    expect(result.errors).toEqual([])
+    expect(result.warnings.some((w) => w.message.includes('跨文件'))).toBe(true)
   })
 
   it('display.orientation 亂填 → 錯誤', () => {

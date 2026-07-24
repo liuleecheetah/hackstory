@@ -28,9 +28,9 @@ export interface ValidationResult {
 
 // 本程式支援的規格版本
 const SUPPORTED_MAJOR = 0
-const SUPPORTED_MINOR = 3
+const SUPPORTED_MINOR = 4
 
-const PRECISIONS: Precision[] = ['year', 'month', 'day', 'minute']
+const PRECISIONS: Precision[] = ['decade', 'year', 'month', 'day', 'minute']
 const CONFIDENCES = ['verified', 'reported', 'disputed', 'unknown']
 const RELATION_TYPES = ['causes', 'responds_to', 'derives_from', 'contradicts', 'same_event']
 const ORIENTATIONS = ['horizontal', 'vertical']
@@ -39,6 +39,8 @@ const MEDIA_TYPES = ['image', 'video', 'document']
 
 /** value 必須符合 precision 對應的格式（SPEC 第 4 節） */
 const VALUE_FORMAT: Record<Precision, RegExp> = {
+  // 年代以該十年的起始年表示，必須是 0 結尾（1980 = 1980 年代）
+  decade: /^\d{3}0$/,
   year: /^\d{4}$/,
   month: /^\d{4}-\d{2}$/,
   day: /^\d{4}-\d{2}-\d{2}$/,
@@ -280,18 +282,57 @@ export function validateDocument(data: unknown): ValidationResult {
     if (!Array.isArray(data.relations)) {
       err('relations', 'relations 應為陣列')
     } else {
+      const relationIds = new Set<string>()
       data.relations.forEach((r, i) => {
         const path = `relations[${i}]`
         if (!isObject(r)) {
           err(path, '關係應為物件')
           return
         }
-        if (!isNonEmptyString(r.from) || !eventIds.has(r.from)) {
-          err(`${path}.from`, `關係的 from「${String(r.from ?? '')}」不是存在的事件 id`)
+
+        // 選填的關係 id：寫了就必須唯一（Phase 2 的評論與合併靠它指認同一條關係）
+        if (r.id !== undefined) {
+          if (!isNonEmptyString(r.id)) {
+            err(`${path}.id`, '關係的 id 應為非空字串')
+          } else if (relationIds.has(r.id)) {
+            err(`${path}.id`, `關係 id「${r.id}」重複（同一份文件內必須唯一）`)
+          } else {
+            relationIds.add(r.id)
+          }
         }
-        if (!isNonEmptyString(r.to) || !eventIds.has(r.to)) {
-          err(`${path}.to`, `關係的 to「${String(r.to ?? '')}」不是存在的事件 id`)
+
+        // 跨文件關係（fromDoc／toDoc 指向其他文件的全域 id）：
+        // 欄位已預留，但繪製要等 Phase 2。這裡接受並提醒，
+        // 且不因為「本文件找不到該事件」而報錯——那本來就在別份文件裡
+        let crossDoc = false
+        for (const key of ['fromDoc', 'toDoc'] as const) {
+          if (r[key] === undefined) continue
+          if (!isNonEmptyString(r[key])) {
+            err(`${path}.${key}`, `${key} 應為其他文件的全域 id 字串`)
+          } else {
+            crossDoc = true
+          }
         }
+        if (crossDoc) {
+          warn(path, '跨文件的關係目前還不會畫出來（欄位已保留，Phase 2 才實作）')
+        }
+
+        // from／to：只有在沒指定對應文件時，才要求是本文件內的事件
+        if (r.fromDoc === undefined) {
+          if (!isNonEmptyString(r.from) || !eventIds.has(r.from)) {
+            err(`${path}.from`, `關係的 from「${String(r.from ?? '')}」不是存在的事件 id`)
+          }
+        } else if (!isNonEmptyString(r.from)) {
+          err(`${path}.from`, '關係的 from 應為事件 id 字串')
+        }
+        if (r.toDoc === undefined) {
+          if (!isNonEmptyString(r.to) || !eventIds.has(r.to)) {
+            err(`${path}.to`, `關係的 to「${String(r.to ?? '')}」不是存在的事件 id`)
+          }
+        } else if (!isNonEmptyString(r.to)) {
+          err(`${path}.to`, '關係的 to 應為事件 id 字串')
+        }
+
         if (!RELATION_TYPES.includes(r.type as string)) {
           err(`${path}.type`, `關係類型「${String(r.type)}」不在允許值中（${RELATION_TYPES.join(' / ')}）`)
         }
@@ -390,6 +431,8 @@ function validateTimePoint(
 
 function formatHint(precision: Precision): string {
   switch (precision) {
+    case 'decade':
+      return 'YYYY 且為 0 結尾，例如 "1980"（表示 1980 年代）'
     case 'year':
       return 'YYYY，例如 "2010"'
     case 'month':
