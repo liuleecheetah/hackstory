@@ -264,10 +264,88 @@ describe('relations 與 display', () => {
     expect(result.warnings.some((w) => w.message.includes('跨文件'))).toBe(true)
   })
 
+  it('關係的 label 不是字串 → 錯誤', () => {
+    const doc = minimalDoc()
+    const events = doc.events as Record<string, unknown>[]
+    events.push({ ...events[0], id: 'evt-002' })
+    doc.relations = [{ from: 'evt-001', to: 'evt-002', type: 'causes', label: 123 }]
+    expect(validateDocument(doc).ok).toBe(false)
+  })
+
   it('display.orientation 亂填 → 錯誤', () => {
     const doc = minimalDoc()
     doc.display = { orientation: 'diagonal' }
     expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('display.range 不是物件、或缺 start／end → 錯誤', () => {
+    const notObject = minimalDoc()
+    notObject.display = { range: '1986-2017' }
+    expect(validateDocument(notObject).ok).toBe(false)
+
+    const missingEnd = minimalDoc()
+    missingEnd.display = { range: { start: '1986' } }
+    expect(validateDocument(missingEnd).ok).toBe(false)
+  })
+
+  it('display.range 不是四位數年份 → 通過但警告（會被忽略）', () => {
+    const doc = minimalDoc()
+    doc.display = { range: { start: '1986/3', end: '2017' } }
+    const result = validateDocument(doc)
+    expect(result.ok).toBe(true)
+    expect(result.warnings.some((w) => w.message.includes('四位數年份'))).toBe(true)
+  })
+})
+
+describe('內容型別的深入檢查（不只檢查是不是陣列／物件）', () => {
+  it('meta.topics 裡混入非字串 → 錯誤', () => {
+    const doc = minimalDoc()
+    ;(doc.meta as Record<string, unknown>).topics = ['人權', 42]
+    expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('tags 裡混入非字串 → 錯誤', () => {
+    const doc = minimalDoc()
+    ;(doc.events as Record<string, unknown>[])[0].tags = ['釋憲', { x: 1 }]
+    expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('sources 的 title／url 不是字串 → 錯誤', () => {
+    const doc = minimalDoc()
+    ;(doc.events as Record<string, unknown>[])[0].sources = [{ title: '解釋文', url: 123 }]
+    expect(validateDocument(doc).ok).toBe(false)
+  })
+
+  it('sources 既沒 title 也沒 url → 通過但警告（無法追溯）', () => {
+    const doc = minimalDoc()
+    ;(doc.events as Record<string, unknown>[])[0].sources = [{}]
+    const result = validateDocument(doc)
+    expect(result.ok).toBe(true)
+    expect(result.warnings.some((w) => w.message.includes('無法追溯'))).toBe(true)
+  })
+
+  it('location 的 lat／lng 不是數字或超出範圍 → 錯誤', () => {
+    const notNumber = minimalDoc()
+    ;(notNumber.events as Record<string, unknown>[])[0].location = { name: '台北', lat: '25.03' }
+    expect(validateDocument(notNumber).ok).toBe(false)
+
+    const outOfRange = minimalDoc()
+    ;(outOfRange.events as Record<string, unknown>[])[0].location = {
+      name: '台北',
+      lat: 25.03,
+      lng: 999,
+    }
+    expect(validateDocument(outOfRange).ok).toBe(false)
+  })
+
+  it('合理的經緯度 → 通過（預留給未來地圖功能）', () => {
+    const doc = minimalDoc()
+    ;(doc.events as Record<string, unknown>[])[0].location = {
+      name: '司法院，台北',
+      lat: 25.0375,
+      lng: 121.5637,
+    }
+    expect(validateDocument(doc).errors).toEqual([])
   })
 })
 

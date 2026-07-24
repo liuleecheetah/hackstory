@@ -12,6 +12,7 @@ import {
   parseDateTime,
   relativeDependsOn,
   removeEventFromDocument,
+  validateDocument,
 } from '../core'
 import { useLayers } from '../compose/useLayers'
 import type {
@@ -50,30 +51,81 @@ const SHARED_SRC_URLS = new URLSearchParams(window.location.search).getAll('src'
 
 // 瀏覽器草稿（防止編輯成果遺失）
 const DRAFT_KEY = 'hackstory-draft-v1'
+// 草稿裡的顏色若壞掉，用這個頂著（不因為顏色欄位壞掉就丟掉整份資料）
+const DRAFT_FALLBACK_COLOR = '#3b6ea5'
 
-interface SavedDraft {
-  savedAt: string
-  layers: Array<{ doc: TimelineDocument; color: string; visible: boolean }>
+interface DraftLayer {
+  doc: TimelineDocument
+  color: string
+  visible: boolean
 }
 
-/** 讀取瀏覽器裡的草稿；分享檢視與嵌入模式不啟用 */
+/** 實際寫進 localStorage 的形狀 */
+interface PersistedDraft {
+  savedAt: string
+  layers: DraftLayer[]
+}
+
+/** 讀出來、驗證過之後的草稿（broken 是讀取時才產生的，不會被存起來） */
+interface SavedDraft extends PersistedDraft {
+  /** 無法恢復的圖層與中文原因——不靜默丟棄，要讓使用者知道少了什麼 */
+  broken: string[]
+}
+
+/** 草稿裡某一份文件的顯示名稱（可能已損壞，所以每一層都要防） */
+function draftLayerTitle(doc: unknown, index: number): string {
+  const title = (doc as { meta?: { title?: unknown } } | null)?.meta?.title
+  return typeof title === 'string' && title.trim() !== '' ? title : `第 ${index + 1} 個圖層`
+}
+
+/**
+ * 讀取瀏覽器裡的草稿；分享檢視與嵌入模式不啟用。
+ *
+ * 草稿存在 localStorage，可能是舊版格式、也可能被改壞。
+ * **一律先過 validateDocument()**——沒驗證過的資料不准直接進畫面。
+ */
 function readSavedDraft(): SavedDraft | null {
   try {
     const params = new URLSearchParams(window.location.search)
     if (params.has('embed') || SHARED_SRC_URLS.length > 0) return null
     const raw = localStorage.getItem(DRAFT_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as SavedDraft
+    const parsed = JSON.parse(raw) as { savedAt?: unknown; layers?: unknown }
     if (!Array.isArray(parsed?.layers) || parsed.layers.length === 0) return null
-    return parsed
+
+    const layers: DraftLayer[] = []
+    const broken: string[] = []
+    parsed.layers.forEach((entry, i) => {
+      const layer = entry as { doc?: unknown; color?: unknown; visible?: unknown } | null
+      const result = validateDocument(layer?.doc)
+      if (result.ok && result.doc) {
+        layers.push({
+          doc: result.doc,
+          color: typeof layer?.color === 'string' ? layer.color : DRAFT_FALLBACK_COLOR,
+          visible: layer?.visible !== false,
+        })
+      } else {
+        const reason = result.errors[0]?.message ?? '格式無法辨識'
+        broken.push(`${draftLayerTitle(layer?.doc, i)}：${reason}`)
+      }
+    })
+
+    if (layers.length === 0 && broken.length === 0) return null
+    return {
+      savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
+      layers,
+      broken,
+    }
   } catch {
     return null
   }
 }
 
-/** 「X 分鐘前」的口語時間 */
+/** 「X 分鐘前」的口語時間。草稿可能沒有或存壞了時間，回傳「時間不明」而不是 NaN */
 function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
+  const saved = new Date(iso).getTime()
+  if (!iso || Number.isNaN(saved)) return '時間不明'
+  const ms = Date.now() - saved
   const min = Math.round(ms / 60_000)
   if (min < 1) return '剛剛'
   if (min < 60) return `${min} 分鐘前`
@@ -528,7 +580,7 @@ export default function App() {
   /** 立刻同步寫入草稿（自動保存與關頁補存共用） */
   const writeDraftNow = useCallback((): boolean => {
     try {
-      const draft: SavedDraft = {
+      const draft: PersistedDraft = {
         savedAt: new Date().toISOString(),
         layers: layers.map(({ doc, color, visible }) => ({ doc, color, visible })),
       }
@@ -909,34 +961,54 @@ export default function App() {
         />
       )}
 
-      {/* 找到上次的草稿：詢問是否恢復 */}
+      {/* 找到上次的草稿：詢問是否恢復。草稿一律先過驗證器，格式不符的不會進畫面 */}
       {pendingDraft && (
-        <div className="fixed left-1/2 top-14 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border border-sky-300 bg-sky-50 px-4 py-2 text-sm text-sky-900 shadow">
-          找到上次的草稿（{timeAgo(pendingDraft.savedAt)}，{pendingDraft.layers.length} 個圖層）
-          <button
-            type="button"
-            onClick={() => {
-              restoreLayers(pendingDraft.layers)
-              setPendingDraft(null)
-            }}
-            className="rounded bg-sky-700 px-3 py-1 text-xs text-white hover:bg-sky-800"
-          >
-            恢復草稿
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.removeItem(DRAFT_KEY)
-              } catch {
-                // 忽略
-              }
-              setPendingDraft(null)
-            }}
-            className="rounded border border-sky-300 px-3 py-1 text-xs hover:bg-sky-100"
-          >
-            捨棄
-          </button>
+        <div className="fixed left-1/2 top-14 z-50 flex max-w-2xl -translate-x-1/2 flex-col gap-2 rounded-md border border-sky-300 bg-sky-50 px-4 py-2 text-sm text-sky-900 shadow">
+          <div className="flex flex-wrap items-center gap-3">
+            {pendingDraft.layers.length > 0
+              ? `找到上次的草稿（${timeAgo(pendingDraft.savedAt)}，${pendingDraft.layers.length} 個圖層）`
+              : `上次的草稿（${timeAgo(pendingDraft.savedAt)}）格式不符，無法恢復`}
+            {pendingDraft.layers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  restoreLayers(pendingDraft.layers)
+                  setPendingDraft(null)
+                }}
+                className="rounded bg-sky-700 px-3 py-1 text-xs text-white hover:bg-sky-800"
+              >
+                恢復草稿
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem(DRAFT_KEY)
+                } catch {
+                  // 忽略
+                }
+                setPendingDraft(null)
+              }}
+              className="rounded border border-sky-300 px-3 py-1 text-xs hover:bg-sky-100"
+            >
+              捨棄
+            </button>
+          </div>
+
+          {/* 絕不靜默丟資料：格式不符的圖層要明講是哪一份、為什麼 */}
+          {pendingDraft.broken.length > 0 && (
+            <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+              <div className="font-medium">
+                有 {pendingDraft.broken.length} 個圖層格式不符，不會被載入：
+              </div>
+              <ul className="mt-0.5 list-disc pl-4">
+                {pendingDraft.broken.map((reason, i) => (
+                  <li key={i}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

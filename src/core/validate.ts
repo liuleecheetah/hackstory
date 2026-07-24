@@ -136,8 +136,16 @@ export function validateDocument(data: unknown): ValidationResult {
     if (meta.revision !== undefined && !Number.isInteger(meta.revision)) {
       err('meta.revision', 'revision 應為整數（單調遞增）')
     }
-    if (meta.topics !== undefined && !Array.isArray(meta.topics)) {
-      err('meta.topics', 'topics 應為字串陣列')
+    if (meta.topics !== undefined) {
+      if (!Array.isArray(meta.topics)) {
+        err('meta.topics', 'topics 應為字串陣列')
+      } else {
+        meta.topics.forEach((t, i) => {
+          if (typeof t !== 'string') {
+            err(`meta.topics[${i}]`, 'topics 的每一項都應為字串')
+          }
+        })
+      }
     }
   }
 
@@ -236,15 +244,37 @@ export function validateDocument(data: unknown): ValidationResult {
       if (e.confidence !== undefined && !CONFIDENCES.includes(e.confidence as string)) {
         err(`${path}.confidence`, `confidence「${String(e.confidence)}」不在允許值中（${CONFIDENCES.join(' / ')}）`)
       }
-      if (e.tags !== undefined && !Array.isArray(e.tags)) {
-        err(`${path}.tags`, 'tags 應為字串陣列')
+      if (e.tags !== undefined) {
+        if (!Array.isArray(e.tags)) {
+          err(`${path}.tags`, 'tags 應為字串陣列')
+        } else {
+          e.tags.forEach((t, j) => {
+            if (typeof t !== 'string') {
+              err(`${path}.tags[${j}]`, 'tags 的每一項都應為字串')
+            }
+          })
+        }
       }
       if (e.sources !== undefined) {
         if (!Array.isArray(e.sources)) {
           err(`${path}.sources`, 'sources 應為陣列')
         } else {
           e.sources.forEach((s, j) => {
-            if (!isObject(s)) err(`${path}.sources[${j}]`, '來源應為 { title, url } 物件')
+            const sPath = `${path}.sources[${j}]`
+            if (!isObject(s)) {
+              err(sPath, '來源應為 { title, url } 物件')
+              return
+            }
+            if (s.title !== undefined && typeof s.title !== 'string') {
+              err(`${sPath}.title`, '來源的 title 應為字串')
+            }
+            if (s.url !== undefined && typeof s.url !== 'string') {
+              err(`${sPath}.url`, '來源的 url 應為字串')
+            }
+            // 兩者都沒有的來源無法追溯，對「共同認知基礎」沒有意義
+            if (s.title === undefined && s.url === undefined) {
+              warn(sPath, `事件${label}有一筆來源既沒有 title 也沒有 url，無法追溯`)
+            }
           })
         }
       }
@@ -262,6 +292,23 @@ export function validateDocument(data: unknown): ValidationResult {
       if (e.location !== undefined) {
         if (!isObject(e.location) || !isNonEmptyString(e.location.name)) {
           err(`${path}.location`, 'location 需要 name 欄位')
+        } else {
+          // lat/lng 是預留給未來地圖功能的欄位，MVP 不畫地圖，但填了就要是合理的座標
+          const loc = e.location
+          if (loc.lat !== undefined) {
+            if (typeof loc.lat !== 'number' || Number.isNaN(loc.lat)) {
+              err(`${path}.location.lat`, 'lat 應為數字')
+            } else if (loc.lat < -90 || loc.lat > 90) {
+              err(`${path}.location.lat`, `緯度「${loc.lat}」超出 -90–90 的範圍`)
+            }
+          }
+          if (loc.lng !== undefined) {
+            if (typeof loc.lng !== 'number' || Number.isNaN(loc.lng)) {
+              err(`${path}.location.lng`, 'lng 應為數字')
+            } else if (loc.lng < -180 || loc.lng > 180) {
+              err(`${path}.location.lng`, `經度「${loc.lng}」超出 -180–180 的範圍`)
+            }
+          }
         }
       }
 
@@ -336,6 +383,9 @@ export function validateDocument(data: unknown): ValidationResult {
         if (!RELATION_TYPES.includes(r.type as string)) {
           err(`${path}.type`, `關係類型「${String(r.type)}」不在允許值中（${RELATION_TYPES.join(' / ')}）`)
         }
+        if (r.label !== undefined && typeof r.label !== 'string') {
+          err(`${path}.label`, '關係的 label 應為字串')
+        }
       })
     }
   }
@@ -354,6 +404,33 @@ export function validateDocument(data: unknown): ValidationResult {
       }
       if (d.collapseGaps !== undefined && typeof d.collapseGaps !== 'boolean') {
         err('display.collapseGaps', 'collapseGaps 應為 true/false')
+      }
+      if (d.range !== undefined) {
+        if (!isObject(d.range)) {
+          err('display.range', 'range 應為 { start, end } 物件')
+        } else {
+          const range = d.range
+          for (const key of ['start', 'end'] as const) {
+            if (!isNonEmptyString(range[key])) {
+              err(`display.range.${key}`, `range.${key} 應為年份字串（例如 "1986"）`)
+            } else if (!/^\d{4}$/.test(range[key])) {
+              // 目前的繪製只認得四位數年份，其他寫法會被忽略——提醒而不是擋下
+              warn(
+                `display.range.${key}`,
+                `range.${key}「${range[key]}」不是四位數年份，建議的初始範圍會被忽略`,
+              )
+            }
+          }
+          if (
+            isNonEmptyString(range.start) &&
+            isNonEmptyString(range.end) &&
+            /^\d{4}$/.test(range.start) &&
+            /^\d{4}$/.test(range.end) &&
+            Number(range.end) < Number(range.start)
+          ) {
+            warn('display.range', `range 的結束年份（${range.end}）早於開始年份（${range.start}）`)
+          }
+        }
       }
     }
   }
