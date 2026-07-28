@@ -1,6 +1,6 @@
 // 時間解析器的測試。所有測試案例都來自 SPEC 與真實資料（同婚／食安 Google Sheet）。
 import { describe, expect, it } from 'vitest'
-import { absolutePointRange, parseDateTime } from './time'
+import { absolutePointRange, dateFromParts, parseDateTime } from './time'
 
 /** 方便斷言：解析必須成功並回傳 start */
 function expectOk(dateRaw: string, timeRaw?: string) {
@@ -164,5 +164,62 @@ describe('absolutePointRange — 年代誠實涵蓋整整十年', () => {
     // 兩者都從 1980-01-01 起算，年代結束於 1990、年結束於 1981
     expect(decade.start).toBe(year.start)
     expect(span(decade)).toBeGreaterThan(span(year) * 9)
+  })
+})
+
+describe('古代年份（0–99）不被 JavaScript 悄悄改成 1900 年代', () => {
+  it('dateFromParts(90) → 西元 90 年，不是 1990 年', () => {
+    expect(dateFromParts(90).getFullYear()).toBe(90)
+    // 對照：JavaScript 原生的陷阱
+    expect(new Date(90, 0, 1).getFullYear()).toBe(1990)
+  })
+
+  it('一般年份行為完全不變', () => {
+    expect(dateFromParts(2017, 4, 24).getFullYear()).toBe(2017)
+    expect(dateFromParts(2017, 4, 24).getMonth()).toBe(4)
+    expect(dateFromParts(2017, 4, 24).getDate()).toBe(24)
+  })
+
+  it('月份溢位（第 13 個月）仍正確跨到下一年', () => {
+    // monthIndex 12 = 隔年一月
+    expect(dateFromParts(90, 12).getFullYear()).toBe(91)
+    expect(dateFromParts(90, 12).getMonth()).toBe(0)
+  })
+
+  it('日期溢位（12/32）仍正確跨到下一年', () => {
+    const d = dateFromParts(90, 11, 32)
+    expect(d.getFullYear()).toBe(91)
+    expect(d.getMonth()).toBe(0)
+    expect(d.getDate()).toBe(1)
+  })
+
+  it('閏年判斷與加 2000 年前後一致（西元 4 年是閏年）', () => {
+    // 2 月 29 日存在 → 不會被推到 3 月 1 日
+    const d = dateFromParts(4, 1, 29)
+    expect(d.getFullYear()).toBe(4)
+    expect(d.getMonth()).toBe(1)
+    expect(d.getDate()).toBe(29)
+  })
+
+  it('absolutePointRange：「0090」年落在西元 90 年，且整年涵蓋 90→91', () => {
+    const r = absolutePointRange({ value: '0090', precision: 'year' })
+    expect(new Date(r.start).getFullYear()).toBe(90)
+    expect(new Date(r.end).getFullYear()).toBe(91)
+  })
+
+  it('absolutePointRange：「0090-06-15」日精度也正確', () => {
+    const r = absolutePointRange({ value: '0090-06-15', precision: 'day' })
+    const start = new Date(r.start)
+    expect(start.getFullYear()).toBe(90)
+    expect(start.getMonth()).toBe(5)
+    expect(start.getDate()).toBe(15)
+  })
+
+  it('「0090」能被解析，且不變成 1990', () => {
+    const r = parseDateTime('0090')
+    expect(r.ok).toBe(true)
+    if (!r.ok) throw new Error('unreachable')
+    expect(r.start.value).toBe('0090')
+    expect(new Date(absolutePointRange(r.start).start).getFullYear()).toBe(90)
   })
 })

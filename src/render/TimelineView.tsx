@@ -11,7 +11,13 @@ import type {
   RelativeResolution,
   TimelineDocument,
 } from '../core'
-import { isAbsolute, isFeatured, resolveRelativeEvents, sameDocumentRelations } from '../core'
+import {
+  dateFromParts,
+  isAbsolute,
+  isFeatured,
+  resolveRelativeEvents,
+  sameDocumentRelations,
+} from '../core'
 import type { TimeWarp } from './gaps'
 import { buildWarp, formatSkipped } from './gaps'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
@@ -178,9 +184,10 @@ function initialDomainOf(sources: TimelineSource[], warp: TimeWarp): [number, nu
   let extent = eventsExtent(sources.map((s) => s.doc))
   const range = sources[0]?.doc.display?.range
   if (range && /^\d{4}$/.test(range.start) && /^\d{4}$/.test(range.end)) {
+    // 用 dateFromParts 而非 new Date(y, 0, 1)：古代年份（0–99）會被 JS 當成 1900–1999
     extent = [
-      new Date(Number(range.start), 0, 1).getTime(),
-      new Date(Number(range.end) + 1, 0, 1).getTime(),
+      dateFromParts(Number(range.start)).getTime(),
+      dateFromParts(Number(range.end) + 1).getTime(),
     ]
   }
   if (!extent) {

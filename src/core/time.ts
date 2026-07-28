@@ -75,6 +75,31 @@ export function checkCalendarValue(value: string, precision: Precision): string 
 }
 
 /**
+ * 從「年、月索引、日、時、分」建立 Date。
+ *
+ * **為什麼不直接用 `new Date(y, ...)`：** JavaScript 會把 0–99 的年份當成 1900–1999
+ * （`new Date(90, 0, 1)` 得到 1990 年），古代年份會被悄悄改掉。歷史時間軸有可能
+ * 收錄這種資料，不能靜默算錯。
+ *
+ * 做法：古代年份先加 2000 年建立、再把年份減回去。+2000 不影響閏年判斷
+ * （2000 可被 400 整除，y 與 y+2000 的閏年結果必定相同），
+ * 月／日的溢位（第 13 個月、第 32 天）也照樣交給 JavaScript 正常換算。
+ * 一般年份走原本的路徑，行為完全不變。
+ */
+export function dateFromParts(
+  y: number,
+  monthIndex = 0,
+  day = 1,
+  hh = 0,
+  mm = 0,
+): Date {
+  if (y < 0 || y > 99) return new Date(y, monthIndex, day, hh, mm)
+  const d = new Date(y + 2000, monthIndex, day, hh, mm)
+  d.setFullYear(d.getFullYear() - 2000)
+  return d
+}
+
+/**
  * 把絕對時間點展開成毫秒範圍。月／年精度誠實涵蓋整段期間，
  * 不假裝知道確切日期。render 層與相對時間求解器共用。
  */
@@ -84,25 +109,25 @@ export function absolutePointRange(point: AbsoluteTimePoint): { start: number; e
     case 'decade': {
       // 年代誠實涵蓋整整十年（1980 → 1980-01-01 至 1989-12-31）
       const y = Number(v)
-      return { start: new Date(y, 0, 1).getTime(), end: new Date(y + 10, 0, 1).getTime() }
+      return { start: dateFromParts(y).getTime(), end: dateFromParts(y + 10).getTime() }
     }
     case 'year': {
       const y = Number(v)
-      return { start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime() }
+      return { start: dateFromParts(y).getTime(), end: dateFromParts(y + 1).getTime() }
     }
     case 'month': {
       const [y, m] = v.split('-').map(Number)
-      return { start: new Date(y, m - 1, 1).getTime(), end: new Date(y, m, 1).getTime() }
+      return { start: dateFromParts(y, m - 1).getTime(), end: dateFromParts(y, m).getTime() }
     }
     case 'day': {
       const [y, m, d] = v.split('-').map(Number)
-      return { start: new Date(y, m - 1, d).getTime(), end: new Date(y, m - 1, d + 1).getTime() }
+      return { start: dateFromParts(y, m - 1, d).getTime(), end: dateFromParts(y, m - 1, d + 1).getTime() }
     }
     case 'minute': {
       const [datePart, timePart] = v.split('T')
       const [y, m, d] = datePart.split('-').map(Number)
       const [hh, mm] = timePart.split(':').map(Number)
-      const start = new Date(y, m - 1, d, hh, mm).getTime()
+      const start = dateFromParts(y, m - 1, d, hh, mm).getTime()
       return { start, end: start + 60_000 }
     }
   }
