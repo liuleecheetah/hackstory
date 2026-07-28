@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { HstEvent, Relation, TimelineDocument, Track } from '../core'
-import { removeEventFromDocument } from '../core'
+import { nextRelationId, removeEventFromDocument, removeRelationFrom } from '../core'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -251,20 +251,23 @@ export function useLayers(initialDocs: TimelineDocument[]) {
   /** 新增一條事件關係（畫面上的關係編輯器用）。匯出時會保存 */
   const addRelation = useCallback((layerId: string, relation: Relation) => {
     mutate((prev) =>
-      prev.map((l) =>
-        l.id === layerId
-          ? { ...l, doc: { ...l.doc, relations: [...(l.doc.relations ?? []), relation] } }
-          : l,
-      ),
+      prev.map((l) => {
+        if (l.id !== layerId) return l
+        const existing = l.doc.relations ?? []
+        // 補上文件內唯一的 id（SPEC 0.4）：關係要有穩定把手，刪除與 Phase 2 的評論才不會認錯
+        const withId: Relation =
+          relation.id !== undefined ? relation : { id: nextRelationId(existing), ...relation }
+        return { ...l, doc: { ...l.doc, relations: [...existing, withId] } }
+      }),
     )
   }, [])
 
-  /** 依索引刪除一條事件關係 */
-  const removeRelation = useCallback((layerId: string, index: number) => {
+  /** 刪除一條事件關係（依 id／內容比對，不依陣列位置——位置會因其他編輯而位移） */
+  const removeRelation = useCallback((layerId: string, relation: Relation) => {
     mutate((prev) =>
       prev.map((l) => {
         if (l.id !== layerId) return l
-        const relations = (l.doc.relations ?? []).filter((_, i) => i !== index)
+        const relations = removeRelationFrom(l.doc.relations ?? [], relation)
         return { ...l, doc: { ...l.doc, relations } }
       }),
     )

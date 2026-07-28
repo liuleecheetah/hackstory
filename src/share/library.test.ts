@@ -1,6 +1,6 @@
 // share 層測試：共用庫目錄的解析與網址解析
 import { describe, expect, it } from 'vitest'
-import { parseLibraryIndex, resolveLibraryUrl } from './library'
+import { checkEntryMatchesDocument, parseLibraryIndex, resolveLibraryUrl } from './library'
 
 const validIndex = JSON.stringify({
   version: 1,
@@ -39,7 +39,7 @@ describe('parseLibraryIndex', () => {
   })
 
   it('某一筆缺 url → 指出是第幾筆', () => {
-    const broken = JSON.stringify({ entries: [{ id: 'a', title: '有標題沒網址' }] })
+    const broken = JSON.stringify({ version: 1, entries: [{ id: 'a', title: '有標題沒網址' }] })
     const result = parseLibraryIndex(broken)
     expect(result.ok).toBe(false)
     if (result.ok) return
@@ -63,5 +63,53 @@ describe('resolveLibraryUrl', () => {
     expect(resolveLibraryUrl('https://other.tw/b.hst.json', 'https://site.tw/')).toBe(
       'https://other.tw/b.hst.json',
     )
+  })
+})
+
+describe('目錄完整性檢查（版本、重複 id、與檔案是否相符）', () => {
+  it('缺少 version → 錯誤', () => {
+    const text = JSON.stringify({ entries: [] })
+    const result = parseLibraryIndex(text)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toContain('version')
+  })
+
+  it('version 比程式支援的新 → 錯誤，並請使用者更新程式', () => {
+    const text = JSON.stringify({ version: 99, entries: [] })
+    const result = parseLibraryIndex(text)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toContain('99')
+    expect(result.error).toContain('更新程式')
+  })
+
+  it('id 重複 → 錯誤，並指出是第幾筆與第幾筆', () => {
+    const text = JSON.stringify({
+      version: 1,
+      entries: [
+        { id: 'same-id', title: '第一筆', url: 'a.hst.json' },
+        { id: 'other', title: '第二筆', url: 'b.hst.json' },
+        { id: 'same-id', title: '第三筆', url: 'c.hst.json' },
+      ],
+    })
+    const result = parseLibraryIndex(text)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toContain('same-id')
+    expect(result.error).toContain('第 3 筆')
+    expect(result.error).toContain('第 1 筆')
+  })
+
+  it('checkEntryMatchesDocument：目錄 id 與檔案 id 相符 → null', () => {
+    expect(checkEntryMatchesDocument({ id: 'abc', title: '某軸' }, 'abc')).toBeNull()
+  })
+
+  it('checkEntryMatchesDocument：不相符 → 中文說明，兩個 id 都講出來', () => {
+    const msg = checkEntryMatchesDocument({ id: 'abc', title: '某軸' }, 'xyz')
+    expect(msg).not.toBeNull()
+    expect(msg).toContain('abc')
+    expect(msg).toContain('xyz')
+    expect(msg).toContain('某軸')
   })
 })

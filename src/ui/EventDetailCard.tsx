@@ -5,7 +5,7 @@
 
 import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
-import type { AbsoluteTimePoint, Confidence, HstEvent, RelativeAnchor } from '../core'
+import type { AbsoluteTimePoint, Confidence, HstEvent, Relation, RelativeAnchor } from '../core'
 import { isAbsolute, isFeatured, parseDateTime } from '../core'
 import type { EventSelection } from '../render/TimelineView'
 import { formatPointLong } from '../render/timeScale'
@@ -23,8 +23,8 @@ interface Props {
   createMode?: boolean
   /** 這個事件的關係清單（含方向與對方標題），由 App 從圖層資料算好傳入 */
   relations?: RelationInfo[]
-  /** 刪除一條關係（依文件內的索引） */
-  onRemoveRelation?: (index: number) => void
+  /** 刪除一條關係（傳回關係本身，由下層依 id／內容比對） */
+  onRemoveRelation?: (relation: Relation) => void
   /** 進入「連結模式」：點選另一個事件建立關係 */
   onStartLink?: () => void
   /** 相對時間下拉選單的選項（同檔案內、排除此事件），由 App 傳入 */
@@ -34,8 +34,11 @@ interface Props {
 }
 
 export interface RelationInfo {
-  /** 在文件 relations 陣列中的索引 */
-  index: number
+  /**
+   * 這條關係本身。刪除時傳回去比對 id／內容，
+   * 不用陣列索引——索引會因其他編輯或復原而位移，一按就刪錯
+   */
+  relation: Relation
   /** out = 此事件指向對方；in = 對方指向此事件 */
   direction: 'out' | 'in'
   typeLabel: string
@@ -482,8 +485,11 @@ export function EventDetailCard({
                 <p className="mb-1 text-xs font-semibold text-slate-500">關係</p>
                 {relations.length > 0 && (
                   <ul className="space-y-1">
-                    {relations.map((r) => (
-                      <li key={r.index} className="flex items-start gap-1 text-xs text-slate-600">
+                    {relations.map((r, i) => (
+                      <li
+                        key={r.relation.id ?? `${r.direction}-${i}`}
+                        className="flex items-start gap-1 text-xs text-slate-600"
+                      >
                         <span className="min-w-0 flex-1 leading-relaxed">
                           {r.direction === 'out' ? (
                             <>
@@ -500,7 +506,7 @@ export function EventDetailCard({
                           <button
                             type="button"
                             title="刪除這條關係"
-                            onClick={() => onRemoveRelation(r.index)}
+                            onClick={() => onRemoveRelation(r.relation)}
                             className="px-1 text-slate-300 hover:text-red-600"
                           >
                             ✕

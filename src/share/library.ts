@@ -32,6 +32,23 @@ export function resolveLibraryUrl(url: string, base: string = window.location.hr
 
 const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
 
+/** 本程式支援的目錄格式版本（index.json 的 version 欄位） */
+export const SUPPORTED_LIBRARY_VERSION = 1
+
+/**
+ * 檢查目錄裡的一筆條目是否與實際下載到的文件相符。
+ * 目錄的 id 是別人引用這條時間軸的依據；若與文件本身的 id 不一致，
+ * 代表目錄過期或指錯檔案——要講出來，不能默默載入一份「名不符實」的資料。
+ * 相符回傳 null，不符回傳中文說明。
+ */
+export function checkEntryMatchesDocument(
+  entry: Pick<LibraryEntry, 'id' | 'title'>,
+  docId: string,
+): string | null {
+  if (entry.id === docId) return null
+  return `共用庫目錄把「${entry.title}」標為 ${entry.id}，但檔案裡的 id 是 ${docId}——目錄可能過期或指錯檔案`
+}
+
 /**
  * 解析共用庫目錄 JSON（純函式，方便測試）。
  * 目錄壞掉是維護者的錯，不是使用者的錯——所以直接回報第一個問題，不嘗試部分載入。
@@ -46,8 +63,23 @@ export function parseLibraryIndex(text: string): LibraryIndexResult {
   if (typeof data !== 'object' || data === null || !Array.isArray((data as { entries?: unknown }).entries)) {
     return { ok: false, error: '共用庫目錄缺少 entries 清單' }
   }
+
+  // 目錄格式版本：不認得就明講，不要用猜的方式讀下去
+  const version = (data as { version?: unknown }).version
+  if (typeof version !== 'number' || !Number.isInteger(version)) {
+    return { ok: false, error: '共用庫目錄缺少版本號 version（應為整數）' }
+  }
+  if (version > SUPPORTED_LIBRARY_VERSION) {
+    return {
+      ok: false,
+      error: `共用庫目錄版本 ${version} 比本程式支援的 ${SUPPORTED_LIBRARY_VERSION} 新，請更新程式後再試`,
+    }
+  }
+
   const raw = (data as { entries: unknown[] }).entries
   const entries: LibraryEntry[] = []
+  /** id → 第幾筆（1 起算），用來偵測重複 */
+  const seenIds = new Map<string, number>()
   for (let i = 0; i < raw.length; i++) {
     const e = raw[i] as Partial<LibraryEntry> | null
     if (
@@ -59,6 +91,15 @@ export function parseLibraryIndex(text: string): LibraryIndexResult {
     ) {
       return { ok: false, error: `共用庫目錄第 ${i + 1} 筆缺少 id、title 或 url` }
     }
+    // id 重複 → 引用會指向不確定的那一筆，必須擋下
+    const firstSeen = seenIds.get(e.id)
+    if (firstSeen !== undefined) {
+      return {
+        ok: false,
+        error: `共用庫目錄第 ${i + 1} 筆的 id「${e.id}」與第 ${firstSeen} 筆重複`,
+      }
+    }
+    seenIds.set(e.id, i + 1)
     entries.push({
       id: e.id,
       title: e.title,

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { loadFromUrl } from '../adapters/remote'
 import type { TimelineDocument } from '../core'
 import type { LibraryEntry } from '../share/library'
-import { fetchLibraryIndex, resolveLibraryUrl } from '../share/library'
+import { checkEntryMatchesDocument, fetchLibraryIndex, resolveLibraryUrl } from '../share/library'
 
 interface Props {
   open: boolean
@@ -27,7 +27,10 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
   const [url, setUrl] = useState('')
   const [urlLoading, setUrlLoading] = useState(false)
   // 最近一次操作的結果訊息（成功綠色、失敗紅色）
-  const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  // warn = 載入成功、但有事情要告訴使用者（例如目錄與檔案的 id 對不上）
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'warn' | 'error'; text: string } | null>(
+    null,
+  )
 
   // 打開面板時抓目錄（失敗後再打開會重試）
   useEffect(() => {
@@ -50,16 +53,19 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
     onClose()
   }
 
-  /** 共用的載入流程：目錄項與貼網址都走這裡 */
-  const loadUrl = async (absoluteUrl: string, doneLabel: string) => {
+  /** 共用的載入流程：目錄項與貼網址都走這裡。entry 只有從目錄點進來時才有 */
+  const loadUrl = async (absoluteUrl: string, doneLabel: string, entry?: LibraryEntry) => {
     const result = await loadFromUrl(absoluteUrl)
     if (result.ok) {
       onLoad(result.doc)
+      // 檔案本身沒問題，但目錄的 id 與它對不上 → 載入照做，同時把問題講出來
+      const mismatch = entry ? checkEntryMatchesDocument(entry, result.doc.id) : null
+      const extras = [result.notice, mismatch].filter((t): t is string => !!t)
       setNotice({
-        kind: 'ok',
+        kind: mismatch ? 'warn' : 'ok',
         text:
           `已把「${result.doc.meta.title}」載入成新圖層` +
-          (result.notice ? `（${result.notice}）` : ''),
+          (extras.length > 0 ? `（${extras.join('；')}）` : ''),
       })
       return true
     }
@@ -70,7 +76,7 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
   const handleEntry = async (entry: LibraryEntry) => {
     setLoadingId(entry.id)
     setNotice(null)
-    const ok = await loadUrl(resolveLibraryUrl(entry.url), `「${entry.title}」`)
+    const ok = await loadUrl(resolveLibraryUrl(entry.url), `「${entry.title}」`, entry)
     setLoadingId(null)
     if (ok && !loadedIds.includes(entry.id)) {
       setLoadedIds([...loadedIds, entry.id])
@@ -103,7 +109,9 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
                 'rounded border px-3 py-2 text-sm ' +
                 (notice.kind === 'ok'
                   ? 'border-green-200 bg-green-50 text-green-800'
-                  : 'border-red-200 bg-red-50 text-red-700')
+                  : notice.kind === 'warn'
+                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    : 'border-red-200 bg-red-50 text-red-700')
               }
             >
               {notice.text}

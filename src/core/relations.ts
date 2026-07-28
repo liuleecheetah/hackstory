@@ -20,3 +20,45 @@ export function isCrossDocument(rel: Pick<Relation, 'fromDoc' | 'toDoc'>): boole
 export function sameDocumentRelations(relations: Relation[] | undefined): Relation[] {
   return (relations ?? []).filter((r) => !isCrossDocument(r))
 }
+
+/**
+ * 產生一個在這份文件內不重複的關係 id。
+ * 與事件 id 同樣的寫法（前綴＋時間戳），但額外確保不會撞到匯入檔案裡既有的 id。
+ */
+export function nextRelationId(relations: Relation[] | undefined): string {
+  const used = new Set(
+    (relations ?? []).map((r) => r.id).filter((id): id is string => id !== undefined),
+  )
+  const base = `rel-${Date.now().toString(36)}`
+  if (!used.has(base)) return base
+  let n = 2
+  while (used.has(`${base}-${n}`)) n++
+  return `${base}-${n}`
+}
+
+/**
+ * 從關係清單中移除指定的一條。
+ *
+ * **為什麼不用陣列索引：** 索引會因為其他編輯、復原／重做而位移，
+ * 畫面上記住的位置可能已經指向別條關係，一按就刪錯。
+ * 有 id 就依 id（穩定）；舊資料沒有 id 時退回比對內容，且只移除第一筆相符的。
+ */
+export function removeRelationFrom(relations: Relation[], target: Relation): Relation[] {
+  if (target.id !== undefined) {
+    return relations.filter((r) => r.id !== target.id)
+  }
+  let alreadyRemoved = false
+  return relations.filter((r) => {
+    if (alreadyRemoved || r.id !== undefined) return true
+    const same =
+      r.from === target.from &&
+      r.to === target.to &&
+      r.type === target.type &&
+      r.label === target.label &&
+      r.fromDoc === target.fromDoc &&
+      r.toDoc === target.toDoc
+    if (!same) return true
+    alreadyRemoved = true
+    return false
+  })
+}
