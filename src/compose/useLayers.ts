@@ -293,8 +293,9 @@ export function useLayers(initialDocs: TimelineDocument[]) {
 
   /**
    * 給 render 層畫的資料：只含可見圖層，依面板順序排列。
-   * 被暫時隱藏的軸線（連同其事件）在這裡就濾掉——render 層只收到該畫的資料，
-   * 完全不需要知道「隱藏」這個概念（分層鐵律）。
+   * 被暫時隱藏的軸線（連同其事件）在這裡就濾掉——render 層拿到的 doc 就是該畫的資料，
+   * 不需要知道「隱藏」這個概念（分層鐵律）。
+   * 唯一的例外是 fullDoc：相對時間必須靠完整的錨點才推算得準，見下方說明。
    */
   const visibleSources = useMemo(
     () =>
@@ -311,7 +312,9 @@ export function useLayers(initialDocs: TimelineDocument[]) {
           if (hidden.size === 0) return { id, doc, color, multiTrack }
           const tracks = doc.tracks.filter((t) => !hidden.has(t.id))
           const events = doc.events.filter((e) => !hidden.has(e.track))
-          return { id, doc: { ...doc, tracks, events }, color, multiTrack }
+          // fullDoc 附上完整文件供相對時間求解：隱藏軸線只該影響「畫什麼」，
+          // 不該讓可見軸線上、錨定在隱藏事件的相對時間事件變成無法推估而消失
+          return { id, doc: { ...doc, tracks, events }, color, multiTrack, fullDoc: doc }
         })
         // 整份文件的軸線都被隱藏 → 這個圖層暫時不畫
         .filter((s) => s.doc.tracks.length > 0),

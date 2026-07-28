@@ -5,7 +5,13 @@
 // 只呼叫 core；不碰畫面、不碰資料來源。
 
 import type { AbsoluteTimePoint, HstEvent, RelativeAnchor, TimelineDocument } from '../core'
-import { absolutePointRange, isAbsolute, isFeatured, resolveRelativeEvents } from '../core'
+import {
+  absolutePointRange,
+  isAbsolute,
+  isFeatured,
+  resolveRelativeEvents,
+  sameDocumentRelations,
+} from '../core'
 
 /** 關係類型的中文名稱（與介面一致） */
 const REL_TYPE_LABELS: Record<string, string> = {
@@ -105,9 +111,10 @@ export function documentToMarkdown(doc: TimelineDocument): string {
   const { positions } = resolveRelativeEvents(doc)
   const resolved = new Set(positions.keys())
 
-  // 每則事件的對外關係（只列 from，避免正反各印一次）
+  // 每則事件的對外關係（只列 from，避免正反各印一次）。
+  // 跨文件關係略過：它的 to 指向別份文件，用本文件的事件去解會寫出錯誤的標題
   const outgoing = new Map<string, string[]>()
-  for (const r of doc.relations ?? []) {
+  for (const r of sameDocumentRelations(doc.relations)) {
     const label = REL_TYPE_LABELS[r.type] ?? r.type
     const text = `${label}「${titleOf(r.to)}」${r.label ? `（${r.label}）` : ''}`
     const list = outgoing.get(r.from)

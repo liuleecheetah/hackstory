@@ -188,6 +188,24 @@ describe('documentToMarkdown — 關係與相對時間', () => {
     expect(md).toContain('- 關聯：導致「作成解釋」（祁家威聲請）')
   })
 
+  it('跨文件關係不寫進 Markdown，也不會被誤認成本文件的同名事件', () => {
+    const md = documentToMarkdown(
+      makeDoc({
+        events: [
+          { id: 'from', track: 'main', title: '聲請釋憲', start: { value: '2015', precision: 'year' } },
+          { id: 'to', track: 'main', title: '作成解釋', start: { value: '2017', precision: 'year' } },
+        ],
+        relations: [
+          // to 指向「別份文件」的 to——但本文件剛好也有一個叫 to 的事件
+          { from: 'from', to: 'to', toDoc: 'other-timeline', type: 'same_event' },
+        ],
+      }),
+    )
+    // 不可以寫成指向本文件的「作成解釋」
+    expect(md).not.toContain('關聯：')
+    expect(md).not.toContain('同一事件「作成解釋」')
+  })
+
   it('相對時間事件標示為推估位置，並列出前後參考', () => {
     const md = documentToMarkdown(
       makeDoc({

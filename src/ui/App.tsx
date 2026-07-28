@@ -8,6 +8,7 @@ import { loadFromUrl } from '../adapters/remote'
 import type { HstEvent, Relation, RelationType, RelativeAnchor, TimelineDocument } from '../core'
 import {
   isAbsolute,
+  isCrossDocument,
   isFeatured,
   parseDateTime,
   relativeDependsOn,
@@ -312,6 +313,10 @@ export default function App() {
     if (!layer) return []
     const titleOf = (id: string) => layer.doc.events.find((e) => e.id === id)?.title ?? id
     return (layer.doc.relations ?? []).flatMap((r, index): RelationInfo[] => {
+      // 跨文件關係先不顯示（Phase 2 才實作）：它的另一端在別份文件裡，
+      // 用本文件的事件去解會顯示錯誤的標題。
+      // 注意這裡刻意不先 filter——index 是刪除關係用的原始陣列位置，過濾會讓它位移
+      if (isCrossDocument(r)) return []
       if (r.from === selection.event.id) {
         return [
           {

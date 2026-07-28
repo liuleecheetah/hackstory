@@ -89,9 +89,14 @@ export function removeEventFromDocument(
     return original !== undefined && original !== e
   })
 
-  const relations = (doc.relations ?? []).filter(
-    (r) => !removedIds.has(r.from) && !removedIds.has(r.to),
-  )
+  // 只有「本文件內」的那一端被刪除，關係才跟著消失。
+  // 跨文件的那一端（有 fromDoc／toDoc）指的是別份文件裡的事件，
+  // 就算 id 剛好與被刪的本地事件相同，也不能誤刪
+  const relations = (doc.relations ?? []).filter((r) => {
+    const fromRemoved = r.fromDoc === undefined && removedIds.has(r.from)
+    const toRemoved = r.toDoc === undefined && removedIds.has(r.to)
+    return !fromRemoved && !toRemoved
+  })
 
   return {
     doc: { ...doc, events, ...(doc.relations ? { relations } : {}) },

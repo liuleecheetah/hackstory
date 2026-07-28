@@ -11,7 +11,7 @@ import type {
   RelativeResolution,
   TimelineDocument,
 } from '../core'
-import { isAbsolute, isFeatured, resolveRelativeEvents } from '../core'
+import { isAbsolute, isFeatured, resolveRelativeEvents, sameDocumentRelations } from '../core'
 import type { TimeWarp } from './gaps'
 import { buildWarp, formatSkipped } from './gaps'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
@@ -44,6 +44,15 @@ export interface TimelineSource {
    * 由 compose 層算好傳入——render 因此不需要知道「有軸線被隱藏」這回事。
    */
   multiTrack?: boolean
+  /**
+   * 完整文件（含被隱藏軸線的事件），**只用來求解相對時間**。
+   *
+   * 相對時間是靠「在 A 之後、在 B 之前」推算的。若拿濾掉隱藏軸線的文件去求解，
+   * 錨點事件會憑空消失，可見軸線上的相對事件就會突然變成「無法推估」而不見——
+   * 但使用者只是隱藏畫面，不該改變事件的時間位置。
+   * 沒有隱藏任何軸線時省略即可（等同 doc）。
+   */
+  fullDoc?: TimelineDocument
 }
 
 /** 使用者點選了一個事件：render 層回報給 ui 層，由 ui 顯示詳情卡 */
@@ -229,10 +238,11 @@ export function TimelineView({
     [compact],
   )
 
-  // 相對時間事件的推估位置（每份文件各自求解）
+  // 相對時間事件的推估位置（每份文件各自求解）。
+  // 用 fullDoc 求解：隱藏軸線只影響「畫什麼」，不該改變事件推算出來的時間位置
   const resolvedBySource = useMemo(() => {
     const map = new Map<string, RelativeResolution>()
-    for (const s of sources) map.set(s.id, resolveRelativeEvents(s.doc))
+    for (const s of sources) map.set(s.id, resolveRelativeEvents(s.fullDoc ?? s.doc))
     return map
   }, [sources])
 
@@ -242,7 +252,11 @@ export function TimelineView({
   const warp = useMemo(() => {
     const spans = collectSpans(sources.map((s) => s.doc))
     for (const s of sources) {
-      resolvedBySource.get(s.id)?.positions.forEach((t) => spans.push([t, t + 3_600_000]))
+      // 只算進畫得出來的事件——隱藏軸線的事件雖然仍參與求解，但不該影響空白摺疊
+      const drawable = new Set(s.doc.events.map((e) => e.id))
+      resolvedBySource.get(s.id)?.positions.forEach((t, id) => {
+        if (drawable.has(id)) spans.push([t, t + 3_600_000])
+      })
     }
     return buildWarp(spans, collapseGaps)
   }, [sources, collapseGaps, resolvedBySource])
@@ -545,9 +559,11 @@ export function TimelineView({
     }
 
     // 關係線：只連同一份文件內、兩端都畫得出來的事件。
+    // 跨文件關係（fromDoc／toDoc）先在這裡濾掉——事件 id 只在文件內唯一，
+    // 若不明確略過，外部 id 剛好與本文件事件同名時會畫出一條錯誤的線。
     // 路徑與說明標籤的位置在這裡先算好，說明標籤會畫在最上層避免與事件文字交疊。
     const relationLines = sources.flatMap((source) =>
-      (source.doc.relations ?? []).flatMap((rel, i) => {
+      sameDocumentRelations(source.doc.relations).flatMap((rel, i) => {
         const fromKey = `${source.id}/${rel.from}`
         const toKey = `${source.id}/${rel.to}`
         const from = anchors.get(fromKey)

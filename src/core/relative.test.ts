@@ -150,6 +150,27 @@ describe('removeEventFromDocument（刪除事件的連鎖處理）', () => {
     expect(result.doc.relations).toEqual([])
   })
 
+  it('不誤刪跨文件關係：外部事件 id 與被刪的本地事件同名也要留著', () => {
+    const doc = docWith()
+    doc.relations = [
+      // 這條的 from 指向「別份文件」裡的 A，跟本文件被刪的 A 只是同名
+      { from: 'A', fromDoc: 'other-timeline', to: 'B', type: 'same_event' },
+      // 這條兩端都在本文件，A 被刪就該一起清掉
+      { from: 'A', to: 'B', type: 'causes' },
+    ]
+    const result = removeEventFromDocument(doc, 'A')
+    expect(result.doc.relations).toHaveLength(1)
+    expect(result.doc.relations?.[0].fromDoc).toBe('other-timeline')
+  })
+
+  it('跨文件關係的「本地那一端」被刪 → 仍要移除', () => {
+    const doc = docWith()
+    doc.relations = [{ from: 'A', to: 'B', toDoc: 'other-timeline', type: 'same_event' }]
+    // from（A）在本文件裡，被刪了 → 這條關係失去本地端點，應移除
+    const result = removeEventFromDocument(doc, 'A')
+    expect(result.doc.relations).toEqual([])
+  })
+
   it('刪除後的文件通過 SPEC 驗證（不會留下壞資料）', async () => {
     const { validateDocument } = await import('./validate')
     const doc = docWith(rel('R1', { after: 'A', before: 'B' }), rel('R2', { after: 'R1' }))

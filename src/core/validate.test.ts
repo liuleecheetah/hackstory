@@ -126,6 +126,24 @@ describe('事件與引用完整性', () => {
     expect(validateDocument(doc).ok).toBe(false)
   })
 
+  it('end 用相對時間 → 錯誤（畫不出來，不能讓它被靜默畫成點事件）', () => {
+    const doc = minimalDoc()
+    const events = doc.events as Record<string, unknown>[]
+    events.push({ ...events[0], id: 'evt-002' })
+    events[0].end = { relative: { before: 'evt-002' } }
+    const result = validateDocument(doc)
+    expect(result.ok).toBe(false)
+    expect(result.errors.some((e) => e.message.includes('結束時間不支援相對時間'))).toBe(true)
+  })
+
+  it('start 用相對時間仍然合法（只有 end 被限制）', () => {
+    const doc = minimalDoc()
+    const events = doc.events as Record<string, unknown>[]
+    events.push({ ...events[0], id: 'evt-002' })
+    events[0].start = { relative: { before: 'evt-002' } }
+    expect(validateDocument(doc).errors).toEqual([])
+  })
+
   it('年代精度：1980 合法，1985 錯誤（年代必須是 0 結尾）', () => {
     const ok = minimalDoc()
     ;(ok.events as Record<string, unknown>[])[0].start = { value: '1980', precision: 'decade' }

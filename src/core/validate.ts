@@ -213,7 +213,16 @@ export function validateDocument(data: unknown): ValidationResult {
         validateTimePoint(e.start, `${path}.start`, eventIds, err)
       }
       if (e.end !== undefined && e.end !== null) {
-        validateTimePoint(e.end, `${path}.end`, eventIds, err)
+        // end 只接受絕對時間：相對時間的結束目前畫不出來，
+        // 與其讓合法資料被靜默畫成點事件，不如當場擋下並說清楚
+        if (isObject(e.end) && 'relative' in e.end) {
+          err(
+            `${path}.end`,
+            `事件${label}的結束時間不支援相對時間（只有開始時間可以用「在某事件之後／之前」）`,
+          )
+        } else {
+          validateTimePoint(e.end, `${path}.end`, eventIds, err)
+        }
         // 區間事件：結束不應早於開始（都是絕對時間才能比較）
         if (
           isObject(e.start) && typeof e.start.value === 'string' &&

@@ -109,8 +109,14 @@ export interface HstEvent {
   title: string
   description?: string
   start: TimePoint
-  /** 有 end = 區間事件（長條），無 = 點事件（圓點） */
-  end?: TimePoint | null
+  /**
+   * 有 end = 區間事件（長條），無 = 點事件（圓點）。
+   *
+   * **只接受絕對時間。** 相對時間的「結束」（例如「在 evt-010 之前結束」）
+   * 目前的繪製無法處理，會被當成沒有結束時間的點事件靜默畫錯，
+   * 所以規格直接禁止（SPEC 第 6 節）。要支援的話是獨立功能，不是放寬型別就好。
+   */
+  end?: AbsoluteTimePoint | null
   /**
    * true = 事件仍在持續中：畫成從 start 延伸到「今天」的長條，右端淡出。
    * 與 end 擇一使用（兩者都有時以 end 為準）。SPEC 0.2 新增
