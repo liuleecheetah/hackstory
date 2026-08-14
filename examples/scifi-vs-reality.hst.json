@@ -1,5 +1,5 @@
 {
-  "hackstory": "0.3",
+  "hackstory": "0.4",
   "id": "scifi-vs-reality",
   "meta": {
     "title": "科幻預言與現實對照",
@@ -472,78 +472,91 @@
   ],
   "relations": [
     {
+      "id": "rel-001",
       "from": "evt-apollo11",
       "to": "evt-verne-moon",
       "type": "derives_from",
       "label": "104 年後，人類真的從佛羅里達出發登月"
     },
     {
+      "id": "rel-002",
       "from": "evt-nautilus",
       "to": "evt-verne-sea",
       "type": "derives_from",
       "label": "84 年後，核潛艇以鸚鵡螺號之名下水"
     },
     {
+      "id": "rel-003",
       "from": "evt-diners-club",
       "to": "evt-bellamy",
       "type": "derives_from",
       "label": "62 年後，第一張簽帳卡問世"
     },
     {
+      "id": "rel-004",
       "from": "evt-unimate",
       "to": "evt-rur",
       "type": "derives_from",
       "label": "41 年後，第一台工業機器人上線"
     },
     {
+      "id": "rel-005",
       "from": "evt-ivf",
       "to": "evt-brave-new-world",
       "type": "derives_from",
       "label": "46 年後，第一位試管嬰兒誕生"
     },
     {
+      "id": "rel-006",
       "from": "evt-syncom3",
       "to": "evt-clarke-satellite",
       "type": "derives_from",
       "label": "19 年後，同步衛星掛上克拉克軌道"
     },
     {
+      "id": "rel-007",
       "from": "evt-snowden",
       "to": "evt-1984",
       "type": "derives_from",
       "label": "64 年後，大規模監控成為新聞頭條"
     },
     {
+      "id": "rel-008",
       "from": "evt-airpods",
       "to": "evt-f451",
       "type": "derives_from",
       "label": "63 年後，耳中的「貝殼」成為日常"
     },
     {
+      "id": "rel-009",
       "from": "evt-first-cellphone",
       "to": "evt-star-trek",
       "type": "derives_from",
       "label": "7 年後，通訊器啟發第一通手機電話"
     },
     {
+      "id": "rel-010",
       "from": "evt-ipad",
       "to": "evt-2001",
       "type": "derives_from",
       "label": "42 年後，新聞平板變成 iPad"
     },
     {
+      "id": "rel-011",
       "from": "evt-chatgpt",
       "to": "evt-2001",
       "type": "derives_from",
       "label": "54 年後，會對話的 AI 走入日常"
     },
     {
+      "id": "rel-012",
       "from": "evt-www",
       "to": "evt-neuromancer",
       "type": "derives_from",
       "label": "7 年後，網際空間有了入口"
     },
     {
+      "id": "rel-013",
       "from": "evt-meta",
       "to": "evt-snow-crash",
       "type": "derives_from",

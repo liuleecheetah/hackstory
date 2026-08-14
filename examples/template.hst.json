@@ -1,5 +1,5 @@
 {
-  "hackstory": "0.3",
+  "hackstory": "0.4",
   "id": "my-first-timeline",
   "meta": {
     "title": "我的第一條時間軸（改成你的標題）",
@@ -110,10 +110,22 @@
           "before": "evt-002"
         }
       }
+    },
+    {
+      "id": "evt-007",
+      "track": "side",
+      "title": "只知道年代的事件（precision: decade）",
+      "description": "歷史資料常常只知道是哪個十年。value 填該年代的起始年（必須是 0 結尾），這裡的 2020 表示 2020–2029。畫面會顯示「2020年代」，圓點落在那十年的正中間，不假裝知道是哪一年。匯入時寫「2020年代」或「2020s」也認得。",
+      "start": {
+        "value": "2020",
+        "precision": "decade",
+        "raw": "2020年代"
+      }
     }
   ],
   "relations": [
     {
+      "id": "rel-001",
       "from": "evt-002",
       "to": "evt-001",
       "type": "derives_from",
