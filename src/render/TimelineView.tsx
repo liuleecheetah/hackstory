@@ -4,92 +4,28 @@
 // 也不知道「圖層」怎麼管理——它只負責把收到的多份文件畫出來。
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { sameDocumentRelations } from '../core'
+import { formatSkipped } from './gaps'
+import { assignLanes, estimateTextWidth } from './layout'
+import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
+import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
-  AbsoluteTimePoint,
-  HstEvent,
-  RelativeAnchor,
-  RelativeResolution,
-  TimelineDocument,
-} from '../core'
-import {
-  dateFromParts,
-  isAbsolute,
-  isFeatured,
-  resolveRelativeEvents,
-  sameDocumentRelations,
-} from '../core'
-import type { TimeWarp } from './gaps'
-import { buildWarp, formatSkipped } from './gaps'
-import { assignLanes, estimateTextWidth, truncate } from './layout'
-import {
-  formatPointShort,
-  formatRangeLabel,
-  formatTick,
-  getTicks,
-  spanMidpoint,
-  timePointToSpan,
-} from './timeScale'
+  EventSelection,
+  NewEventDraft,
+  ScaleMode,
+  ScaleRequest,
+  TimelineSource,
+} from './types'
 
-/** 尺度模式（像 Google 日曆的 日/週/月/年 切換） */
-export type ScaleMode = 'day' | 'week' | 'month' | 'year'
-
-/** ui 層下的指令：「切到某個尺度」。nonce 遞增代表新的一次點擊 */
-export interface ScaleRequest {
-  mode: ScaleMode
-  nonce: number
-}
-
-/** 一份要畫的文件。color 為圖層顏色，覆寫文件內軸線的顏色（用來辨識圖層） */
-export interface TimelineSource {
-  id: string
-  doc: TimelineDocument
-  color?: string
-  /**
-   * 這份文件「本來」是不是多軸（依原始文件，不受暫時隱藏軸線影響）。
-   * 決定軸線標題要不要帶軸線名、以及配色以軸線色或圖層色為主。
-   * 由 compose 層算好傳入——render 因此不需要知道「有軸線被隱藏」這回事。
-   */
-  multiTrack?: boolean
-  /**
-   * 完整文件（含被隱藏軸線的事件），**只用來求解相對時間**。
-   *
-   * 相對時間是靠「在 A 之後、在 B 之前」推算的。若拿濾掉隱藏軸線的文件去求解，
-   * 錨點事件會憑空消失，可見軸線上的相對事件就會突然變成「無法推估」而不見——
-   * 但使用者只是隱藏畫面，不該改變事件的時間位置。
-   * 沒有隱藏任何軸線時省略即可（等同 doc）。
-   */
-  fullDoc?: TimelineDocument
-}
-
-/** 使用者點選了一個事件：render 層回報給 ui 層，由 ui 顯示詳情卡 */
-export interface EventSelection {
-  /** 圖層 id + 事件 id 的組合鍵（事件 id 只保證在單一文件內唯一） */
-  key: string
-  /** 事件所屬的圖層 id（ui 要改事件內容時用） */
-  sourceId: string
-  event: HstEvent
-  docTitle: string
-  trackTitle: string
-  color: string
-  /** 相對時間事件的說明（「在Ａ之後、在Ｂ之前」），絕對時間事件為空 */
-  relativeNote?: string | null
-  /** 點擊位置（視窗座標），ui 用來決定詳情卡放哪裡 */
-  clientX: number
-  clientY: number
-}
-
-/** 使用者在軸線空白處點兩下：render 層回報位置資訊，由 ui 開「新增事件」表單 */
-export interface NewEventDraft {
-  sourceId: string
-  trackId: string
-  docTitle: string
-  trackTitle: string
-  color: string
-  /** 點擊位置對應的日期（如 2024/3/15，交給表單當預設值） */
-  dateRaw: string
-  clientX: number
-  clientY: number
-}
+// 這些型別已搬到 ./types 供橫式與直式共用；這裡繼續 re-export，
+// ui 層原本 `from '../render/TimelineView'` 的寫法不必更動。
+export type {
+  ScaleMode,
+  ScaleRequest,
+  TimelineSource,
+  EventSelection,
+  NewEventDraft,
+} from './types'
 
 interface Props {
   sources: TimelineSource[]
@@ -130,85 +66,6 @@ const SCALE_SPANS: Record<Exclude<ScaleMode, 'year'>, number> = {
 const MIN_SPAN = DAY / 4 // 最多放大到 6 小時
 const MAX_SPAN = 400 * 365 * DAY // 最多縮小到 400 年
 
-/** 軸線沒指定顏色時輪流使用的預設色 */
-const PALETTE = ['#3b6ea5', '#d97706', '#0f766e', '#9333ea', '#be123c', '#4d7c0f']
-
-/** 依事件推算所有文件合起來的時間範圍（毫秒） */
-function eventsExtent(docs: TimelineDocument[]): [number, number] | null {
-  let min = Infinity
-  let max = -Infinity
-  for (const doc of docs) {
-    for (const ev of doc.events) {
-      if (isAbsolute(ev.start)) {
-        const s = timePointToSpan(ev.start)
-        min = Math.min(min, s.start.getTime())
-        max = Math.max(max, s.end.getTime())
-      }
-      if (ev.end && isAbsolute(ev.end)) {
-        max = Math.max(max, timePointToSpan(ev.end).end.getTime())
-      }
-      // 進行中的事件延伸到「今天」
-      if (ev.ongoing && !ev.end) {
-        max = Math.max(max, Date.now())
-      }
-    }
-  }
-  return min < max ? [min, max] : null
-}
-
-/** 收集所有事件佔用的時間範圍（毫秒），給空白摺疊的計算用 */
-function collectSpans(docs: TimelineDocument[]): Array<[number, number]> {
-  const spans: Array<[number, number]> = []
-  for (const doc of docs) {
-    for (const ev of doc.events) {
-      if (!isAbsolute(ev.start)) continue
-      const s = timePointToSpan(ev.start)
-      let end = s.end.getTime()
-      if (ev.end && isAbsolute(ev.end)) {
-        end = Math.max(end, timePointToSpan(ev.end).end.getTime())
-      }
-      if (ev.ongoing && !ev.end) {
-        end = Math.max(end, Date.now())
-      }
-      spans.push([s.start.getTime(), end])
-    }
-  }
-  return spans
-}
-
-/**
- * 初始可視範圍（壓縮座標 u）：疊多個圖層時以最外層（第一份）的 display.range 建議為準
- * （SPEC 第 8 節），否則用所有事件的實際範圍，前後各留 3% 呼吸空間。
- */
-function initialDomainOf(sources: TimelineSource[], warp: TimeWarp): [number, number] {
-  let extent = eventsExtent(sources.map((s) => s.doc))
-  const range = sources[0]?.doc.display?.range
-  if (range && /^\d{4}$/.test(range.start) && /^\d{4}$/.test(range.end)) {
-    // 用 dateFromParts 而非 new Date(y, 0, 1)：古代年份（0–99）會被 JS 當成 1900–1999
-    extent = [
-      dateFromParts(Number(range.start)).getTime(),
-      dateFromParts(Number(range.end) + 1).getTime(),
-    ]
-  }
-  if (!extent) {
-    const now = Date.now()
-    return [now - 365 * DAY, now + 365 * DAY]
-  }
-  const u0 = warp.toU(extent[0])
-  const u1 = warp.toU(extent[1])
-  const pad = (u1 - u0) * 0.03
-  return [u0 - pad, u1 + pad]
-}
-
-/** 關係類型的中文名稱（沒有自訂 label 時顯示） */
-const RELATION_LABELS: Record<string, string> = {
-  causes: '導致',
-  responds_to: '回應',
-  derives_from: '衍生自',
-  contradicts: '與之矛盾',
-  same_event: '同一事件',
-}
-
 export function TimelineView({
   sources,
   scaleRequest,
@@ -245,30 +102,17 @@ export function TimelineView({
     [compact],
   )
 
-  // 相對時間事件的推估位置（每份文件各自求解）。
-  // 用 fullDoc 求解：隱藏軸線只影響「畫什麼」，不該改變事件推算出來的時間位置
-  const resolvedBySource = useMemo(() => {
-    const map = new Map<string, RelativeResolution>()
-    for (const s of sources) map.set(s.id, resolveRelativeEvents(s.fullDoc ?? s.doc))
-    return map
-  }, [sources])
+  // 與方向無關的資料準備都交給資料層（timelineData）：相對時間求解、空白摺疊
+  // 對應、初始可視範圍、事件定位時間。分兩步呼叫是為了快取——切換「顯示日期」
+  // 之類的文字選項時不必重算 warp，畫面才不會跳。
+  const base = useMemo(() => buildTimelineBase(sources, collapseGaps), [sources, collapseGaps])
+  const { warp, initialDomain, anchorTimes } = base
 
-  // 時間 t ↔ 壓縮座標 u 的對應（不摺疊時為直通）。
-  // 之後所有座標運算（縮放、平移、排版）都在 u 空間進行。
-  // 相對時間的推估位置也算進佔用範圍，避免它們掉進被摺疊的空白裡
-  const warp = useMemo(() => {
-    const spans = collectSpans(sources.map((s) => s.doc))
-    for (const s of sources) {
-      // 只算進畫得出來的事件——隱藏軸線的事件雖然仍參與求解，但不該影響空白摺疊
-      const drawable = new Set(s.doc.events.map((e) => e.id))
-      resolvedBySource.get(s.id)?.positions.forEach((t, id) => {
-        if (drawable.has(id)) spans.push([t, t + 3_600_000])
-      })
-    }
-    return buildWarp(spans, collapseGaps)
-  }, [sources, collapseGaps, resolvedBySource])
-
-  const initialDomain = useMemo(() => initialDomainOf(sources, warp), [sources, warp])
+  // 每條軸線要畫哪些事件、它們的時間範圍與標題文字（同樣與方向無關）
+  const preparedBands = useMemo(
+    () => buildBands(sources, base, { showDates, showYears }),
+    [sources, base, showDates, showYears],
+  )
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
   // 這樣切換圖層顯示隱藏時，使用者已縮放的視野不會被重設。
@@ -304,17 +148,9 @@ export function TimelineView({
   // 切刻度置中、以及「回到選取事件」浮動鈕都靠這個。
   const selectedU = useMemo(() => {
     if (!selectedKey) return null
-    for (const source of sources) {
-      for (const ev of source.doc.events) {
-        if (`${source.id}/${ev.id}` !== selectedKey) continue
-        const t = isAbsolute(ev.start)
-          ? spanMidpoint(timePointToSpan(ev.start))
-          : resolvedBySource.get(source.id)?.positions.get(ev.id)
-        return t != null ? warp.toU(t) : null
-      }
-    }
-    return null
-  }, [selectedKey, sources, resolvedBySource, warp])
+    const t = anchorTimes.get(selectedKey)
+    return t != null ? warp.toU(t) : null
+  }, [selectedKey, anchorTimes, warp])
 
   // ui 層的尺度按鈕：日/週/月 → 切換跨度；年 → 回到全貌。
   // 有選取事件時以「該事件」為中心縮放（切刻度不再讓事件跑出畫面）；否則沿用畫面中心。
@@ -391,170 +227,77 @@ export function TimelineView({
     setDomainState([u - span / 2, u + span / 2])
   }
 
-  // ---- 排版計算 ----
+  // ---- 排版計算（橫式：把資料層算好的時間換算成像素）----
   const layout = useMemo(() => {
     const [a, b] = domain
     // 先把真實時間換算到壓縮座標，再投影到像素
     const x = (t: number) => ((warp.toU(t) - a) / (b - a)) * width
 
     let y = AXIS_H + 8
-    let bandIndex = 0
 
-    const bands = sources.flatMap((source) => {
-      const tracks = [...source.doc.tracks].sort((t1, t2) => (t1.order ?? 0) - (t2.order ?? 0))
-      const resolvedForSource = resolvedBySource.get(source.id)
-      // 「本來是不是多軸」以原始文件為準（compose 傳入的 multiTrack），
-      // 這樣把多軸文件隱藏到只剩一條時，仍當多軸處理——保留軸線名與軸線配色
-      const multiTrack = source.multiTrack ?? tracks.length > 1
-      return tracks.map((track) => {
-        // 顏色優先序：多軸文件以文件內的軸線配色區分（圖層色只當後備）；
-        // 單軸文件以圖層色為主（面板改色才會生效）
-        const color =
-          multiTrack
-            ? track.color ?? source.color ?? PALETTE[bandIndex % PALETTE.length]
-            : source.color ?? track.color ?? PALETTE[bandIndex % PALETTE.length]
-        // 單軸文件直接用文件標題；多軸文件標成「文件｜軸線」。
-        // 無法推估的相對時間事件不靜默——在軸線標題上註記
-        const unresolvedCount = (resolvedForSource?.unresolved ?? []).filter((u) =>
-          source.doc.events.some((e) => e.id === u.id && e.track === track.id),
-        ).length
-        const label =
-          (!multiTrack
-            ? source.doc.meta.title
-            : `${source.doc.meta.title}｜${track.title}`) +
-          (unresolvedCount > 0 ? `（${unresolvedCount} 筆相對時間無法推估）` : '')
-        bandIndex++
+    const bands = preparedBands.map((band) => {
+      const items = band.events
+        .map((pe) => {
+          const dotR = pe.isKey ? M.keyDotR : M.dotR
+          let shapeL: number
+          let shapeR: number
+          if (pe.kind === 'bar') {
+            // 區間／進行中事件 = 長條（太短時至少留 6px 才看得見）
+            const x1 = x(pe.tStart)
+            shapeL = x1
+            shapeR = Math.max(x(pe.tEnd), x1 + 6)
+          } else {
+            // 點事件 = 圓點，畫在精度範圍的中點
+            const cx = x(pe.tStart)
+            shapeL = cx - dotR
+            shapeR = cx + dotR
+          }
 
-        const items = source.doc.events
-          .filter((ev) => ev.track === track.id)
-          .flatMap((ev) => {
-            const start = ev.start
-            const estimate = !isAbsolute(start)
-            // 相對時間事件：用求解器的推估位置畫成虛線圓點
-            const estimatedT = estimate ? resolvedForSource?.positions.get(ev.id) : undefined
-            if (estimate && estimatedT === undefined) return [] // 無法推估（軸線標題已註記）
-            const startSpan = estimate
-              ? { start: new Date(estimatedT!), end: new Date(estimatedT!) }
-              : timePointToSpan(start as AbsoluteTimePoint)
-            const endPoint =
-              !estimate && ev.end && isAbsolute(ev.end) ? (ev.end as AbsoluteTimePoint) : null
+          const labelW = estimateTextWidth(
+            pe.dateLabel ? `${pe.dateLabel} ${pe.title}` : pe.title,
+            M.font,
+          )
+          // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
+          const labelSide: 'right' | 'left' =
+            shapeR + 6 + labelW > width && shapeL - 6 - labelW > 0 ? 'left' : 'right'
+          const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
+          const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
+          return { ...pe, label: pe.title, shapeL, shapeR, labelSide, occL, occR }
+        })
+        .sort((p, q) => p.occL - q.occL)
 
-            // 相對時間的文字說明（詳情卡用）：「在Ａ之後、在Ｂ之前」
-            let relativeNote: string | null = null
-            if (estimate) {
-              const relRef = (start as RelativeAnchor).relative
-              const titleOf = (id: string) =>
-                source.doc.events.find((e) => e.id === id)?.title ?? id
-              const parts: string[] = []
-              if (relRef.after) parts.push(`在「${titleOf(relRef.after)}」之後`)
-              if (relRef.before) parts.push(`在「${titleOf(relRef.before)}」之前`)
-              relativeNote = parts.join('、')
-            }
+      const lanes = assignLanes(items.map((it) => ({ left: it.occL, right: it.occR })))
+      const laneCount = items.length > 0 ? Math.max(...lanes) + 1 : 1
+      const bandTop = y
+      const bandH = M.trackLabelH + laneCount * M.laneH + 6
+      y += bandH + M.bandGap
 
-            // 重點事件（featured）：放大、粗體、光暈，一眼看到
-            const isKey = isFeatured(ev)
-            const dotR = isKey ? M.keyDotR : M.dotR
+      // 這條軸線最早／最新事件的位置（u 座標），供 hover 浮現的跳轉按鈕使用
+      let firstU = Infinity
+      let lastU = -Infinity
+      for (const it of items) {
+        if (it.u < firstU) firstU = it.u
+        if (it.u > lastU) lastU = it.u
+      }
 
-            // 進行中事件（ongoing 且沒有 end）：長條一路畫到「今天」，右端淡出。
-            // 推估位置的事件不適用（位置本身就不確定）
-            const ongoing = ev.ongoing === true && !endPoint && !estimate
-
-            let kind: 'dot' | 'bar'
-            let shapeL: number
-            let shapeR: number
-            if (endPoint) {
-              // 區間事件 = 長條：從開始範圍的頭畫到結束範圍的尾
-              const endSpan = timePointToSpan(endPoint)
-              const x1 = x(startSpan.start.getTime())
-              const x2 = Math.max(x(endSpan.end.getTime()), x1 + 6)
-              kind = 'bar'
-              shapeL = x1
-              shapeR = x2
-            } else if (ongoing) {
-              const x1 = x(startSpan.start.getTime())
-              const x2 = Math.max(x(Date.now()), x1 + 6)
-              kind = 'bar'
-              shapeL = x1
-              shapeR = x2
-            } else {
-              // 點事件 = 圓點：畫在精度範圍的中點
-              const cx = x(spanMidpoint(startSpan))
-              kind = 'dot'
-              shapeL = cx - dotR
-              shapeR = cx + dotR
-            }
-
-            // 事件在壓縮座標 u 的位置（與目前縮放無關），供「跳到最早／最新事件」定位
-            const u = warp.toU(kind === 'dot' ? spanMidpoint(startSpan) : startSpan.start.getTime())
-
-            const text = truncate(ev.title, 16)
-            // 日期前綴（「顯示事件日期」「含年份」兩個勾選框控制）。
-            // 推估位置永遠標示「（推估）」——明確告訴讀者這不是真實日期
-            const dateLabel = estimate
-              ? '（推估）'
-              : showDates
-                ? formatPointShort(start as AbsoluteTimePoint, showYears)
-                : ''
-            const labelW = estimateTextWidth(dateLabel ? `${dateLabel} ${text}` : text, M.font)
-            // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
-            const labelSide: 'right' | 'left' =
-              shapeR + 6 + labelW > width && shapeL - 6 - labelW > 0 ? 'left' : 'right'
-            const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
-            const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
-            return [
-              {
-                ev,
-                kind,
-                isKey,
-                ongoing,
-                estimate,
-                relativeNote,
-                shapeL,
-                shapeR,
-                u,
-                label: text,
-                dateLabel,
-                labelSide,
-                occL,
-                occR,
-              },
-            ]
-          })
-          .sort((p, q) => p.occL - q.occL)
-
-        const lanes = assignLanes(items.map((it) => ({ left: it.occL, right: it.occR })))
-        const laneCount = items.length > 0 ? Math.max(...lanes) + 1 : 1
-        const bandTop = y
-        const bandH = M.trackLabelH + laneCount * M.laneH + 6
-        y += bandH + M.bandGap
-
-        // 這條軸線最早／最新事件的位置（u 座標），供 hover 浮現的跳轉按鈕使用
-        let firstU = Infinity
-        let lastU = -Infinity
-        for (const it of items) {
-          if (it.u < firstU) firstU = it.u
-          if (it.u > lastU) lastU = it.u
-        }
-
-        return {
-          key: `${source.id}/${track.id}`,
-          sourceId: source.id,
-          trackId: track.id,
-          docTitle: source.doc.meta.title,
-          trackTitle: track.title,
-          label,
-          color,
-          bandTop,
-          bandH,
-          firstU: items.length > 0 ? firstU : null,
-          lastU: items.length > 0 ? lastU : null,
-          items: items.map((it, j) => ({
-            ...it,
-            lane: lanes[j],
-            cy: bandTop + M.trackLabelH + lanes[j] * M.laneH + M.laneH / 2,
-          })),
-        }
-      })
+      return {
+        key: band.key,
+        sourceId: band.sourceId,
+        trackId: band.trackId,
+        docTitle: band.docTitle,
+        trackTitle: band.trackTitle,
+        label: band.label,
+        color: band.color,
+        bandTop,
+        bandH,
+        firstU: items.length > 0 ? firstU : null,
+        lastU: items.length > 0 ? lastU : null,
+        items: items.map((it, j) => ({
+          ...it,
+          lane: lanes[j],
+          cy: bandTop + M.trackLabelH + lanes[j] * M.laneH + M.laneH / 2,
+        })),
+      }
     })
 
     // 每個事件圖形的中心點，供關係線定位
@@ -607,7 +350,7 @@ export function TimelineView({
     )
 
     return { bands, relationLines, height: Math.max(y + 8, 320), x }
-  }, [sources, domain, width, showDates, showYears, warp, resolvedBySource, M])
+  }, [sources, preparedBands, domain, width, warp, M])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
