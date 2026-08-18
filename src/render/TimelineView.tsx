@@ -48,6 +48,8 @@ interface Props {
   onEventSelect?: (selection: EventSelection | null) => void
   /** 在軸線空白處點兩下 → 回報新增事件的草稿資訊（未提供時停用，例如嵌入模式） */
   onEventCreate?: (draft: NewEventDraft) => void
+  /** 回報目前的可視時間範圍（壓縮座標 u），讓 ui 層的比例匯出做到所見即所得 */
+  onDomainChange?: (domain: [number, number]) => void
 }
 
 const DAY = 86_400_000
@@ -78,6 +80,7 @@ export function TimelineView({
   selectedKey,
   onEventSelect,
   onEventCreate,
+  onDomainChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -166,6 +169,11 @@ export function TimelineView({
     setDomainState([center - span / 2, center + span / 2])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scaleRequest?.nonce])
+
+  // 回報目前看到的時間範圍：ui 層的「比例匯出」要照著這個範圍出圖（所見即所得）
+  useEffect(() => {
+    onDomainChange?.(domain)
+  }, [domain, onDomainChange])
 
   // 回報目前尺度，讓按鈕高亮跟著縮放狀態走
   useEffect(() => {

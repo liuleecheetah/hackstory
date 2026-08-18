@@ -1,7 +1,7 @@
 // ui 層：匯出對話框
 // 下載各圖層的 .hst.json、把目前畫面存成 SVG / PNG、複製 iframe 嵌入碼。
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   documentToJson,
   downloadBlob,
@@ -13,6 +13,8 @@ import {
 import { documentToMarkdown } from '../adapters/markdown'
 import type { Layer } from '../compose/useLayers'
 import { validateDocument } from '../core'
+import { renderVerticalExportSvg } from '../render/exportSvg'
+import type { TimelineSource } from '../render/types'
 
 interface Props {
   open: boolean
@@ -22,7 +24,28 @@ interface Props {
   onDownloaded?: (coveredAll: boolean) => void
   /** 目前的檢視方向：分享出去的連結要跟「我現在看到的樣子」一致 */
   orientation?: 'horizontal' | 'vertical'
+  /** 目前顯示中的圖層（比例匯出要重畫一張，所以需要原始資料） */
+  sources?: TimelineSource[]
+  /** 目前畫面的可視時間範圍（壓縮座標 u）——比例匯出照這個範圍出圖 */
+  viewDomain?: [number, number] | null
+  showDates?: boolean
+  showYears?: boolean
+  collapseGaps?: boolean
 }
+
+/**
+ * 直式圖片的比例。w/h 是邏輯尺寸，PNG 一律 2 倍輸出
+ * （9:16 → 1080×1920、A4 → 1240×1754）。
+ */
+const RATIO_PRESETS = [
+  { id: '9-16', label: '9:16', hint: '手機全螢幕／限時動態', w: 540, h: 960 },
+  { id: '4-5', label: '4:5', hint: '社群貼文（直式）', w: 540, h: 675 },
+  { id: '3-4', label: '3:4', hint: '一般直式', w: 540, h: 720 },
+  { id: '1-1', label: '1:1', hint: '方形', w: 540, h: 540 },
+  { id: 'a4', label: 'A4', hint: '直式列印', w: 620, h: 877 },
+] as const
+
+type RatioId = (typeof RATIO_PRESETS)[number]['id']
 
 /** 畫面上時間軸 SVG 的 id（render 層掛的） */
 const SVG_ID = 'hackstory-timeline-svg'
@@ -33,17 +56,91 @@ export function ExportDialog({
   layers,
   onDownloaded,
   orientation = 'horizontal',
+  sources = [],
+  viewDomain,
+  showDates = true,
+  showYears = true,
+  collapseGaps = false,
 }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
   const [shareSrc, setShareSrc] = useState('')
-
-  if (!open) return null
+  // 比例匯出：選中的比例、縮圖預覽、以及畫不好時要提醒的話
+  const [ratio, setRatio] = useState<RatioId | null>(null)
+  const [preview, setPreview] = useState<{ url: string; warnings: string[] } | null>(null)
+  const [previewBusy, setPreviewBusy] = useState(false)
 
   const say = (msg: string) => {
     setMessage(msg)
     window.setTimeout(() => setMessage(null), 3000)
   }
+
+  const preset = RATIO_PRESETS.find((r) => r.id === ratio) ?? null
+
+  /** 圖片頂部標題與底部出處：讓輸出的圖自帶脈絡 */
+  const imageTitle =
+    layers.length === 1
+      ? layers[0].doc.meta.title
+      : layers.length > 1
+        ? `${layers[0].doc.meta.title} 等 ${layers.length} 份`
+        : 'HackStory'
+  const today = new Date()
+  const imageFooter = `以 HackStory 製作 · ${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`
+
+  /** 依目前選的比例重畫一張直式時間軸（畫面上是橫式也一樣，圖片一律直式） */
+  const renderRatio = async (p: NonNullable<typeof preset>) => {
+    if (!viewDomain) throw new Error('還沒有可以出圖的時間範圍')
+    return renderVerticalExportSvg({
+      sources,
+      domain: viewDomain,
+      width: p.w,
+      height: p.h,
+      showDates,
+      showYears,
+      collapseGaps,
+      title: imageTitle,
+      footer: imageFooter,
+    })
+  }
+
+  // 選了比例（或畫面範圍改了）就重畫縮圖預覽
+  useEffect(() => {
+    if (!open || !preset || !viewDomain || sources.length === 0) {
+      setPreview(null)
+      setPreviewBusy(false)
+      return
+    }
+    let cancelled = false
+    setPreviewBusy(true)
+    void renderRatio(preset)
+      .then(({ svg, overflow, narrowColumns }) => {
+        if (cancelled) return
+        const warnings: string[] = []
+        if (narrowColumns) {
+          warnings.push('欄寬過窄，建議選更寬的比例，或在左側面板暫時隱藏部分圖層／軸線')
+        }
+        if (overflow) {
+          warnings.push('這段時間的事件太多，有些標題會被切掉——請先在畫面上縮放到較短的期間')
+        }
+        const text = serializeSvg(svg)
+        setPreview({
+          url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text)}`,
+          warnings,
+        })
+      })
+      .catch((e: Error) => {
+        if (!cancelled) say(`預覽失敗：${e.message}`)
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewBusy(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ratio, viewDomain, sources, showDates, showYears, collapseGaps])
+
+  if (!open) return null
 
   const getSvg = (): SVGSVGElement | null => {
     const svg = document.getElementById(SVG_ID)
@@ -76,6 +173,25 @@ export function ExportDialog({
 
   // 只有直式才寫進網址：橫式不標記，嵌入到手機上時才能自動切成好讀的直式
   const orientParam = orientation === 'vertical' ? '&orient=vertical' : ''
+  /** 依比例下載：SVG 直接存，PNG 一律 2 倍解析度 */
+  const downloadRatio = (kind: 'svg' | 'png') => {
+    if (!preset) return
+    void renderRatio(preset)
+      .then(async ({ svg }) => {
+        const text = serializeSvg(svg)
+        const name = `hackstory-${preset.id}`
+        if (kind === 'svg') {
+          downloadText(`${name}.svg`, text, 'image/svg+xml')
+          say(`已下載 ${preset.label} SVG`)
+          return
+        }
+        const blob = await svgToPngBlob(text, preset.w, preset.h, 2)
+        downloadBlob(`${name}.png`, blob)
+        say(`已下載 ${preset.label} PNG（${preset.w * 2}×${preset.h * 2}）`)
+      })
+      .catch((e: Error) => say(`匯出失敗：${e.message}`))
+  }
+
   const embedUrl = `${window.location.origin}${window.location.pathname}?embed=1${orientParam}`
   const embedHtml = embedCode(embedUrl)
 
@@ -293,6 +409,82 @@ export function ExportDialog({
                 下載 PNG（點陣，2 倍解析度）
               </button>
             </div>
+          </section>
+
+          {/* 直式圖片（選比例） */}
+          <section>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">直式圖片（選比例）</h3>
+            <p className="mb-2 text-xs text-slate-400">
+              重新畫成適合手機與社群的直式長圖，用的是你目前看到的時間範圍。
+            </p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {RATIO_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  title={p.hint}
+                  onClick={() => setRatio(ratio === p.id ? null : p.id)}
+                  className={
+                    'rounded border px-3 py-1.5 text-sm transition-colors ' +
+                    (ratio === p.id
+                      ? 'border-slate-800 bg-slate-800 text-white'
+                      : 'border-slate-300 text-slate-700 hover:bg-slate-100')
+                  }
+                >
+                  {p.label}
+                  <span
+                    className={
+                      'ml-1.5 text-xs ' + (ratio === p.id ? 'text-slate-300' : 'text-slate-400')
+                    }
+                  >
+                    {p.hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {preset && (
+              <div className="flex items-start gap-4">
+                <div
+                  className="shrink-0 overflow-hidden rounded border border-slate-200 bg-white"
+                  style={{ width: 160, height: Math.round((160 * preset.h) / preset.w) }}
+                >
+                  {preview ? (
+                    <img src={preview.url} alt="預覽" className="h-full w-full object-contain" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                      {previewBusy ? '產生預覽中…' : '沒有可預覽的內容'}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="mb-2 text-xs text-slate-500">
+                    {preset.w * 2}×{preset.h * 2} 像素（PNG 為 2 倍解析度）
+                  </p>
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => downloadRatio('png')}
+                      className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                    >
+                      下載 PNG
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadRatio('svg')}
+                      className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                    >
+                      下載 SVG
+                    </button>
+                  </div>
+                  {preview?.warnings.map((w) => (
+                    <p key={w} className="text-xs text-amber-700">
+                      ⚠ {w}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* iframe */}

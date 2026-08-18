@@ -212,6 +212,9 @@ export default function App() {
       (EMBED_NARROW ? 'vertical' : (INITIAL_DOCS[0]?.display?.orientation ?? 'horizontal')),
   )
   const isVertical = orientation === 'vertical'
+  // render 層回報的可視時間範圍：比例匯出照這個範圍出圖（所見即所得）
+  const [viewDomain, setViewDomain] = useState<[number, number] | null>(null)
+  const handleDomainChange = useCallback((d: [number, number]) => setViewDomain(d), [])
 
   // 分享連結（?src=）：開啟時依序載入分享的時間軸，
   // 第一份載入成功的文件決定「摺疊空白」的預設值
@@ -978,6 +981,7 @@ export default function App() {
               collapseGaps={collapseGaps}
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
+              onDomainChange={handleDomainChange}
             />
           ) : (
             <TimelineView
@@ -992,6 +996,7 @@ export default function App() {
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
               onEventCreate={readOnly ? undefined : handleEventCreate}
+              onDomainChange={handleDomainChange}
             />
           )}
         </div>
@@ -1029,6 +1034,11 @@ export default function App() {
         onClose={() => setExportOpen(false)}
         layers={layers}
         orientation={orientation}
+        sources={visibleSources}
+        viewDomain={viewDomain}
+        showDates={showDates}
+        showYears={showYears}
+        collapseGaps={collapseGaps}
         onDownloaded={(coveredAll) => {
           // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
           if (coveredAll) setDirty(false)

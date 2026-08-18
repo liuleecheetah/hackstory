@@ -20,11 +20,29 @@ import {
   columnRects,
   fitContentHeight,
   fitText,
+  MIN_COL_W,
   pickVerticalMode,
   RULER_W,
   stackLabels,
   verticalLanes,
 } from './verticalLayout'
+
+/**
+ * 匯出模式：固定尺寸、不互動、上下加標題與出處。
+ * 由 exportSvg.tsx 離屏渲染時使用——**畫面與匯出圖走同一段繪製程式**，
+ * 才不會出現「看到的」跟「存下來的」長不一樣。
+ */
+export interface VerticalExportOptions {
+  /** 邏輯寬高（像素） */
+  width: number
+  height: number
+  /** 離屏渲染時要換一個 id，避免跟畫面上的 SVG 撞名 */
+  svgId: string
+  /** 圖片頂部的標題（通常是文件名） */
+  title: string
+  /** 圖片底部的出處小字 */
+  footer: string
+}
 
 interface Props {
   sources: TimelineSource[]
@@ -42,6 +60,12 @@ interface Props {
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
   onEventSelect?: (selection: EventSelection | null) => void
+  /** 回報目前的可視時間範圍（壓縮座標 u），讓 ui 層的比例匯出做到所見即所得 */
+  onDomainChange?: (domain: [number, number]) => void
+  /** 受控的可視範圍（匯出時由外部指定；畫面上的檢視不傳） */
+  domain?: [number, number]
+  /** 有值 = 匯出模式（固定尺寸、不互動） */
+  exportMode?: VerticalExportOptions
   // 之後會補上 onEventCreate（直式編輯）——現在不留半成品的程式碼，屆時再加。
 }
 
@@ -58,6 +82,8 @@ const KEY_DOT_R = 7.5
 const BAR_W = 12
 const KEY_BAR_W = 16
 const MIN_BAR_H = 10 // 很短的區間事件至少畫這麼長，才看得見
+const TITLE_H = 42 // 匯出圖片頂部的標題列
+const FOOTER_H = 22 // 匯出圖片底部的出處小字
 const ROW_H = 64 // 一個事件「舒服讀」大概需要的高度（決定整條軸最長拉到多長）
 const LABEL_GAP = 8 // 圖形右緣到標題的距離
 
@@ -103,12 +129,16 @@ export function VerticalTimelineView({
   onScaleModeChange,
   selectedKey,
   onEventSelect,
+  onDomainChange,
+  domain: domainProp,
+  exportMode,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
-  const [width, setWidth] = useState(960)
+  const [measuredWidth, setMeasuredWidth] = useState(960)
+  const width = exportMode?.width ?? measuredWidth
   // 「回到選取的事件」浮動鈕的方向（事件捲出畫面時才出現）
   const [returnDir, setReturnDir] = useState<'up' | 'down' | null>(null)
 
@@ -122,7 +152,7 @@ export function VerticalTimelineView({
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）
   const [domainState, setDomainState] = useState<[number, number] | null>(null)
-  const domain = domainState ?? initialDomain
+  const domain = domainProp ?? domainState ?? initialDomain
   const domainRef = useRef(domain)
   domainRef.current = domain
 
@@ -134,6 +164,11 @@ export function VerticalTimelineView({
     setDomainState((d) => (d ? [warp.toU(prev.toT(d[0])), warp.toU(prev.toT(d[1]))] : d))
     prevWarpRef.current = warp
   }, [warp])
+
+  // 回報目前看到的時間範圍：ui 層的「比例匯出」要照著這個範圍出圖（所見即所得）
+  useEffect(() => {
+    onDomainChange?.(domain)
+  }, [domain, onDomainChange])
 
   // 目前被選取事件的位置（壓縮座標 u）
   const selectedU = useMemo(() => {
@@ -148,13 +183,14 @@ export function VerticalTimelineView({
     if (!el) return
     const ro = new ResizeObserver((entries) => {
       const w = entries[0].contentRect.width
-      if (w > 0) setWidth(w)
+      if (w > 0) setMeasuredWidth(w)
     })
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
-  const mode = pickVerticalMode(width, bands.length)
+  // 匯出時一律多欄並排（寬度是使用者指定的，不做單欄合流的退場）
+  const mode = exportMode ? 'columns' : pickVerticalMode(width, bands.length)
 
   // 單欄合流時每列開頭的軸線縮寫：同一份文件有多條軸就用軸線名，否則用文件名
   const abbrOf = useMemo(() => {
@@ -171,7 +207,9 @@ export function VerticalTimelineView({
   const layout = useMemo(() => {
     const [d0, d1] = domain
     const span = d1 - d0 || 1
-    const axisTop = HEADER_H + TOP_PAD
+    // 匯出模式在最上面多一列標題、最下面多一行出處
+    const headerTop = exportMode ? TITLE_H : 0
+    const axisTop = headerTop + HEADER_H + TOP_PAD
 
     // 只排目前時間範圍內的事件（沒有縮放時就是全部）
     const visibleBands = bands.map((b) => ({
@@ -192,9 +230,12 @@ export function VerticalTimelineView({
     // 軸再怎麼拉長，也不超過「每個事件一行」的長度——否則事件全擠在
     // 某十年的時間軸，會被拉成幾千像素的空白，讀者只是在捲空氣
     const rowCount = groups.reduce((n, g) => Math.max(n, g.length), 0)
-    const contentH = fitContentHeight(groups, {
-      maxH: Math.min(12_000, Math.max(520, rowCount * ROW_H)),
-    })
+    // 匯出：高度是使用者選的比例決定的，軸只能塞進剩下的空間
+    const contentH = exportMode
+      ? Math.max(80, exportMode.height - axisTop - FOOTER_H - BOTTOM_PAD)
+      : fitContentHeight(groups, {
+          maxH: Math.min(12_000, Math.max(520, rowCount * ROW_H)),
+        })
 
     /** 壓縮座標 u ↔ 畫面 y（縮放、置中、浮動鈕都靠這對換算） */
     const yOfU = (u: number) => axisTop + ((u - d0) / span) * contentH
@@ -305,7 +346,15 @@ export function VerticalTimelineView({
       (m, c) => c.items.reduce((n, it) => Math.max(n, it.labelY, it.yBot), m),
       0,
     )
-    const totalH = Math.max(axisTop + contentH + BOTTOM_PAD, lowest + BOTTOM_PAD)
+    const totalH = exportMode
+      ? exportMode.height
+      : Math.max(axisTop + contentH + BOTTOM_PAD, lowest + BOTTOM_PAD)
+    // 匯出時事件太多，標題會被堆到圖片外面——回報給對話框，讓它提醒使用者
+    const overflow = exportMode ? lowest > exportMode.height - FOOTER_H - 4 : false
+    // 欄太窄，中文標題幾乎只剩省略號——同樣提醒使用者
+    const narrowColumns =
+      layoutColumns.length > 0 &&
+      (width - RULER_W) / layoutColumns.length < MIN_COL_W
 
     // 刻度：扣掉被摺疊的空白，每段密集區依自己佔的高度各自產生刻度
     const tView: [number, number] = [warp.toT(d0), warp.toT(d1)]
@@ -323,8 +372,19 @@ export function VerticalTimelineView({
       return getTicks([x, z], px).filter((d) => d.getTime() >= x && d.getTime() <= z)
     })
 
-    return { totalH, columns: layoutColumns, ticks, y, yOfU, uOfY, tView }
-  }, [bands, mode, width, warp, domain, abbrOf])
+    return {
+      totalH,
+      headerTop,
+      columns: layoutColumns,
+      ticks,
+      y,
+      yOfU,
+      uOfY,
+      tView,
+      overflow,
+      narrowColumns,
+    }
+  }, [bands, mode, width, warp, domain, abbrOf, exportMode])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -432,24 +492,18 @@ export function VerticalTimelineView({
     )
   }
 
-  return (
-    <div className="relative h-full w-full">
-      <div
-        ref={containerRef}
-        className="h-full w-full select-none overflow-y-auto"
-        onScroll={(e) => {
-          headerRef.current?.setAttribute('transform', `translate(0 ${e.currentTarget.scrollTop})`)
-          refreshReturnDir()
-        }}
-      >
-        <svg
-            ref={svgRef}
-            id="hackstory-timeline-svg"
-            width={width}
-            height={layout.totalH}
-            className="block bg-white"
-            onClick={() => onEventSelect?.(null)}
-          >
+  // 畫面上的檢視與匯出圖片共用這一段 SVG——「看到的」與「存下來的」保證一致
+  const svgEl = (
+    <svg
+      ref={svgRef}
+      id={exportMode?.svgId ?? 'hackstory-timeline-svg'}
+      width={width}
+      height={layout.totalH}
+      className="block bg-white"
+      data-overflow={layout.overflow ? '1' : '0'}
+      data-narrow-columns={layout.narrowColumns ? '1' : '0'}
+      onClick={exportMode ? undefined : () => onEventSelect?.(null)}
+    >
           {/* 進行中事件下端的淡出漸層（方向由橫式的左右轉成上下） */}
           <defs>
             <linearGradient id="hst-ongoing-fade-v" x1="0" y1="0" x2="0" y2="1">
@@ -521,24 +575,29 @@ export function VerticalTimelineView({
                       })
                     }}
                   >
-                    {/* 看不見的感應區：整列（圖形＋標題）都點得到，手指不用瞄準小圓點 */}
-                    <rect
-                      x={it.x - 6}
-                      y={it.labelY - 14}
-                      width={Math.max(0, width - it.x - 2)}
-                      height={LABEL_H}
-                      fill="transparent"
-                    />
-                    {it.isBar ? (
-                      <rect
-                        x={it.x - 6}
-                        y={it.yTop - 4}
-                        width={it.shapeW + 12}
-                        height={Math.max(it.yBot - it.yTop, MIN_BAR_H) + 8}
-                        fill="transparent"
-                      />
-                    ) : (
-                      <circle cx={cx} cy={it.yTop} r={dotR + 10} fill="transparent" />
+                    {/* 看不見的感應區：整列（圖形＋標題）都點得到，手指不用瞄準小圓點。
+                        匯出的圖片不需要，省下來檔案比較乾淨 */}
+                    {!exportMode && (
+                      <>
+                        <rect
+                          x={it.x - 6}
+                          y={it.labelY - 14}
+                          width={Math.max(0, width - it.x - 2)}
+                          height={LABEL_H}
+                          fill="transparent"
+                        />
+                        {it.isBar ? (
+                          <rect
+                            x={it.x - 6}
+                            y={it.yTop - 4}
+                            width={it.shapeW + 12}
+                            height={Math.max(it.yBot - it.yTop, MIN_BAR_H) + 8}
+                            fill="transparent"
+                          />
+                        ) : (
+                          <circle cx={cx} cy={it.yTop} r={dotR + 10} fill="transparent" />
+                        )}
+                      </>
                     )}
                     {/* 標題被擠開時，用一條細線把它接回真正的時間位置 */}
                     {it.drift > 3 && (
@@ -657,6 +716,16 @@ export function VerticalTimelineView({
 
           {/* 欄標題列：捲動時固定在畫面上緣，讀到一半也知道自己在看哪一欄 */}
           <g ref={headerRef}>
+            {/* 匯出圖片的頂部標題：輸出的圖自帶脈絡，不必靠貼文說明 */}
+            {exportMode && (
+              <>
+                <rect x={0} y={0} width={width} height={TITLE_H} fill="#ffffff" />
+                <text x={14} y={27} fontSize={16} fontWeight={700} fill="#1e293b">
+                  {fitText(exportMode.title, width - 28, 16)}
+                </text>
+              </>
+            )}
+            <g transform={`translate(0 ${layout.headerTop})`}>
             <rect x={0} y={0} width={width} height={HEADER_H} fill="#ffffff" />
             <line x1={0} x2={width} y1={HEADER_H} y2={HEADER_H} stroke="#cbd5e1" />
             <text x={6} y={21} fontSize={10} fill="#94a3b8">
@@ -696,7 +765,42 @@ export function VerticalTimelineView({
                   )
                 })}
             </g>
-        </svg>
+          </g>
+          {/* 匯出圖片底部的出處小字 */}
+          {exportMode && (
+            <text
+              x={width - 12}
+              y={exportMode.height - 8}
+              textAnchor="end"
+              fontSize={10}
+              fill="#94a3b8"
+            >
+              {exportMode.footer}
+            </text>
+          )}
+    </svg>
+  )
+
+  // 匯出模式：固定尺寸、不捲動、不互動
+  if (exportMode) {
+    return (
+      <div style={{ width, height: exportMode.height, overflow: 'hidden', background: '#fff' }}>
+        {svgEl}
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
+        className="h-full w-full select-none overflow-y-auto"
+        onScroll={(e) => {
+          headerRef.current?.setAttribute('transform', `translate(0 ${e.currentTarget.scrollTop})`)
+          refreshReturnDir()
+        }}
+      >
+        {svgEl}
       </div>
       {returnDir && selectedU != null && (
         <button
