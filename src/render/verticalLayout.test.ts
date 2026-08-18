@@ -7,6 +7,7 @@ import {
   maxLabelDrift,
   pickVerticalMode,
   RULER_W,
+  shapeGutter,
   stackLabels,
   verticalLanes,
 } from './verticalLayout'
@@ -150,6 +151,26 @@ describe('fitContentHeight：擠在一起就把軸拉長', () => {
     const loose = Array.from({ length: 10 }, (_, i) => i / 9)
     const tight = Array.from({ length: 20 }, (_, i) => (i / 19) * 0.05)
     expect(fitContentHeight([loose, tight])).toBeGreaterThan(fitContentHeight([loose]))
+  })
+})
+
+describe('shapeGutter：圖形區要留多寬', () => {
+  it('沒有事件時不留空間', () => {
+    expect(shapeGutter([], 16)).toBe(0)
+  })
+
+  it('全部在第 0 車道時，寬度就是最寬的那個圖形', () => {
+    expect(shapeGutter([{ lane: 0, width: 10 }, { lane: 0, width: 15 }], 16)).toBe(15)
+  })
+
+  it('有副車道時要加上錯開的距離', () => {
+    expect(shapeGutter([{ lane: 2, width: 12 }], 16)).toBe(44)
+  })
+
+  it('取最外側的那一個，不是最後一個', () => {
+    expect(
+      shapeGutter([{ lane: 3, width: 10 }, { lane: 0, width: 15 }], 16),
+    ).toBe(58)
   })
 })
 

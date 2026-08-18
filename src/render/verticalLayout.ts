@@ -108,6 +108,19 @@ export function fitContentHeight(
   }
 }
 
+/**
+ * 一欄裡「圖形區」要留多寬：所有事件（含往右錯開的副車道）佔掉的最大寬度。
+ *
+ * 圖形與標題必須分屬兩個互不侵犯的區域，否則錯開的圓點會壓到隔壁事件的標題上。
+ * 算出這個寬度後，整欄的標題就從同一個 x 開始排——順便讓文字對齊，好讀很多。
+ */
+export function shapeGutter(
+  items: Array<{ lane: number; width: number }>,
+  step: number,
+): number {
+  return items.reduce((max, it) => Math.max(max, it.lane * step + it.width), 0)
+}
+
 /** 依可用寬度截斷文字（欄寬有限，完整標題到詳情卡看） */
 export function fitText(text: string, maxWidth: number, fontSize = 12): string {
   if (maxWidth <= 0) return ''

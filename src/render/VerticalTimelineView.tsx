@@ -23,6 +23,7 @@ import {
   MIN_COL_W,
   pickVerticalMode,
   RULER_W,
+  shapeGutter,
   stackLabels,
   verticalLanes,
 } from './verticalLayout'
@@ -73,8 +74,10 @@ const HEADER_H = 34 // 頂部欄標題列高度（捲動時固定在上緣）
 const TOP_PAD = 18
 const BOTTOM_PAD = 32
 const COL_PAD = 10 // 欄內左右留白
-const LANE_STEP = 11 // 副車道每往右錯開多少（只為了讓同時發生的圖形不疊在一起）
-const MAX_LANES = 4 // 副車道最多錯開幾層，再多就會吃掉標題的寬度
+// 副車道每往右錯開多少。要比最大的圓點（重點事件直徑 15）再寬一點，
+// 錯開後的圓點才不會擠成一團
+const LANE_STEP = 16
+const LANE_COUNT = 4 // 副車道最多幾層，再多就會把標題的寬度吃光
 const LABEL_H = 18 // 一行標題佔的高度
 const FONT = 12
 const DOT_R = 5
@@ -109,10 +112,10 @@ interface PlacedEvent {
   yBot: number
   shapeW: number
   labelX: number
-  /** 標題實際被畫在哪一行（可能被往下擠，這時會補一條連接線） */
+  /** 標題實際被畫在哪一行（可能被往下擠） */
   labelY: number
-  /** 標題被往下擠了多少（0 = 就在事件旁邊） */
-  drift: number
+  /** 圖形連到標題的引線；就在旁邊、不需要引線時為 null */
+  leader: string | null
   dateLabel: string
   title: string
   /** 單欄合流模式才有：軸線縮寫 */
@@ -271,18 +274,38 @@ export function VerticalTimelineView({
       const labelYs = stackLabels(naturalLabelYs, LABEL_H)
       const right = rect.x + rect.w - COL_PAD
 
-      return raw.map((r, i) => {
-        const x = rect.x + COL_PAD + Math.min(lanes[i], MAX_LANES) * LANE_STEP
-        const shapeW = r.isBar
+      // 超出可用層數時「繞回第 0 層」而不是全部壓在最後一層——
+      // 壓在同一層會讓密集區的圓點疊成一坨，繞回去至少還是散開的
+      const laneOf = (i: number) => lanes[i] % LANE_COUNT
+      const widthOf = (r: (typeof raw)[number]) =>
+        r.isBar
           ? r.pe.isKey
             ? KEY_BAR_W
             : BAR_W
           : (r.pe.isKey ? KEY_DOT_R : DOT_R) * 2
+
+      // 圖形區與文字區分開：圖形（含錯開的副車道）佔左邊這麼寬，
+      // 標題一律從它的右邊開始——圓點就再也壓不到隔壁事件的標題上
+      const gutter = shapeGutter(
+        raw.map((r, i) => ({ lane: laneOf(i), width: widthOf(r) })),
+        LANE_STEP,
+      )
+      // 單欄合流的軸線縮寫也取一致寬度，整欄的標題才對得齊
+      const abbrW = withAbbr
+        ? raw.reduce(
+            (m, r) => Math.max(m, estimateTextWidth(abbrOf.get(r.band.key) ?? '', 10)),
+            0,
+          ) + 6
+        : 0
+      const abbrX = rect.x + COL_PAD + gutter + LABEL_GAP
+      const labelX = abbrX + abbrW
+      const avail = right - labelX
+
+      return raw.map((r, i) => {
+        const x = rect.x + COL_PAD + laneOf(i) * LANE_STEP
+        const shapeW = widthOf(r)
         const abbr = withAbbr ? (abbrOf.get(r.band.key) ?? null) : null
-        const abbrX = x + shapeW + LABEL_GAP
-        const abbrW = abbr ? estimateTextWidth(abbr, 10) + 6 : 0
-        const labelX = abbrX + abbrW
-        const avail = right - labelX
+        const labelY = labelYs[i]
 
         // 標題依剩餘寬度截斷；連日期都擠不下時，寧可捨棄日期也要留住標題
         let dateLabel = r.pe.dateLabel
@@ -292,6 +315,14 @@ export function VerticalTimelineView({
           dateLabel = ''
           title = fitText(r.pe.ev.title, avail, FONT)
         }
+
+        // 標題被擠開、或圖形離標題有一段距離時，畫一條細引線把兩者接起來
+        const shapeRight = x + shapeW
+        const drift = labelY - naturalLabelYs[i]
+        const leader =
+          drift > 3 || labelX - shapeRight > 18
+            ? `M ${shapeRight + 3} ${r.yTop} H ${labelX - 10} V ${labelY - 4} H ${labelX - 3}`
+            : null
 
         return {
           key: `${r.band.sourceId}/${r.pe.ev.id}`,
@@ -303,8 +334,8 @@ export function VerticalTimelineView({
           yBot: r.yBot,
           shapeW,
           labelX,
-          labelY: labelYs[i],
-          drift: labelYs[i] - naturalLabelYs[i],
+          labelY,
+          leader,
           dateLabel,
           title,
           abbr,
@@ -599,16 +630,14 @@ export function VerticalTimelineView({
                         )}
                       </>
                     )}
-                    {/* 標題被擠開時，用一條細線把它接回真正的時間位置 */}
-                    {it.drift > 3 && (
-                      <line
-                        x1={cx}
-                        x2={cx}
-                        y1={it.isBar ? it.yBot : it.yTop + dotR}
-                        y2={it.labelY - 4}
+                    {/* 引線：把標題接回它真正的時間位置（圖形在左、文字在右） */}
+                    {it.leader && (
+                      <path
+                        d={it.leader}
+                        fill="none"
                         stroke={fill}
                         strokeWidth={1}
-                        opacity={0.35}
+                        opacity={0.3}
                       />
                     )}
                     {/* 重點事件（featured）的常駐光暈 */}
