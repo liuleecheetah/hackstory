@@ -20,12 +20,20 @@ interface Props {
   layers: Layer[]
   /** 使用者下載了 .hst.json。coveredAll = 這次下載涵蓋了所有圖層 */
   onDownloaded?: (coveredAll: boolean) => void
+  /** 目前的檢視方向：分享出去的連結要跟「我現在看到的樣子」一致 */
+  orientation?: 'horizontal' | 'vertical'
 }
 
 /** 畫面上時間軸 SVG 的 id（render 層掛的） */
 const SVG_ID = 'hackstory-timeline-svg'
 
-export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
+export function ExportDialog({
+  open,
+  onClose,
+  layers,
+  onDownloaded,
+  orientation = 'horizontal',
+}: Props) {
   const [message, setMessage] = useState<string | null>(null)
   // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
   const [shareSrc, setShareSrc] = useState('')
@@ -66,7 +74,9 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }
 
-  const embedUrl = `${window.location.origin}${window.location.pathname}?embed=1`
+  // 只有直式才寫進網址：橫式不標記，嵌入到手機上時才能自動切成好讀的直式
+  const orientParam = orientation === 'vertical' ? '&orient=vertical' : ''
+  const embedUrl = `${window.location.origin}${window.location.pathname}?embed=1${orientParam}`
   const embedHtml = embedCode(embedUrl)
 
   const copy = (text: string, what: string) => {
@@ -115,9 +125,11 @@ export function ExportDialog({ open, onClose, layers, onDownloaded }: Props) {
   // 分享連結與對應的嵌入碼
   const shareBase = `${window.location.origin}${window.location.pathname}`
   const trimmedSrc = shareSrc.trim()
-  const shareLink = trimmedSrc ? `${shareBase}?src=${encodeURIComponent(trimmedSrc)}` : ''
+  const shareLink = trimmedSrc
+    ? `${shareBase}?src=${encodeURIComponent(trimmedSrc)}${orientParam}`
+    : ''
   const shareEmbedHtml = trimmedSrc
-    ? embedCode(`${shareBase}?embed=1&src=${encodeURIComponent(trimmedSrc)}`)
+    ? embedCode(`${shareBase}?embed=1&src=${encodeURIComponent(trimmedSrc)}${orientParam}`)
     : ''
 
   return (

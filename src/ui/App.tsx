@@ -57,6 +57,16 @@ const SCALE_LABELS: Record<ScaleMode, string> = {
 // 分享連結：網址帶 ?src=公開網址 時，載入分享的時間軸（可多個），不載入預設範例
 const SHARED_SRC_URLS = new URLSearchParams(window.location.search).getAll('src')
 
+// 網址指定的方向（?orient=vertical|horizontal）。沒指定就是 null，交給文件建議決定
+const URL_ORIENTATION = (() => {
+  const v = new URLSearchParams(window.location.search).get('orient')
+  return v === 'vertical' || v === 'horizontal' ? v : null
+})()
+// 嵌入到別人網頁、而且螢幕很窄（手機）時預設用直式——垂直捲動才是手機的閱讀習慣。
+// 主畫面不自動切：那是編輯用的，方向由使用者自己按。
+const EMBED_NARROW =
+  new URLSearchParams(window.location.search).has('embed') && window.innerWidth < 640
+
 // 瀏覽器草稿（防止編輯成果遺失）
 const DRAFT_KEY = 'hackstory-draft-v1'
 // 草稿裡的顏色若壞掉，用這個頂著（不因為顏色欄位壞掉就丟掉整份資料）
@@ -197,7 +207,9 @@ export default function App() {
   )
   // 橫式／直式：同樣預設聽第一份文件的 display.orientation 建議（SPEC 第 8 節）
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>(
-    () => INITIAL_DOCS[0]?.display?.orientation ?? 'horizontal',
+    () =>
+      URL_ORIENTATION ??
+      (EMBED_NARROW ? 'vertical' : (INITIAL_DOCS[0]?.display?.orientation ?? 'horizontal')),
   )
   const isVertical = orientation === 'vertical'
 
@@ -215,7 +227,9 @@ export default function App() {
           addLayer(result.doc)
           if (first) {
             setCollapseGaps(result.doc.display?.collapseGaps ?? false)
-            setOrientation(result.doc.display?.orientation ?? 'horizontal')
+            if (!URL_ORIENTATION && !EMBED_NARROW) {
+              setOrientation(result.doc.display?.orientation ?? 'horizontal')
+            }
             first = false
           }
           if (result.notice) {
@@ -675,12 +689,21 @@ export default function App() {
     return (
       <div className="flex h-screen flex-col bg-white">
         <div className="min-h-0 flex-1">
-          <TimelineView
-            sources={visibleSources}
-            collapseGaps={collapseGaps}
-            selectedKey={selection?.key ?? null}
-            onEventSelect={handleEventSelect}
-          />
+          {isVertical ? (
+            <VerticalTimelineView
+              sources={visibleSources}
+              collapseGaps={collapseGaps}
+              selectedKey={selection?.key ?? null}
+              onEventSelect={handleEventSelect}
+            />
+          ) : (
+            <TimelineView
+              sources={visibleSources}
+              collapseGaps={collapseGaps}
+              selectedKey={selection?.key ?? null}
+              onEventSelect={handleEventSelect}
+            />
+          )}
         </div>
         {selection && cardVisible && (
           <EventDetailCard selection={selection} onClose={() => setCardVisible(false)} />
@@ -905,22 +928,18 @@ export default function App() {
           ))}
         </div>
 
-        {/* 尺度切換（像 Google 日曆）。直式目前是一次攤開整條軸，還沒有縮放 */}
+        {/* 尺度切換（像 Google 日曆），橫直式共用 */}
         <div className="flex overflow-hidden rounded-md border border-slate-300">
           {(Object.keys(SCALE_LABELS) as ScaleMode[]).map((mode) => (
             <button
               key={mode}
               type="button"
-              disabled={isVertical}
-              title={isVertical ? '直式暫不支援縮放' : undefined}
               onClick={() => setScaleRequest((prev) => ({ mode, nonce: (prev?.nonce ?? 0) + 1 }))}
               className={
                 'px-3 py-1 text-sm transition-colors ' +
-                (isVertical
-                  ? 'bg-white text-slate-300'
-                  : activeMode === mode
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-white text-slate-600 hover:bg-slate-100')
+                (activeMode === mode
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-100')
               }
             >
               {SCALE_LABELS[mode]}
@@ -952,10 +971,13 @@ export default function App() {
           {isVertical ? (
             <VerticalTimelineView
               sources={visibleSources}
+              scaleRequest={scaleRequest}
+              onScaleModeChange={setActiveMode}
               showDates={showDates}
               showYears={showYears}
               collapseGaps={collapseGaps}
               selectedKey={selection?.key ?? null}
+              onEventSelect={handleEventSelect}
             />
           ) : (
             <TimelineView
@@ -978,7 +1000,7 @@ export default function App() {
       <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
         <span>
           {isVertical
-            ? '直式：整條軸一次攤開，往下捲動閱讀　｜　縮放、點事件看詳情、編輯請切回橫式'
+            ? '直式：往下捲動＝平移時間　｜　Ctrl／⌘＋滾輪：縮放　｜　點事件：詳情　｜　編輯請切回橫式'
             : '滑鼠滾輪：縮放　｜　左右拖曳：平移時間　｜　上下拖曳／Shift＋滾輪：捲動軸線　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件'}
         </span>
         {/* Beta 測試：讓測試者隨手就能回報問題，不必先去讀 README */}
@@ -1006,6 +1028,7 @@ export default function App() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         layers={layers}
+        orientation={orientation}
         onDownloaded={(coveredAll) => {
           // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
           if (coveredAll) setDirty(false)
