@@ -23,6 +23,7 @@ import type {
   ScaleRequest,
 } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
+import { VerticalTimelineView } from '../render/VerticalTimelineView'
 import type { RelationInfo } from './EventDetailCard'
 import { EventDetailCard } from './EventDetailCard'
 import { ExportDialog } from './ExportDialog'
@@ -38,6 +39,12 @@ const REL_TYPE_LABELS: Record<string, string> = {
   derives_from: '衍生自',
   contradicts: '與之矛盾',
   same_event: '同一事件',
+}
+
+/** 橫式／直式切換的按鈕文字 */
+const ORIENTATION_LABELS: Record<'horizontal' | 'vertical', string> = {
+  horizontal: '橫式',
+  vertical: '直式',
 }
 
 const SCALE_LABELS: Record<ScaleMode, string> = {
@@ -188,6 +195,11 @@ export default function App() {
   const [collapseGaps, setCollapseGaps] = useState(
     () => INITIAL_DOCS[0]?.display?.collapseGaps ?? false,
   )
+  // 橫式／直式：同樣預設聽第一份文件的 display.orientation 建議（SPEC 第 8 節）
+  const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>(
+    () => INITIAL_DOCS[0]?.display?.orientation ?? 'horizontal',
+  )
+  const isVertical = orientation === 'vertical'
 
   // 分享連結（?src=）：開啟時依序載入分享的時間軸，
   // 第一份載入成功的文件決定「摺疊空白」的預設值
@@ -203,6 +215,7 @@ export default function App() {
           addLayer(result.doc)
           if (first) {
             setCollapseGaps(result.doc.display?.collapseGaps ?? false)
+            setOrientation(result.doc.display?.orientation ?? 'horizontal')
             first = false
           }
           if (result.notice) {
@@ -826,10 +839,17 @@ export default function App() {
             />
             含年份
           </label>
-          <label className="flex items-center gap-1.5 text-sm text-slate-600">
+          <label
+            className={
+              'flex items-center gap-1.5 text-sm ' +
+              (isVertical ? 'text-slate-300' : 'text-slate-600')
+            }
+            title={isVertical ? '直式暫不支援關係線' : undefined}
+          >
             <input
               type="checkbox"
-              checked={showRelations}
+              checked={showRelations && !isVertical}
+              disabled={isVertical}
               onChange={(e) => setShowRelations(e.target.checked)}
               className="accent-slate-700"
             />
@@ -845,12 +865,20 @@ export default function App() {
             摺疊空白
           </label>
           <label
-            className="flex items-center gap-1.5 text-sm text-slate-600"
-            title="把事件列縮小，讓事件很多的軸線收斂，其他軸線比較看得到"
+            className={
+              'flex items-center gap-1.5 text-sm ' +
+              (isVertical ? 'text-slate-300' : 'text-slate-600')
+            }
+            title={
+              isVertical
+                ? '直式暫不支援精簡模式'
+                : '把事件列縮小，讓事件很多的軸線收斂，其他軸線比較看得到'
+            }
           >
             <input
               type="checkbox"
-              checked={compact}
+              checked={compact && !isVertical}
+              disabled={isVertical}
               onChange={(e) => setCompact(e.target.checked)}
               className="accent-slate-700"
             />
@@ -858,18 +886,41 @@ export default function App() {
           </label>
         </span>
 
-        {/* 尺度切換（像 Google 日曆） */}
+        {/* 橫式／直式切換：直式是給閱讀與分享用的，時間由上往下流 */}
+        <div className="flex overflow-hidden rounded-md border border-slate-300">
+          {(Object.keys(ORIENTATION_LABELS) as Array<'horizontal' | 'vertical'>).map((dir) => (
+            <button
+              key={dir}
+              type="button"
+              onClick={() => setOrientation(dir)}
+              className={
+                'px-3 py-1 text-sm transition-colors ' +
+                (orientation === dir
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-100')
+              }
+            >
+              {ORIENTATION_LABELS[dir]}
+            </button>
+          ))}
+        </div>
+
+        {/* 尺度切換（像 Google 日曆）。直式目前是一次攤開整條軸，還沒有縮放 */}
         <div className="flex overflow-hidden rounded-md border border-slate-300">
           {(Object.keys(SCALE_LABELS) as ScaleMode[]).map((mode) => (
             <button
               key={mode}
               type="button"
+              disabled={isVertical}
+              title={isVertical ? '直式暫不支援縮放' : undefined}
               onClick={() => setScaleRequest((prev) => ({ mode, nonce: (prev?.nonce ?? 0) + 1 }))}
               className={
                 'px-3 py-1 text-sm transition-colors ' +
-                (activeMode === mode
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-100')
+                (isVertical
+                  ? 'bg-white text-slate-300'
+                  : activeMode === mode
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-100')
               }
             >
               {SCALE_LABELS[mode]}
@@ -898,25 +949,37 @@ export default function App() {
           onRemoveTrack={removeTrack}
         />
         <div className="min-w-0 flex-1">
-          <TimelineView
-            sources={visibleSources}
-            scaleRequest={scaleRequest}
-            onScaleModeChange={setActiveMode}
-            showDates={showDates}
-            showYears={showYears}
-            showRelations={showRelations}
-            collapseGaps={collapseGaps}
-            compact={compact}
-            selectedKey={selection?.key ?? null}
-            onEventSelect={handleEventSelect}
-            onEventCreate={readOnly ? undefined : handleEventCreate}
-          />
+          {isVertical ? (
+            <VerticalTimelineView
+              sources={visibleSources}
+              showDates={showDates}
+              showYears={showYears}
+              collapseGaps={collapseGaps}
+              selectedKey={selection?.key ?? null}
+            />
+          ) : (
+            <TimelineView
+              sources={visibleSources}
+              scaleRequest={scaleRequest}
+              onScaleModeChange={setActiveMode}
+              showDates={showDates}
+              showYears={showYears}
+              showRelations={showRelations}
+              collapseGaps={collapseGaps}
+              compact={compact}
+              selectedKey={selection?.key ?? null}
+              onEventSelect={handleEventSelect}
+              onEventCreate={readOnly ? undefined : handleEventCreate}
+            />
+          )}
         </div>
       </div>
 
       <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
         <span>
-          滑鼠滾輪：縮放　｜　左右拖曳：平移時間　｜　上下拖曳／Shift＋滾輪：捲動軸線　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件
+          {isVertical
+            ? '直式：整條軸一次攤開，往下捲動閱讀　｜　縮放、點事件看詳情、編輯請切回橫式'
+            : '滑鼠滾輪：縮放　｜　左右拖曳：平移時間　｜　上下拖曳／Shift＋滾輪：捲動軸線　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件'}
         </span>
         {/* Beta 測試：讓測試者隨手就能回報問題，不必先去讀 README */}
         <a
