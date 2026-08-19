@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   columnRects,
   fitContentHeight,
+  countDroppedLabels,
   fitText,
-  maxLabelDrift,
   pickVerticalMode,
   RULER_W,
   shapeGutter,
@@ -100,7 +100,7 @@ describe('verticalLanes：上下打架的事件往右錯開', () => {
   })
 })
 
-describe('stackLabels：標題往下擠開，永遠不重疊', () => {
+describe('stackLabels：標題往下擠開，但擠不過頭', () => {
   it('分得夠開的標題原地不動', () => {
     expect(stackLabels([0, 40, 80], 18)).toEqual([0, 40, 80])
   })
@@ -110,7 +110,7 @@ describe('stackLabels：標題往下擠開，永遠不重疊', () => {
   })
 
   it('推開之後任兩個標題都不重疊', () => {
-    const placed = stackLabels([0, 1, 2, 3, 50, 51, 200], 18)
+    const placed = stackLabels([0, 1, 2, 3, 50, 51, 200], 18) as number[]
     for (let i = 1; i < placed.length; i++) {
       expect(placed[i] - placed[i - 1]).toBeGreaterThanOrEqual(18)
     }
@@ -118,23 +118,36 @@ describe('stackLabels：標題往下擠開，永遠不重疊', () => {
 
   it('只會往下推，不會往上跑（標題不可能出現在事件上方）', () => {
     const natural = [0, 1, 2, 3, 50]
-    stackLabels(natural, 18).forEach((yv, i) => expect(yv).toBeGreaterThanOrEqual(natural[i]))
+    stackLabels(natural, 18).forEach((yv, i) => expect(yv!).toBeGreaterThanOrEqual(natural[i]))
+  })
+
+  it('要離真實位置太遠才排得下的標題，寧可不畫（回傳 null）', () => {
+    // 五件事全部發生在同一時間，最多只排得下前兩個（位移 0、18），第三個起就超過 26
+    expect(stackLabels([100, 100, 100, 100, 100], 18, 26)).toEqual([100, 118, null, null, null])
+  })
+
+  it('被捨棄的標題不佔位置，後面排得下的照樣畫得出來', () => {
+    // 200 那件離得夠遠，不受前面塞車影響
+    expect(stackLabels([0, 0, 0, 200], 18, 26)).toEqual([0, 18, null, 200])
+  })
+
+  it('countDroppedLabels 數得出有幾件沒顯示', () => {
+    expect(countDroppedLabels([100, 100, 100, 100, 100], 18, 26)).toBe(3)
+    expect(countDroppedLabels([0, 40, 80], 18, 26)).toBe(0)
   })
 })
 
-describe('fitContentHeight：擠在一起就把軸拉長', () => {
+describe('fitContentHeight：擠不下就把軸拉長', () => {
   it('事件分布均勻時用最短高度就夠了', () => {
     const positions = Array.from({ length: 10 }, (_, i) => i / 9)
     expect(fitContentHeight([positions], { minH: 520 })).toBe(520)
   })
 
-  it('事件擠在同一小段時間時，軸會被拉長', () => {
-    // 20 個事件全部落在前 5% 的時間裡
+  it('事件擠在同一小段時間時，軸會被拉長到全部標題都排得下', () => {
     const positions = Array.from({ length: 20 }, (_, i) => (i / 19) * 0.05)
     const h = fitContentHeight([positions], { minH: 520 })
     expect(h).toBeGreaterThan(520)
-    // 拉長之後標題離真實位置不會太遠
-    expect(maxLabelDrift(positions.map((p) => p * h))).toBeLessThanOrEqual(24)
+    expect(countDroppedLabels(positions.map((p) => p * h), 18, 26)).toBe(0)
   })
 
   it('再怎麼擠也有高度上限，不會產生瀏覽器畫不動的巨大 SVG', () => {

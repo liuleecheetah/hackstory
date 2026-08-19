@@ -57,34 +57,45 @@ export function verticalLanes(slots: VerticalSlot[], gap = 2): number[] {
 }
 
 /**
- * 標籤堆疊：由上往下排，保證相鄰兩個標題至少相隔 slotH，回傳每個標題實際的 y。
+ * 標題堆疊：由上往下排，保證相鄰兩個標題至少相隔 slotH，回傳每個標題實際的 y。
  *
  * 副車道（往右錯開）只能讓「圖形」不重疊——標題有一百多像素寬，
  * 錯開十幾像素完全不夠。所以文字改用堆疊：圓點留在真正的時間位置，
  * 標題被往下擠，中間畫一條細線把兩者接起來。
  *
+ * **但擠是有上限的。** 一旦某個標題得離自己的時間位置超過 maxDrift 才排得下，
+ * 就回傳 null（這一列不畫標題，只留圓點）——寧可不畫，也不要讓讀者
+ * 以為那件事發生在別的年代。呼叫端要負責告訴使用者有幾件沒顯示。
+ *
  * naturalY 需先由小到大排序。
  */
-export function stackLabels(naturalY: number[], slotH = 18): number[] {
+export function stackLabels(
+  naturalY: number[],
+  slotH = 18,
+  maxDrift = Infinity,
+): Array<number | null> {
   let cursor = -Infinity
   return naturalY.map((y) => {
     const placed = Math.max(y, cursor)
+    if (placed - y > maxDrift) return null
     cursor = placed + slotH
     return placed
   })
 }
 
-/** 堆疊後標題離真實時間位置最遠差了多少（用來判斷這條軸夠不夠長） */
-export function maxLabelDrift(naturalY: number[], slotH = 18): number {
-  const placed = stackLabels(naturalY, slotH)
-  let worst = 0
-  for (let i = 0; i < placed.length; i++) worst = Math.max(worst, placed[i] - naturalY[i])
-  return worst
+/** 依上面的規則，有幾個標題會排不下（用來決定這條軸要多長） */
+export function countDroppedLabels(
+  naturalY: number[],
+  slotH = 18,
+  maxDrift = Infinity,
+): number {
+  return stackLabels(naturalY, slotH, maxDrift).filter((y) => y === null).length
 }
 
 /**
- * 決定整條軸的內容高度：從最短開始，只要有標題被擠得離真實位置太遠就把軸拉長，
- * 直到「看到的位置」與「真正的時間」夠接近為止（或碰到上限）。
+ * 決定整條軸的內容高度：從最短開始，只要還有標題排不下就把軸拉長，
+ * 直到全部排得下為止（或碰到上限——碰到上限就會有事件只剩圓點，
+ * 呼叫端要在畫面上標示「還有 N 件」）。
  *
  * columns：每一欄事件的相對位置（0＝最早，1＝最晚），需已排序。
  */
@@ -94,16 +105,17 @@ export function fitContentHeight(
     minH = 520,
     maxH = 12_000,
     slotH = 18,
-    maxDrift = 24,
+    maxDrift = 26,
   }: { minH?: number; maxH?: number; slotH?: number; maxDrift?: number } = {},
 ): number {
   let h = minH
   for (;;) {
-    const worst = columns.reduce(
-      (acc, positions) => Math.max(acc, maxLabelDrift(positions.map((p) => p * h), slotH)),
+    const dropped = columns.reduce(
+      (acc, positions) =>
+        acc + countDroppedLabels(positions.map((p) => p * h), slotH, maxDrift),
       0,
     )
-    if (worst <= maxDrift || h >= maxH) return Math.min(h, maxH)
+    if (dropped === 0 || h >= maxH) return Math.min(h, maxH)
     h = Math.min(maxH, h * 1.35)
   }
 }

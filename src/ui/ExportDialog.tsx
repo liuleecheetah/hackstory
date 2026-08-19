@@ -113,14 +113,16 @@ export function ExportDialog({
     let cancelled = false
     setPreviewBusy(true)
     void renderRatio(preset)
-      .then(({ svg, overflow, narrowColumns }) => {
+      .then(({ svg, hidden, narrowColumns }) => {
         if (cancelled) return
         const warnings: string[] = []
         if (narrowColumns) {
           warnings.push('欄寬過窄，建議選更寬的比例，或在左側面板暫時隱藏部分圖層／軸線')
         }
-        if (overflow) {
-          warnings.push('這段時間的事件太多，有些標題會被切掉——請先在畫面上縮放到較短的期間')
+        if (hidden > 0) {
+          warnings.push(
+            `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請先在畫面上縮放到較短的期間，或選更長的比例`,
+          )
         }
         const text = serializeSvg(svg)
         setPreview({

@@ -28,8 +28,8 @@ export interface VerticalExportRequest {
 
 export interface VerticalExportResult {
   svg: SVGSVGElement
-  /** 事件太多，標題被堆到圖片外面 */
-  overflow: boolean
+  /** 事件太多、標題排不下（只畫得出圓點）的件數 */
+  hidden: number
   /** 欄太窄，標題幾乎只剩省略號 */
   narrowColumns: boolean
 }
@@ -86,7 +86,7 @@ export function renderVerticalExportSvg(
           clone.removeAttribute('id')
           resolve({
             svg: clone,
-            overflow: svg.dataset.overflow === '1',
+            hidden: Number(svg.dataset.hidden ?? 0),
             narrowColumns: svg.dataset.narrowColumns === '1',
           })
         } catch (e) {

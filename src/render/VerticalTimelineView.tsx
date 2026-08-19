@@ -87,7 +87,10 @@ const KEY_BAR_W = 16
 const MIN_BAR_H = 10 // 很短的區間事件至少畫這麼長，才看得見
 const TITLE_H = 42 // 匯出圖片頂部的標題列
 const FOOTER_H = 22 // 匯出圖片底部的出處小字
-const ROW_H = 64 // 一個事件「舒服讀」大概需要的高度（決定整條軸最長拉到多長）
+const ROW_H = 96 // 一個事件「舒服讀」大概需要的高度（決定整條軸最長拉到多長）
+// 標題最多可以離自己的時間位置多遠。超過就不畫標題，只留圓點——
+// 否則讀者會對不上左邊的年份刻度，以為那件事發生在別的年代
+const MAX_DRIFT = 26
 const LABEL_GAP = 8 // 圖形右緣到標題的距離
 
 const DAY = 86_400_000
@@ -112,8 +115,8 @@ interface PlacedEvent {
   yBot: number
   shapeW: number
   labelX: number
-  /** 標題實際被畫在哪一行（可能被往下擠） */
-  labelY: number
+  /** 標題實際被畫在哪一行（可能被往下擠）。null = 排不下，這一列只畫圓點 */
+  labelY: number | null
   /** 圖形連到標題的引線；就在旁邊、不需要引線時為 null */
   leader: string | null
   dateLabel: string
@@ -271,7 +274,7 @@ export function VerticalTimelineView({
       )
       // 標題堆疊：圓點留在真實時間位置，標題往下擠開，兩者用細線連起來
       const naturalLabelYs = raw.map((r) => (r.isBar ? r.yTop + 12 : r.yTop + 4))
-      const labelYs = stackLabels(naturalLabelYs, LABEL_H)
+      const labelYs = stackLabels(naturalLabelYs, LABEL_H, MAX_DRIFT)
       const right = rect.x + rect.w - COL_PAD
 
       // 超出可用層數時「繞回第 0 層」而不是全部壓在最後一層——
@@ -306,6 +309,27 @@ export function VerticalTimelineView({
         const shapeW = widthOf(r)
         const abbr = withAbbr ? (abbrOf.get(r.band.key) ?? null) : null
         const labelY = labelYs[i]
+
+        // 這一列排不下標題（只畫圓點），文字相關的計算全部跳過
+        if (labelY === null) {
+          return {
+            key: `${r.band.sourceId}/${r.pe.ev.id}`,
+            pe: r.pe,
+            band: r.band,
+            isBar: r.isBar,
+            x,
+            yTop: r.yTop,
+            yBot: r.yBot,
+            shapeW,
+            labelX,
+            labelY,
+            leader: null,
+            dateLabel: '',
+            title: '',
+            abbr: null,
+            abbrX,
+          }
+        }
 
         // 標題依剩餘寬度截斷；連日期都擠不下時，寧可捨棄日期也要留住標題
         let dateLabel = r.pe.dateLabel
@@ -371,17 +395,20 @@ export function VerticalTimelineView({
               false,
             ),
           }))
+    // 這一欄有幾件事件擠到畫不下標題（只剩圓點）——要讓使用者知道，不能默默藏起來
+    const hiddenOf = (items: PlacedEvent[]) => items.filter((it) => it.labelY === null).length
 
     // 事件擠在最下面時，標題會被堆到軸的盡頭之外——SVG 要留得下它們
     const lowest = layoutColumns.reduce(
-      (m, c) => c.items.reduce((n, it) => Math.max(n, it.labelY, it.yBot), m),
+      (m, c) => c.items.reduce((n, it) => Math.max(n, it.labelY ?? 0, it.yBot), m),
       0,
     )
     const totalH = exportMode
       ? exportMode.height
       : Math.max(axisTop + contentH + BOTTOM_PAD, lowest + BOTTOM_PAD)
-    // 匯出時事件太多，標題會被堆到圖片外面——回報給對話框，讓它提醒使用者
-    const overflow = exportMode ? lowest > exportMode.height - FOOTER_H - 4 : false
+    // 匯出時尺寸是固定的，事件太多就會有標題排不下（只剩圓點）——
+    // 回報件數給對話框，讓它提醒使用者先縮放到較短的期間
+    const hiddenTotal = layoutColumns.reduce((n, c) => n + hiddenOf(c.items), 0)
     // 欄太窄，中文標題幾乎只剩省略號——同樣提醒使用者
     const narrowColumns =
       layoutColumns.length > 0 &&
@@ -406,13 +433,13 @@ export function VerticalTimelineView({
     return {
       totalH,
       headerTop,
-      columns: layoutColumns,
+      columns: layoutColumns.map((c) => ({ ...c, hidden: hiddenOf(c.items) })),
       ticks,
       y,
       yOfU,
       uOfY,
       tView,
-      overflow,
+      hiddenTotal,
       narrowColumns,
     }
   }, [bands, mode, width, warp, domain, abbrOf, exportMode])
@@ -462,11 +489,16 @@ export function VerticalTimelineView({
       (el
         ? layoutRef.current.uOfY(el.scrollTop + el.clientHeight / 2)
         : (domainRef.current[0] + domainRef.current[1]) / 2)
-    if (scaleRequest.mode === 'year') {
+    const fullSpan = initialDomain[1] - initialDomain[0]
+    const span = scaleRequest.mode === 'year' ? fullSpan : SCALE_SPANS[scaleRequest.mode]
+    if (span >= fullSpan) {
       setDomainState(null)
     } else {
-      const span = SCALE_SPANS[scaleRequest.mode]
-      setDomainState([center - span / 2, center + span / 2])
+      const a = Math.min(
+        initialDomain[1] - span,
+        Math.max(initialDomain[0], center - span / 2),
+      )
+      setDomainState([a, a + span])
     }
     pendingScroll.current = { u: center, offset: 'center' }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -495,16 +527,28 @@ export function VerticalTimelineView({
       const [a, b] = domainRef.current
       const span = b - a
       const k = Math.exp(e.deltaY * 0.0015)
-      const newSpan = Math.min(MAX_SPAN, Math.max(MIN_SPAN, span * k))
+      const fullSpan = initialDomain[1] - initialDomain[0]
+      const newSpan = Math.min(MAX_SPAN, fullSpan, Math.max(MIN_SPAN, span * k))
+      // 已經看到整條軸了就別再縮小——再縮下去只是把所有事件擠成一團
+      if (newSpan >= fullSpan) {
+        setDomainState(null)
+        pendingScroll.current = { u: anchor, offset }
+        return
+      }
       const f = (anchor - a) / span
-      const a2 = anchor - f * newSpan
+      // 夾在整條軸的範圍內，不會平移到資料以外的空白
+      const a2 = Math.min(
+        initialDomain[1] - newSpan,
+        Math.max(initialDomain[0], anchor - f * newSpan),
+      )
       setDomainState([a2, a2 + newSpan])
       // 縮放後讓游標底下的那個時間點留在原地，畫面才不會亂跳
       pendingScroll.current = { u: anchor, offset }
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [sources.length > 0]) // 空狀態沒有 svg，出現後要重掛監聽
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sources.length > 0, initialDomain]) // 空狀態沒有 svg，出現後要重掛監聽
 
   /** 把某個時間點捲到畫面中央 */
   const scrollToU = (u: number) => {
@@ -531,7 +575,7 @@ export function VerticalTimelineView({
       width={width}
       height={layout.totalH}
       className="block bg-white"
-      data-overflow={layout.overflow ? '1' : '0'}
+      data-hidden={layout.hiddenTotal}
       data-narrow-columns={layout.narrowColumns ? '1' : '0'}
       onClick={exportMode ? undefined : () => onEventSelect?.(null)}
     >
@@ -610,13 +654,15 @@ export function VerticalTimelineView({
                         匯出的圖片不需要，省下來檔案比較乾淨 */}
                     {!exportMode && (
                       <>
-                        <rect
-                          x={it.x - 6}
-                          y={it.labelY - 14}
-                          width={Math.max(0, width - it.x - 2)}
-                          height={LABEL_H}
-                          fill="transparent"
-                        />
+                        {it.labelY !== null && (
+                          <rect
+                            x={it.x - 6}
+                            y={it.labelY - 14}
+                            width={Math.max(0, width - it.x - 2)}
+                            height={LABEL_H}
+                            fill="transparent"
+                          />
+                        )}
                         {it.isBar ? (
                           <rect
                             x={it.x - 6}
@@ -718,25 +764,28 @@ export function VerticalTimelineView({
                     )}
 
                     {/* 單欄合流：每列開頭標出這是哪一條軸線 */}
-                    {it.abbr && (
+                    {it.abbr && it.labelY !== null && (
                       <text x={it.abbrX} y={it.labelY} fontSize={10} fill={it.band.color}>
                         {it.abbr}
                       </text>
                     )}
-                    <text
-                      x={it.labelX}
-                      y={it.labelY}
-                      fontSize={FONT}
-                      fontWeight={pe.isKey ? 700 : 400}
-                      fill={pe.isKey ? '#1e293b' : '#334155'}
-                    >
-                      {it.dateLabel && (
-                        <tspan fill="#94a3b8" fontWeight={400}>
-                          {it.dateLabel}{' '}
-                        </tspan>
-                      )}
-                      {it.title}
-                    </text>
+                    {/* 排不下標題的事件只畫圓點——位置仍然精準，點下去看得到內容 */}
+                    {it.labelY !== null && (
+                      <text
+                        x={it.labelX}
+                        y={it.labelY}
+                        fontSize={FONT}
+                        fontWeight={pe.isKey ? 700 : 400}
+                        fill={pe.isKey ? '#1e293b' : '#334155'}
+                      >
+                        {it.dateLabel && (
+                          <tspan fill="#94a3b8" fontWeight={400}>
+                            {it.dateLabel}{' '}
+                          </tspan>
+                        )}
+                        {it.title}
+                      </text>
+                    )}
                   </g>
                 )
               })}
@@ -761,7 +810,7 @@ export function VerticalTimelineView({
               {formatRangeLabel(layout.tView)}
             </text>
             {mode === 'columns'
-              ? layout.columns.map(({ rect, band }) =>
+              ? layout.columns.map(({ rect, band, hidden }) =>
                   band ? (
                     <g key={`${band.key}-head`}>
                       <rect
@@ -774,8 +823,26 @@ export function VerticalTimelineView({
                         opacity={0.1}
                       />
                       <rect x={rect.x + 2} y={4} width={3} height={HEADER_H - 9} fill={band.color} />
+                      {/* 有事件擠到畫不下標題時，在欄標題右側註記件數——
+                          不能默默藏起來，也不能被標題截斷吃掉 */}
+                      {hidden > 0 && (
+                        <text
+                          x={rect.x + rect.w - 6}
+                          y={22}
+                          textAnchor="end"
+                          fontSize={10}
+                          fontWeight={400}
+                          fill="#b45309"
+                        >
+                          ＋{hidden} 件
+                        </text>
+                      )}
                       <text x={rect.x + 12} y={22} fontSize={12} fontWeight={700} fill={band.color}>
-                        {fitText(band.label, Math.max(0, rect.w - 18), 12)}
+                        {fitText(
+                          band.label,
+                          Math.max(0, rect.w - 18 - (hidden > 0 ? 46 : 0)),
+                          12,
+                        )}
                       </text>
                     </g>
                   ) : null,
@@ -793,6 +860,11 @@ export function VerticalTimelineView({
                     </g>
                   )
                 })}
+            {mode === 'merged' && layout.columns[0]?.hidden > 0 && (
+              <text x={width - 10} y={22} textAnchor="end" fontSize={10} fill="#94a3b8">
+                另有 {layout.columns[0].hidden} 件，放大可見
+              </text>
+            )}
             </g>
           </g>
           {/* 匯出圖片底部的出處小字 */}
