@@ -4,7 +4,7 @@
 // 沒有提供 onUpdate 時（例如嵌入模式）為唯讀檢視。
 
 import type { CSSProperties } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import type { AbsoluteTimePoint, Confidence, HstEvent, Relation, RelativeAnchor } from '../core'
 import { isAbsolute, isFeatured, parseDateTime } from '../core'
 import type { EventSelection } from '../render/TimelineView'
@@ -58,6 +58,10 @@ const CONFIDENCE: Record<string, { label: string; cls: string }> = {
 const RE_ONGOING = /^(至今|迄今|持續中|進行中|now|present|ongoing)$/i
 
 const CARD_W = 340
+/** 卡片與事件之間留的距離 */
+const CARD_GAP = 14
+/** 卡片至少要有這麼高才值得往上開，否則寧可往下開 */
+const MIN_UP_ROOM = 220
 
 interface FormState {
   title: string
@@ -115,17 +119,73 @@ export function EventDetailCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection.key, createMode])
 
-  // 卡片位置：貼著點擊處，水平不出界；點在畫面下半部就往上開
-  const style: CSSProperties = {
-    width: CARD_W,
-    left: Math.min(Math.max(8, clientX + 14), window.innerWidth - CARD_W - 8),
-    maxHeight: '64vh',
-  }
-  if (clientY > window.innerHeight * 0.55) {
-    style.bottom = window.innerHeight - clientY + 14
-  } else {
-    style.top = clientY + 14
-  }
+  // 卡片位置：貼著事件本身，而且會一直跟著它。
+  //
+  // 之前只在點擊的那一瞬間算一次，所以捲動時間軸或改變視窗大小之後，
+  // 卡片會留在原地跟事件對不上，極端情況還會蓋到上方工具列、讓底下的按鈕按不到。
+  // 現在改成：每次畫面動了就重新找事件現在畫在哪（render 層掛的 data-event-key），
+  // 並且永遠不越過工具列下緣。
+  const [style, setStyle] = useState<CSSProperties>({ width: CARD_W, left: -9999, top: 0 })
+
+  useLayoutEffect(() => {
+    let raf = 0
+    let last = ''
+
+    const compute = (): CSSProperties => {
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+
+      // 事件現在畫在畫面上的哪裡；找不到（例如還沒加入圖層的新事件草稿）就用點擊位置
+      let ax = clientX
+      let ay = clientY
+      const anchor = document.querySelector(
+        `[data-event-key="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(selection.key) : selection.key}"]`,
+      )
+      if (anchor) {
+        const r = anchor.getBoundingClientRect()
+        ax = r.left
+        ay = r.top + r.height / 2
+      }
+
+      // 工具列下緣以上是禁區——蓋住了使用者就按不到那些按鈕
+      const header = document.querySelector('header')
+      const safeTop = (header ? header.getBoundingClientRect().bottom : 0) + 8
+      const roomBelow = vh - ay - CARD_GAP - 8
+      const roomAbove = ay - safeTop - CARD_GAP
+
+      const next: CSSProperties = {
+        width: CARD_W,
+        left: Math.min(Math.max(8, ax + CARD_GAP), Math.max(8, vw - CARD_W - 8)),
+      }
+      if (roomBelow < MIN_UP_ROOM && roomAbove < MIN_UP_ROOM) {
+        // 上下都塞不下：占滿工具列以下的可用高度，內容自己捲
+        next.top = safeTop
+        next.maxHeight = Math.max(160, vh - safeTop - 12)
+      } else if (roomAbove > roomBelow) {
+        next.bottom = vh - ay + CARD_GAP
+        next.maxHeight = Math.min(vh * 0.64, roomAbove)
+      } else {
+        next.top = Math.max(safeTop, ay + CARD_GAP)
+        next.maxHeight = Math.min(vh * 0.64, roomBelow)
+      }
+      return next
+    }
+
+    // 事件會因為捲動、縮放、平移、圖層開關而移動，來源太多，
+    // 與其一個個去監聽，不如每個影格量一次——位置沒變就不重繪。
+    const tick = () => {
+      const next = compute()
+      const sig = JSON.stringify(next)
+      if (sig !== last) {
+        last = sig
+        setStyle(next)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    tick()
+    return () => cancelAnimationFrame(raf)
+  }, [selection.key, clientX, clientY])
 
   // 日期文字：起（—迄），依精度誠實顯示；進行中事件顯示「至今仍持續」；
   // 相對時間事件顯示先後關係並註明畫面位置只是推估

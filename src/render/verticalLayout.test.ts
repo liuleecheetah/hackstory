@@ -10,6 +10,7 @@ import {
   shapeGutter,
   stackLabels,
   verticalLanes,
+  visibleURange,
 } from './verticalLayout'
 
 describe('pickVerticalMode：多欄並排或單欄合流', () => {
@@ -164,6 +165,34 @@ describe('fitContentHeight：擠不下就把軸拉長', () => {
     const loose = Array.from({ length: 10 }, (_, i) => i / 9)
     const tight = Array.from({ length: 20 }, (_, i) => (i / 19) * 0.05)
     expect(fitContentHeight([loose, tight])).toBeGreaterThan(fitContentHeight([loose]))
+  })
+})
+
+describe('visibleURange：畫面上真正看得到的那一段', () => {
+  // 軸從 y=100 開始、長 1000px，對應時間 0–2000
+  const call = (scrollTop: number, viewportH: number) =>
+    visibleURange(scrollTop, viewportH, 100, 1000, [0, 2000])
+
+  it('捲到最上面時，從整條軸的開頭算起', () => {
+    expect(call(0, 500)).toEqual([0, 800])
+  })
+
+  it('捲到中間時只回報中間那一段', () => {
+    expect(call(600, 500)).toEqual([1000, 2000])
+  })
+
+  it('捲到最下面時，結尾就是整條軸的結尾（不會超出去）', () => {
+    expect(call(1200, 500)).toEqual([2000, 2000])
+  })
+
+  it('視窗比整條軸還高時，回報的就是整條軸', () => {
+    expect(call(0, 5000)).toEqual([0, 2000])
+  })
+
+  it('永遠夾在整條軸的範圍內，不會回報資料以外的時間', () => {
+    const [a, b] = call(-500, 300)
+    expect(a).toBeGreaterThanOrEqual(0)
+    expect(b).toBeLessThanOrEqual(2000)
   })
 })
 

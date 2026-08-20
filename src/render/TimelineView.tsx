@@ -626,9 +626,11 @@ export function TimelineView({
                     })
                   }}
                 >
-                  {/* 看不見的感應區：滑鼠不用精準壓在小圓點上也能 hover／點擊 */}
+                  {/* 看不見的感應區：滑鼠不用精準壓在小圓點上也能 hover／點擊。
+                      也當作事件的定位錨點——ui 層的詳情卡靠 data-event-key 找到它現在畫在哪裡 */}
                   {kind === 'bar' ? (
                     <rect
+                      data-event-key={eventKey}
                       x={shapeL - 6}
                       y={cy - barH / 2 - 7}
                       width={shapeR - shapeL + 12}
@@ -636,7 +638,13 @@ export function TimelineView({
                       fill="transparent"
                     />
                   ) : (
-                    <circle cx={(shapeL + shapeR) / 2} cy={cy} r={dotR + 8} fill="transparent" />
+                    <circle
+                      data-event-key={eventKey}
+                      cx={(shapeL + shapeR) / 2}
+                      cy={cy}
+                      r={dotR + 8}
+                      fill="transparent"
+                    />
                   )}
                   {/* 關鍵事件的常駐光暈 */}
                   {isKey &&

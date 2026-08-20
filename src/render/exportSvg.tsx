@@ -75,26 +75,34 @@ export function renderVerticalExportSvg(
       />,
     )
 
-    // 等瀏覽器畫完一個影格，DOM 才真的存在
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          const svg = host.querySelector('svg')
-          if (!(svg instanceof SVGSVGElement)) throw new Error('離屏渲染沒有產生 SVG')
-          // 取出來的是副本，取完就可以把離屏容器拆掉
-          const clone = svg.cloneNode(true) as SVGSVGElement
-          clone.removeAttribute('id')
-          resolve({
-            svg: clone,
-            hidden: Number(svg.dataset.hidden ?? 0),
-            narrowColumns: svg.dataset.narrowColumns === '1',
-          })
-        } catch (e) {
-          reject(e instanceof Error ? e : new Error(String(e)))
-        } finally {
-          cleanup()
-        }
-      })
-    })
+    // 等瀏覽器畫完一個影格，DOM 才真的存在。
+    // 分頁切到背景時 requestAnimationFrame 不會觸發，所以加一個計時器保底——
+    // 否則使用者切走再切回來，預覽會永遠停在「產生預覽中…」
+    let done = false
+    const whenReady = (run: () => void) => {
+      if (done) return
+      done = true
+      run()
+    }
+    const extract = () => {
+      try {
+        const svg = host.querySelector('svg')
+        if (!(svg instanceof SVGSVGElement)) throw new Error('離屏渲染沒有產生 SVG')
+        // 取出來的是副本，取完就可以把離屏容器拆掉
+        const clone = svg.cloneNode(true) as SVGSVGElement
+        clone.removeAttribute('id')
+        resolve({
+          svg: clone,
+          hidden: Number(svg.dataset.hidden ?? 0),
+          narrowColumns: svg.dataset.narrowColumns === '1',
+        })
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error(String(e)))
+      } finally {
+        cleanup()
+      }
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => whenReady(extract)))
+    setTimeout(() => whenReady(extract), 150)
   })
 }

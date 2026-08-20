@@ -133,6 +133,28 @@ export function shapeGutter(
   return items.reduce((max, it) => Math.max(max, it.lane * step + it.width), 0)
 }
 
+/**
+ * 畫面上**真正看得到**的那一段時間（壓縮座標 u）。
+ *
+ * 直式的整條軸比視窗高很多，靠捲動閱讀——所以「目前範圍」不等於整條軸的範圍。
+ * 左上角的範圍標籤要用這個算，否則標籤會說謊（寫著 1855–2030，眼前其實是 1856–1868）。
+ */
+export function visibleURange(
+  scrollTop: number,
+  viewportH: number,
+  axisTop: number,
+  contentH: number,
+  domain: [number, number],
+): [number, number] {
+  const [d0, d1] = domain
+  const span = d1 - d0 || 1
+  const clamp = (u: number) => Math.min(Math.max(u, d0), d1)
+  const uAt = (y: number) => d0 + ((y - axisTop) / (contentH || 1)) * span
+  const a = clamp(uAt(scrollTop))
+  const b = clamp(uAt(scrollTop + viewportH))
+  return a <= b ? [a, b] : [b, a]
+}
+
 /** 依可用寬度截斷文字（欄寬有限，完整標題到詳情卡看） */
 export function fitText(text: string, maxWidth: number, fontSize = 12): string {
   if (maxWidth <= 0) return ''

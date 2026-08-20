@@ -11,6 +11,7 @@
 // 這個檔案只負責「畫出來」。
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { formatSkipped } from './gaps'
 import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
@@ -26,6 +27,7 @@ import {
   shapeGutter,
   stackLabels,
   verticalLanes,
+  visibleURange,
 } from './verticalLayout'
 
 /**
@@ -433,6 +435,8 @@ export function VerticalTimelineView({
     return {
       totalH,
       headerTop,
+      axisTop,
+      contentH,
       columns: layoutColumns.map((c) => ({ ...c, hidden: hiddenOf(c.items) })),
       ticks,
       y,
@@ -476,6 +480,7 @@ export function VerticalTimelineView({
     }
     headerRef.current?.setAttribute('transform', `translate(0 ${el?.scrollTop ?? 0})`)
     refreshReturnDir()
+    refreshRangeLabel()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, selectedU])
 
@@ -557,6 +562,7 @@ export function VerticalTimelineView({
     el.scrollTop = layoutRef.current.yOfU(u) - el.clientHeight / 2
     headerRef.current?.setAttribute('transform', `translate(0 ${el.scrollTop})`)
     refreshReturnDir()
+    refreshRangeLabel()
   }
 
   if (sources.length === 0) {
@@ -568,6 +574,27 @@ export function VerticalTimelineView({
   }
 
   // 畫面上的檢視與匯出圖片共用這一段 SVG——「看到的」與「存下來的」保證一致
+  // 左上角的範圍標籤要跟著捲動走——直式的整條軸比視窗高很多，
+  // 顯示整條軸的範圍等於在說謊。直接改 DOM，不為了一行字重繪整張圖。
+  const rangeLabelRef = useRef<SVGTextElement>(null)
+  const refreshRangeLabel = () => {
+    const el = containerRef.current
+    const L = layoutRef.current
+    const node = rangeLabelRef.current
+    if (!node || !L) return
+    // 匯出的圖沒有捲動，看到的就是整段
+    const [u0, u1] = exportMode
+      ? domainRef.current
+      : visibleURange(
+          el?.scrollTop ?? 0,
+          el?.clientHeight ?? 0,
+          L.axisTop,
+          L.contentH,
+          domainRef.current,
+        )
+    node.textContent = formatRangeLabel([warp.toT(u0), warp.toT(u1)])
+  }
+
   const svgEl = (
     <svg
       ref={svgRef}
@@ -620,6 +647,44 @@ export function VerticalTimelineView({
           })}
           <line x1={RULER_W} x2={RULER_W} y1={HEADER_H} y2={layout.totalH} stroke="#e2e8f0" />
 
+        {/* 斷軸記號：⫽ 加上「略過多久」，虛線橫貫全寬。
+            沒有這個記號，讀者會以為 1870→1888 跟 1950→1953 佔一樣的高度是等比例的 */}
+        {warp.gaps.map((g, i) => {
+          const yg = layout.yOfU(g.uCenter)
+          if (yg < layout.axisTop - 20 || yg > layout.axisTop + layout.contentH + 20) return null
+          return (
+            <g key={`gap-${i}`}>
+              <line
+                x1={RULER_W - 5}
+                y1={yg - 6}
+                x2={RULER_W + 5}
+                y2={yg - 1}
+                stroke="#94a3b8"
+                strokeWidth={1.5}
+              />
+              <line
+                x1={RULER_W - 5}
+                y1={yg + 1}
+                x2={RULER_W + 5}
+                y2={yg + 6}
+                stroke="#94a3b8"
+                strokeWidth={1.5}
+              />
+              <line
+                x1={RULER_W + 5}
+                y1={yg}
+                x2={width}
+                y2={yg}
+                stroke="#cbd5e1"
+                strokeDasharray="2 6"
+              />
+              <text x={6} y={yg - 8} fontSize={10} fill="#94a3b8">
+                略過 {formatSkipped(g.skippedMs)}
+              </text>
+            </g>
+          )
+        })}
+
           {/* 事件 */}
           {layout.columns.map(({ band, items }, ci) => (
             <g key={band ? `${band.key}-ev` : `merged-ev-${ci}`}>
@@ -665,6 +730,7 @@ export function VerticalTimelineView({
                         )}
                         {it.isBar ? (
                           <rect
+                            data-event-key={it.key}
                             x={it.x - 6}
                             y={it.yTop - 4}
                             width={it.shapeW + 12}
@@ -672,7 +738,13 @@ export function VerticalTimelineView({
                             fill="transparent"
                           />
                         ) : (
-                          <circle cx={cx} cy={it.yTop} r={dotR + 10} fill="transparent" />
+                          <circle
+                            data-event-key={it.key}
+                            cx={cx}
+                            cy={it.yTop}
+                            r={dotR + 10}
+                            fill="transparent"
+                          />
                         )}
                       </>
                     )}
@@ -806,7 +878,7 @@ export function VerticalTimelineView({
             <g transform={`translate(0 ${layout.headerTop})`}>
             <rect x={0} y={0} width={width} height={HEADER_H} fill="#ffffff" />
             <line x1={0} x2={width} y1={HEADER_H} y2={HEADER_H} stroke="#cbd5e1" />
-            <text x={6} y={21} fontSize={10} fill="#94a3b8">
+            <text ref={rangeLabelRef} x={6} y={21} fontSize={10} fill="#94a3b8">
               {formatRangeLabel(layout.tView)}
             </text>
             {mode === 'columns'
@@ -899,6 +971,7 @@ export function VerticalTimelineView({
         onScroll={(e) => {
           headerRef.current?.setAttribute('transform', `translate(0 ${e.currentTarget.scrollTop})`)
           refreshReturnDir()
+          refreshRangeLabel()
         }}
       >
         {svgEl}
