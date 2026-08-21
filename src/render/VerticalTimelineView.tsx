@@ -116,8 +116,9 @@ const SCALE_SPANS: Record<Exclude<ScaleMode, 'year'>, number> = {
   week: 91 * DAY,
   month: 730 * DAY,
 }
-const MIN_SPAN = DAY / 4 // 最多放大到 6 小時
-const MAX_SPAN = 400 * 365 * DAY // 最多縮小到 400 年
+// 軸最長可以拉到多少像素。放大＝把軸拉長，不是把時間範圍縮小——
+// 這樣不管放多大，往上捲都還是回得到最早的年份
+const MAX_CONTENT_H = 400_000
 
 /** 一個排好位置、可以直接畫的事件 */
 interface PlacedEvent {
@@ -178,25 +179,17 @@ export function VerticalTimelineView({
   )
   const { warp, initialDomain, anchorTimes } = base
 
-  // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）
-  const [domainState, setDomainState] = useState<[number, number] | null>(null)
-  const domain = domainProp ?? domainState ?? initialDomain
-  const domainRef = useRef(domain)
-  domainRef.current = domain
+  // 放大倍率：1 = 整條軸剛好是一頁的「舒服閱讀長度」，2 = 軸拉成兩倍長。
+  //
+  // **軸涵蓋的時間範圍永遠是整條時間軸**，放大只是把它拉長。
+  // （早期版本是放大就把範圍縮小，結果捲動範圍跟著縮小，
+  //   放大後就捲不回前面的年份了。）
+  const [zoom, setZoom] = useState(1)
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
 
-  // 摺疊開關或資料變動時 warp 會換：把已縮放的視野換算到新座標，畫面才不會跳走
-  const prevWarpRef = useRef(warp)
-  useEffect(() => {
-    const prev = prevWarpRef.current
-    if (prev === warp) return
-    setDomainState((d) => (d ? [warp.toU(prev.toT(d[0])), warp.toU(prev.toT(d[1]))] : d))
-    prevWarpRef.current = warp
-  }, [warp])
-
-  // 回報目前看到的時間範圍：ui 層的「比例匯出」要照著這個範圍出圖（所見即所得）
-  useEffect(() => {
-    onDomainChange?.(domain)
-  }, [domain, onDomainChange])
+  // 匯出時範圍由外部指定；畫面上永遠是整條軸
+  const axisDomain = exportMode ? (domainProp ?? initialDomain) : initialDomain
 
   // 目前被選取事件的位置（壓縮座標 u）
   const selectedU = useMemo(() => {
@@ -233,7 +226,7 @@ export function VerticalTimelineView({
   }, [bands])
 
   const layout = useMemo(() => {
-    const [d0, d1] = domain
+    const [d0, d1] = axisDomain
     const span = d1 - d0 || 1
     // 匯出模式在最上面多一列標題、最下面多一行出處
     const headerTop = exportMode ? TITLE_H : 0
@@ -258,12 +251,16 @@ export function VerticalTimelineView({
     // 軸再怎麼拉長，也不超過「每個事件一行」的長度——否則事件全擠在
     // 某十年的時間軸，會被拉成幾千像素的空白，讀者只是在捲空氣
     const rowCount = groups.reduce((n, g) => Math.max(n, g.length), 0)
+    // 基準長度：不放大時，整條軸「一次攤開、舒服讀完」需要多長
+    const baseH = fitContentHeight(groups, {
+      maxH: Math.min(12_000, Math.max(520, rowCount * ROW_H)),
+    })
     // 匯出：高度是使用者選的比例決定的，軸只能塞進剩下的空間
     const contentH = exportMode
       ? Math.max(80, exportMode.height - axisTop - FOOTER_H - BOTTOM_PAD)
-      : fitContentHeight(groups, {
-          maxH: Math.min(12_000, Math.max(520, rowCount * ROW_H)),
-        })
+      : Math.min(MAX_CONTENT_H, baseH * zoom)
+    /** 放大倍率的上限（軸再長瀏覽器就吃不消了） */
+    const maxZoom = Math.max(1, MAX_CONTENT_H / baseH)
 
     /** 壓縮座標 u ↔ 畫面 y（縮放、置中、浮動鈕都靠這對換算） */
     const yOfU = (u: number) => axisTop + ((u - d0) / span) * contentH
@@ -514,6 +511,9 @@ export function VerticalTimelineView({
       headerTop,
       axisTop,
       contentH,
+      baseH,
+      maxZoom,
+      axisDomain,
       relationLines,
       columns: layoutColumns.map((c) => ({ ...c, hidden: hiddenOf(c.items) })),
       ticks,
@@ -524,7 +524,7 @@ export function VerticalTimelineView({
       hiddenTotal,
       narrowColumns,
     }
-  }, [bands, sources, mode, width, warp, domain, abbrOf, exportMode])
+  }, [bands, sources, mode, width, warp, axisDomain, zoom, abbrOf, exportMode])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -533,6 +533,46 @@ export function VerticalTimelineView({
   // 縮放或切尺度之後，要把某個時間點捲回指定的畫面位置——版面重算完才知道 y 在哪，
   // 所以先把要求記在這裡，等下面的 useLayoutEffect 執行
   const pendingScroll = useRef<{ u: number; offset: number | 'center' } | null>(null)
+
+  // 回報「畫面上看得到多長的時間」，讓工具列的日／週／月／年高亮跟著放大倍率走
+  const refreshScaleMode = () => {
+    if (!onScaleModeChange || exportMode) return
+    const el = containerRef.current
+    const L = layoutRef.current
+    if (!el || !L) return
+    const fullSpan = L.axisDomain[1] - L.axisDomain[0] || 1
+    const visible = (el.clientHeight / (L.contentH || 1)) * fullSpan
+    onScaleModeChange(
+      visible <= 30 * DAY
+        ? 'day'
+        : visible <= 200 * DAY
+          ? 'week'
+          : visible <= 1500 * DAY
+            ? 'month'
+            : 'year',
+    )
+  }
+
+  // 回報目前「所在的那一段時間」給比例匯出用：範圍寬度依放大倍率，中心依捲動位置。
+  // 捲動時會連續變化，所以停下來才回報一次，不然每一格都會重繪整個 App。
+  const domainTimer = useRef<number | undefined>(undefined)
+  const reportDomain = () => {
+    if (!onDomainChange || exportMode) return
+    window.clearTimeout(domainTimer.current)
+    domainTimer.current = window.setTimeout(() => {
+      const el = containerRef.current
+      const L = layoutRef.current
+      if (!L) return
+      const [f0, f1] = L.axisDomain
+      const fullSpan = f1 - f0 || 1
+      const applied = Math.max(1, L.contentH / (L.baseH || 1))
+      const span = Math.min(fullSpan, fullSpan / applied)
+      const center = el ? L.uOfY(el.scrollTop + el.clientHeight / 2) : (f0 + f1) / 2
+      const a = Math.min(f1 - span, Math.max(f0, center - span / 2))
+      onDomainChange([a, a + span])
+    }, 200)
+  }
+  useEffect(() => () => window.clearTimeout(domainTimer.current), [])
 
   /** 選取的事件捲出畫面時，往它的方向浮現一顆鈕；在畫面內就自動消失 */
   const refreshReturnDir = () => {
@@ -559,6 +599,8 @@ export function VerticalTimelineView({
     headerRef.current?.setAttribute('transform', `translate(0 ${el?.scrollTop ?? 0})`)
     refreshReturnDir()
     refreshRangeLabel()
+    refreshScaleMode()
+    reportDomain()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, selectedU])
 
@@ -567,33 +609,20 @@ export function VerticalTimelineView({
   useEffect(() => {
     if (!scaleRequest) return
     const el = containerRef.current
-    const center =
-      selectedU ??
-      (el
-        ? layoutRef.current.uOfY(el.scrollTop + el.clientHeight / 2)
-        : (domainRef.current[0] + domainRef.current[1]) / 2)
-    const fullSpan = initialDomain[1] - initialDomain[0]
-    const span = scaleRequest.mode === 'year' ? fullSpan : SCALE_SPANS[scaleRequest.mode]
-    if (span >= fullSpan) {
-      setDomainState(null)
+    const L = layoutRef.current
+    const center = selectedU ?? (el ? L.uOfY(el.scrollTop + el.clientHeight / 2) : null)
+    if (scaleRequest.mode === 'year') {
+      setZoom(1)
     } else {
-      const a = Math.min(
-        initialDomain[1] - span,
-        Math.max(initialDomain[0], center - span / 2),
-      )
-      setDomainState([a, a + span])
+      // 要讓「一個畫面的高度」剛好涵蓋這麼多時間，軸就得拉這麼長
+      const viewH = el?.clientHeight ?? 600
+      const fullSpan = L.axisDomain[1] - L.axisDomain[0] || 1
+      const wanted = (viewH * fullSpan) / SCALE_SPANS[scaleRequest.mode] / L.baseH
+      setZoom(Math.min(L.maxZoom, Math.max(1, wanted)))
     }
-    pendingScroll.current = { u: center, offset: 'center' }
+    if (center != null) pendingScroll.current = { u: center, offset: 'center' }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scaleRequest?.nonce])
-
-  // 回報目前尺度，讓 ui 的按鈕高亮跟著縮放走（門檻與橫式相同）
-  useEffect(() => {
-    const span = domain[1] - domain[0]
-    const mode: ScaleMode =
-      span <= 30 * DAY ? 'day' : span <= 200 * DAY ? 'week' : span <= 1500 * DAY ? 'month' : 'year'
-    onScaleModeChange?.(mode)
-  }, [domain, onScaleModeChange])
 
   // Ctrl／⌘＋滾輪、觸控板捏合 = 以游標為錨點縮放。
   // 一般滾輪不攔截——交給瀏覽器原生捲動，那就是「上下平移時間」，手機也才有慣性。
@@ -607,31 +636,17 @@ export function VerticalTimelineView({
       if (!box) return
       const offset = e.clientY - box.getBoundingClientRect().top
       const anchor = layoutRef.current.uOfY(box.scrollTop + offset)
-      const [a, b] = domainRef.current
-      const span = b - a
-      const k = Math.exp(e.deltaY * 0.0015)
-      const fullSpan = initialDomain[1] - initialDomain[0]
-      const newSpan = Math.min(MAX_SPAN, fullSpan, Math.max(MIN_SPAN, span * k))
-      // 已經看到整條軸了就別再縮小——再縮下去只是把所有事件擠成一團
-      if (newSpan >= fullSpan) {
-        setDomainState(null)
-        pendingScroll.current = { u: anchor, offset }
-        return
-      }
-      const f = (anchor - a) / span
-      // 夾在整條軸的範圍內，不會平移到資料以外的空白
-      const a2 = Math.min(
-        initialDomain[1] - newSpan,
-        Math.max(initialDomain[0], anchor - f * newSpan),
-      )
-      setDomainState([a2, a2 + newSpan])
+      // 往上滾（deltaY < 0）＝放大＝把軸拉長。倍率有下限 1：
+      // 縮到看見整條軸就停住，再縮只是把事件擠成一團
+      const next = zoomRef.current * Math.exp(-e.deltaY * 0.0015)
+      setZoom(Math.min(layoutRef.current.maxZoom, Math.max(1, next)))
       // 縮放後讓游標底下的那個時間點留在原地，畫面才不會亂跳
       pendingScroll.current = { u: anchor, offset }
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sources.length > 0, initialDomain]) // 空狀態沒有 svg，出現後要重掛監聽
+  }, [sources.length > 0]) // 空狀態沒有 svg，出現後要重掛監聽
 
   /** 把某個時間點捲到畫面中央 */
   const scrollToU = (u: number) => {
@@ -662,13 +677,13 @@ export function VerticalTimelineView({
     if (!node || !L) return
     // 匯出的圖沒有捲動，看到的就是整段
     const [u0, u1] = exportMode
-      ? domainRef.current
+      ? L.axisDomain
       : visibleURange(
           el?.scrollTop ?? 0,
           el?.clientHeight ?? 0,
           L.axisTop,
           L.contentH,
-          domainRef.current,
+          L.axisDomain,
         )
     node.textContent = formatRangeLabel([warp.toT(u0), warp.toT(u1)])
   }
@@ -1176,6 +1191,7 @@ export function VerticalTimelineView({
           headerRef.current?.setAttribute('transform', `translate(0 ${e.currentTarget.scrollTop})`)
           refreshReturnDir()
           refreshRangeLabel()
+          reportDomain()
         }}
       >
         {svgEl}
