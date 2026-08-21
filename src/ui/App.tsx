@@ -975,6 +975,7 @@ export default function App() {
               collapseGaps={collapseGaps}
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
+              onEventCreate={readOnly ? undefined : handleEventCreate}
               onDomainChange={handleDomainChange}
             />
           ) : (
@@ -999,7 +1000,7 @@ export default function App() {
       <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
         <span>
           {isVertical
-            ? '直式：往下捲動＝平移時間　｜　Ctrl／⌘＋滾輪：縮放　｜　點事件：詳情與關係　｜　編輯請切回橫式'
+            ? '直式：往下捲動＝平移時間　｜　Ctrl／⌘＋滾輪：縮放　｜　點事件：詳情與編輯　｜　雙擊欄內空白處：新增事件'
             : '滑鼠滾輪：縮放　｜　左右拖曳：平移時間　｜　上下拖曳／Shift＋滾輪：捲動軸線　｜　點事件：詳情與編輯　｜　雙擊空白處：新增事件'}
         </span>
         {/* Beta 測試：讓測試者隨手就能回報問題，不必先去讀 README */}

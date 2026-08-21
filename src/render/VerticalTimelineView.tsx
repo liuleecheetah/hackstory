@@ -17,7 +17,13 @@ import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
-import type { EventSelection, ScaleMode, ScaleRequest, TimelineSource } from './types'
+import type {
+  EventSelection,
+  NewEventDraft,
+  ScaleMode,
+  ScaleRequest,
+  TimelineSource,
+} from './types'
 import {
   columnRects,
   fitContentHeight,
@@ -66,6 +72,11 @@ interface Props {
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
   onEventSelect?: (selection: EventSelection | null) => void
+  /**
+   * 在欄內空白處點兩下 → 回報新增事件的草稿資訊（未提供時停用，例如嵌入模式）。
+   * 單欄合流時停用：那時候看不出使用者想加到哪一條軸線，猜錯比不做更糟。
+   */
+  onEventCreate?: (draft: NewEventDraft) => void
   /** 回報目前的可視時間範圍（壓縮座標 u），讓 ui 層的比例匯出做到所見即所得 */
   onDomainChange?: (domain: [number, number]) => void
   /** 受控的可視範圍（匯出時由外部指定；畫面上的檢視不傳） */
@@ -141,6 +152,7 @@ export function VerticalTimelineView({
   onScaleModeChange,
   selectedKey,
   onEventSelect,
+  onEventCreate,
   onDomainChange,
   domain: domainProp,
   exportMode,
@@ -667,6 +679,35 @@ export function VerticalTimelineView({
       data-hidden={layout.hiddenTotal}
       data-narrow-columns={layout.narrowColumns ? '1' : '0'}
       onClick={exportMode ? undefined : () => onEventSelect?.(null)}
+      onDoubleClick={
+        exportMode
+          ? undefined
+          : (e) => {
+              // 在欄內空白處點兩下 → 以該位置的時間與那一欄的軸線開「新增事件」。
+              // 單欄合流時分不出是哪條軸線，直接不做。
+              if (!onEventCreate || mode === 'merged') return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const xPix = e.clientX - rect.left
+              const yPix = e.clientY - rect.top
+              // 落在標題列或軸的頭尾之外就不算
+              if (yPix < layout.axisTop || yPix > layout.axisTop + layout.contentH) return
+              const col = layout.columns.find(
+                (c) => c.band && xPix >= c.rect.x && xPix <= c.rect.x + c.rect.w,
+              )
+              if (!col?.band) return
+              const d = new Date(warp.toT(layout.uOfY(yPix)))
+              onEventCreate({
+                sourceId: col.band.sourceId,
+                trackId: col.band.trackId,
+                docTitle: col.band.docTitle,
+                trackTitle: col.band.trackTitle,
+                color: col.band.color,
+                dateRaw: `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`,
+                clientX: e.clientX,
+                clientY: e.clientY,
+              })
+            }
+      }
     >
           {/* 進行中事件下端的淡出漸層（方向由橫式的左右轉成上下） */}
           <defs>
@@ -813,6 +854,7 @@ export function VerticalTimelineView({
                   <g
                     key={it.key}
                     className={onEventSelect ? 'cursor-pointer' : undefined}
+                    onDoubleClick={(e) => e.stopPropagation()}
                     onMouseEnter={() => setHoveredKey(it.key)}
                     onMouseLeave={() => setHoveredKey((prev) => (prev === it.key ? null : prev))}
                     onClick={(e) => {
