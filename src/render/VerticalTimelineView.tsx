@@ -135,6 +135,8 @@ interface PlacedEvent {
   labelY: number | null
   /** 圖形連到標題的引線；就在旁邊、不需要引線時為 null */
   leader: string | null
+  /** 這一列感應區的右界（＝所屬欄的右緣）。不能超出自己的欄，否則會搶到隔壁欄的點擊 */
+  rowRight: number
   dateLabel: string
   title: string
   /** 單欄合流模式才有：軸線縮寫 */
@@ -344,6 +346,7 @@ export function VerticalTimelineView({
             labelX,
             labelY,
             leader: null,
+            rowRight: rect.x + rect.w - 2,
             dateLabel: '',
             title: '',
             abbr: null,
@@ -380,6 +383,7 @@ export function VerticalTimelineView({
           labelX,
           labelY,
           leader,
+          rowRight: rect.x + rect.w - 2,
           dateLabel,
           title,
           abbr,
@@ -689,8 +693,12 @@ export function VerticalTimelineView({
               const rect = e.currentTarget.getBoundingClientRect()
               const xPix = e.clientX - rect.left
               const yPix = e.clientY - rect.top
-              // 落在標題列或軸的頭尾之外就不算
+              // 落在軸的頭尾之外就不算
               if (yPix < layout.axisTop || yPix > layout.axisTop + layout.contentH) return
+              // 欄標題列是浮在內容上面的（捲動時貼著上緣），
+              // 點在它上面時底下的時間不是使用者看到的那個，不能當成新增位置
+              const scrollTop = containerRef.current?.scrollTop ?? 0
+              if (yPix - scrollTop < HEADER_H) return
               const col = layout.columns.find(
                 (c) => c.band && xPix >= c.rect.x && xPix <= c.rect.x + c.rect.w,
               )
@@ -881,7 +889,7 @@ export function VerticalTimelineView({
                           <rect
                             x={it.x - 6}
                             y={it.labelY - 14}
-                            width={Math.max(0, width - it.x - 2)}
+                            width={Math.max(0, it.rowRight - it.x + 6)}
                             height={LABEL_H}
                             fill="transparent"
                           />
