@@ -393,7 +393,7 @@ export function ExportDialog({
           <section>
             <h3 className="mb-1 text-sm font-semibold text-slate-700">匯出目前畫面為圖片</h3>
             <p className="mb-2 text-xs text-slate-400">
-              所見即所得：先在畫面上縮放到想要的範圍，再匯出。
+              時間範圍依你目前的縮放；軸線則會全部畫進去，包含捲出畫面外的部分。
             </p>
             <div className="flex gap-2">
               <button

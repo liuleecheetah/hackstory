@@ -4,6 +4,7 @@
 
 import { useState } from 'react'
 import type { Layer } from '../compose/useLayers'
+import { isCrossDocument } from '../core'
 
 interface Props {
   layers: Layer[]
@@ -29,6 +30,11 @@ interface Props {
   onAddTrack: (layerId: string) => void
   onRenameTrack: (layerId: string, trackId: string, title: string) => void
   onRemoveTrack: (layerId: string, trackId: string) => void
+}
+
+/** 這個圖層裡有幾筆「指向其他檔案」的關係（目前不畫，但要告訴使用者） */
+function crossDocCount(layer: Layer): number {
+  return (layer.doc.relations ?? []).filter(isCrossDocument).length
 }
 
 export function LayerPanel({
@@ -145,6 +151,16 @@ export function LayerPanel({
                 </div>
               )}
               <div className="text-xs text-slate-400">{layer.doc.events.length} 筆事件</div>
+              {/* 指向其他檔案的關係目前一律不畫（Phase 2 才實作）——
+                  不能讓使用者以為這份檔案裡沒有這些關係 */}
+              {crossDocCount(layer) > 0 && (
+                <div
+                  className="text-xs text-amber-700"
+                  title="指向其他 .hst.json 檔案的關係，目前的版本還不會畫出來"
+                >
+                  {crossDocCount(layer)} 筆跨檔案關係暫不顯示
+                </div>
+              )}
             </div>
             {!readOnly && (
               <button

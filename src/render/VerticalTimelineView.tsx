@@ -11,6 +11,7 @@
 // 這個檔案只負責「畫出來」。
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
 import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase } from './timelineData'
@@ -199,6 +200,21 @@ export function VerticalTimelineView({
 
   // 匯出時一律多欄並排（寬度是使用者指定的，不做單欄合流的退場）
   const mode = exportMode ? 'columns' : pickVerticalMode(width, bands.length)
+
+  // 直式不畫關係線（V4 才做）。手機嵌入沒有工具列，讀者完全沒有線索——
+  // 所以在軸的開頭明講有幾組關係、以及怎麼看到它們。
+  const relationCount = useMemo(
+    () =>
+      sources.reduce((n, s) => {
+        const ids = new Set(s.doc.events.map((e) => e.id))
+        return (
+          n +
+          sameDocumentRelations(s.doc.relations).filter((r) => ids.has(r.from) && ids.has(r.to))
+            .length
+        )
+      }, 0),
+    [sources],
+  )
 
   // 單欄合流時每列開頭的軸線縮寫：同一份文件有多條軸就用軸線名，否則用文件名
   const abbrOf = useMemo(() => {
@@ -646,6 +662,22 @@ export function VerticalTimelineView({
             )
           })}
           <line x1={RULER_W} x2={RULER_W} y1={HEADER_H} y2={layout.totalH} stroke="#e2e8f0" />
+
+        {/* 直式沒有關係線，但不能讓讀者以為這份時間軸沒有因果關聯 */}
+        {relationCount > 0 &&
+          (() => {
+            // 手機的寬度放不下完整句子，放不下就換短的——
+            // 寧可短，也不能截成半句話，把「點事件可以看」這個重點吃掉
+            const room = Math.max(0, width - RULER_W - COL_PAD * 2)
+            const full = `⇄ 這份時間軸有 ${relationCount} 組事件關係，直式不畫線——點事件可以看到`
+            const brief = `⇄ ${relationCount} 組事件關係：點事件查看`
+            const text = estimateTextWidth(full, 11) <= room ? full : fitText(brief, room, 11)
+            return (
+              <text x={RULER_W + COL_PAD} y={layout.axisTop - 6} fontSize={11} fill="#b45309">
+                {text}
+              </text>
+            )
+          })()}
 
         {/* 斷軸記號：⫽ 加上「略過多久」，虛線橫貫全寬。
             沒有這個記號，讀者會以為 1870→1888 跟 1950→1953 佔一樣的高度是等比例的 */}
