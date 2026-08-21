@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
-import { assignLanes, estimateTextWidth } from './layout'
+import { assignLanes, estimateTextWidth, truncate } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
@@ -50,6 +50,26 @@ interface Props {
   onEventCreate?: (draft: NewEventDraft) => void
   /** 回報目前的可視時間範圍（壓縮座標 u），讓 ui 層的比例匯出做到所見即所得 */
   onDomainChange?: (domain: [number, number]) => void
+  /** 受控的可視範圍（匯出時由外部指定；畫面上的檢視不傳） */
+  domain?: [number, number]
+  /** 有值 = 匯出模式（固定尺寸、不互動、上下加標題與出處） */
+  exportMode?: HorizontalExportOptions
+}
+
+/**
+ * 匯出模式：固定尺寸、不互動、上下加標題與出處。
+ * 由 exportSvg.tsx 離屏渲染時使用——**畫面與匯出圖走同一段繪製程式**。
+ */
+export interface HorizontalExportOptions {
+  /** 邏輯寬高（像素） */
+  width: number
+  height: number
+  /** 離屏渲染時要換一個 id，避免跟畫面上的 SVG 撞名 */
+  svgId: string
+  /** 圖片頂部的標題（通常是文件名） */
+  title: string
+  /** 圖片底部的出處小字 */
+  footer: string
 }
 
 const DAY = 86_400_000
@@ -67,6 +87,8 @@ const SCALE_SPANS: Record<Exclude<ScaleMode, 'year'>, number> = {
 }
 const MIN_SPAN = DAY / 4 // 最多放大到 6 小時
 const MAX_SPAN = 400 * 365 * DAY // 最多縮小到 400 年
+const TITLE_H = 42 // 匯出圖片頂部的標題列
+const FOOTER_H = 22 // 匯出圖片底部的出處小字
 
 export function TimelineView({
   sources,
@@ -81,10 +103,13 @@ export function TimelineView({
   onEventSelect,
   onEventCreate,
   onDomainChange,
+  domain: domainProp,
+  exportMode,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
-  const [width, setWidth] = useState(960)
+  const [measuredWidth, setMeasuredWidth] = useState(960)
+  const width = exportMode?.width ?? measuredWidth
 
   // 尺寸度量：精簡模式用縮小的一組，一般模式沿用上方的模組常數。
   // 事件的圓點、長條、文字、車道高度、軸線間距都跟著這組數字走。
@@ -120,7 +145,7 @@ export function TimelineView({
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
   // 這樣切換圖層顯示隱藏時，使用者已縮放的視野不會被重設。
   const [domainState, setDomainState] = useState<[number, number] | null>(null)
-  const domain = domainState ?? initialDomain
+  const domain = domainProp ?? domainState ?? initialDomain
   const domainRef = useRef(domain)
   domainRef.current = domain
 
@@ -141,7 +166,7 @@ export function TimelineView({
     if (!el) return
     const ro = new ResizeObserver((entries) => {
       const w = entries[0].contentRect.width
-      if (w > 0) setWidth(w)
+      if (w > 0) setMeasuredWidth(w)
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -404,17 +429,22 @@ export function TimelineView({
     setDomainState([selectedU - span / 2, selectedU + span / 2])
   }
 
-  return (
-    <div className="relative h-full w-full">
-      <div ref={containerRef} className="h-full w-full select-none overflow-y-auto">
+  // 匯出模式：上面留標題列、下面留出處，中間才是時間軸；放不下的軸線會被裁掉
+  const exportTop = exportMode ? TITLE_H : 0
+  const exportAvailH = exportMode ? exportMode.height - TITLE_H - FOOTER_H : 0
+  const exportOverflow = exportMode ? layout.height > exportAvailH : false
+
+  // 畫面上的檢視與匯出圖片共用同一段 SVG——「看到的」與「存下來的」保證一致
+  const svgEl = (
       <svg
         ref={svgRef}
-        id="hackstory-timeline-svg"
+        id={exportMode?.svgId ?? 'hackstory-timeline-svg'}
         width={width}
-        height={layout.height}
-        className="block cursor-grab bg-white active:cursor-grabbing"
-        style={{ touchAction: 'none' }}
-        onPointerDown={(e) => {
+        height={exportMode ? exportMode.height : layout.height}
+        className={exportMode ? 'block bg-white' : 'block cursor-grab bg-white active:cursor-grabbing'}
+        style={exportMode ? undefined : { touchAction: 'none' }}
+        data-overflow={exportOverflow ? '1' : '0'}
+        onPointerDown={exportMode ? undefined : (e) => {
           dragState.current = {
             startX: e.clientX,
             startY: e.clientY,
@@ -425,7 +455,7 @@ export function TimelineView({
           draggedRef.current = false
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
-        onPointerMove={(e) => {
+        onPointerMove={exportMode ? undefined : (e) => {
           // 依游標的 Y 判斷停在哪條軸線上（hover 才浮現跳轉按鈕）
           const rect = e.currentTarget.getBoundingClientRect()
           const yPix = e.clientY - rect.top
@@ -449,14 +479,14 @@ export function TimelineView({
             setDomainState([a - dt, b - dt])
           }
         }}
-        onPointerLeave={() => setHoveredBand(null)}
-        onPointerUp={() => (dragState.current = null)}
-        onPointerCancel={() => (dragState.current = null)}
-        onClick={() => {
+        onPointerLeave={exportMode ? undefined : () => setHoveredBand(null)}
+        onPointerUp={exportMode ? undefined : () => (dragState.current = null)}
+        onPointerCancel={exportMode ? undefined : () => (dragState.current = null)}
+        onClick={exportMode ? undefined : () => {
           // 點空白處（不是拖曳）→ 取消選取
           if (!draggedRef.current) onEventSelect?.(null)
         }}
-        onDoubleClick={(e) => {
+        onDoubleClick={exportMode ? undefined : (e) => {
           // 在軸線空白處點兩下 → 以該位置的日期與軸線開「新增事件」
           if (!onEventCreate) return
           const rect = e.currentTarget.getBoundingClientRect()
@@ -478,6 +508,21 @@ export function TimelineView({
           })
         }}
       >
+        {/* 匯出圖片的頂部標題：輸出的圖自帶脈絡，不必靠貼文說明 */}
+        {exportMode && (
+          <>
+            <text x={14} y={27} fontSize={16} fontWeight={700} fill="#1e293b">
+              {truncate(exportMode.title, 40)}
+            </text>
+            <clipPath id="hst-export-clip">
+              <rect x={0} y={0} width={width} height={exportAvailH} />
+            </clipPath>
+          </>
+        )}
+        <g
+          transform={exportMode ? `translate(0 ${exportTop})` : undefined}
+          clipPath={exportMode ? 'url(#hst-export-clip)' : undefined}
+        >
         {/* 進行中事件右端的淡出漸層 */}
         <defs>
           <linearGradient id="hst-ongoing-fade" x1="0" y1="0" x2="1" y2="0">
@@ -812,7 +857,35 @@ export function TimelineView({
               </g>
             )
           })}
+        </g>
+        {/* 匯出圖片底部的出處小字 */}
+        {exportMode && (
+          <text
+            x={width - 12}
+            y={exportMode.height - 8}
+            textAnchor="end"
+            fontSize={10}
+            fill="#94a3b8"
+          >
+            {exportMode.footer}
+          </text>
+        )}
       </svg>
+  )
+
+  // 匯出模式：固定尺寸、不捲動、不互動
+  if (exportMode) {
+    return (
+      <div style={{ width, height: exportMode.height, overflow: 'hidden', background: '#fff' }}>
+        {svgEl}
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full select-none overflow-y-auto">
+        {svgEl}
       </div>
       {selectionDir && (
         <button

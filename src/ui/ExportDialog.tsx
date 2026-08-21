@@ -13,7 +13,7 @@ import {
 import { documentToMarkdown } from '../adapters/markdown'
 import type { Layer } from '../compose/useLayers'
 import { validateDocument } from '../core'
-import { renderVerticalExportSvg } from '../render/exportSvg'
+import { renderHorizontalExportSvg, renderVerticalExportSvg } from '../render/exportSvg'
 import type { TimelineSource } from '../render/types'
 
 interface Props {
@@ -32,18 +32,27 @@ interface Props {
   showYears?: boolean
   showRelations?: boolean
   collapseGaps?: boolean
+  /** 精簡模式：橫式圖片塞不塞得下所有軸線，主要靠這個 */
+  compact?: boolean
 }
 
 /**
- * 直式圖片的比例。w/h 是邏輯尺寸，PNG 一律 2 倍輸出
- * （9:16 → 1080×1920、A4 → 1240×1754）。
+ * 圖片比例。w/h 是邏輯尺寸，PNG 一律 2 倍輸出
+ * （9:16 → 1080×1920、16:9 → 1920×1080）。
+ *
+ * dir 決定用哪一種畫法重畫：直式是長圖，橫式是時間由左往右。
  */
 const RATIO_PRESETS = [
-  { id: '9-16', label: '9:16', hint: '手機全螢幕／限時動態', w: 540, h: 960 },
-  { id: '4-5', label: '4:5', hint: '社群貼文（直式）', w: 540, h: 675 },
-  { id: '3-4', label: '3:4', hint: '一般直式', w: 540, h: 720 },
-  { id: '1-1', label: '1:1', hint: '方形', w: 540, h: 540 },
-  { id: 'a4', label: 'A4', hint: '直式列印', w: 620, h: 877 },
+  { id: '9-16', dir: 'v', label: '9:16', hint: '手機全螢幕／限時動態', w: 540, h: 960 },
+  { id: '4-5', dir: 'v', label: '4:5', hint: '社群貼文（直式）', w: 540, h: 675 },
+  { id: '3-4', dir: 'v', label: '3:4', hint: '一般直式', w: 540, h: 720 },
+  { id: '1-1', dir: 'v', label: '1:1', hint: '方形', w: 540, h: 540 },
+  { id: 'a4', dir: 'v', label: 'A4', hint: '直式列印', w: 620, h: 877 },
+  { id: '16-9', dir: 'h', label: '16:9', hint: '簡報／YouTube', w: 960, h: 540 },
+  { id: 'og', dir: 'h', label: '1.91:1', hint: '臉書／分享預覽圖', w: 600, h: 315 },
+  { id: '2-1', dir: 'h', label: '2:1', hint: 'X（Twitter）', w: 600, h: 300 },
+  { id: '4-3', dir: 'h', label: '4:3', hint: '傳統簡報', w: 800, h: 600 },
+  { id: 'a4-land', dir: 'h', label: 'A4', hint: '橫式列印', w: 877, h: 620 },
 ] as const
 
 type RatioId = (typeof RATIO_PRESETS)[number]['id']
@@ -63,6 +72,7 @@ export function ExportDialog({
   showYears = true,
   showRelations = true,
   collapseGaps = false,
+  compact = false,
 }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
@@ -89,10 +99,12 @@ export function ExportDialog({
   const today = new Date()
   const imageFooter = `以 HackStory 製作 · ${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`
 
-  /** 依目前選的比例重畫一張直式時間軸（畫面上是橫式也一樣，圖片一律直式） */
-  const renderRatio = async (p: NonNullable<typeof preset>) => {
+  /** 依選的比例重畫一張圖：直式比例畫成長圖，橫式比例畫成時間由左往右 */
+  const renderRatio = async (
+    p: NonNullable<typeof preset>,
+  ): Promise<{ svg: SVGSVGElement; warnings: string[] }> => {
     if (!viewDomain) throw new Error('還沒有可以出圖的時間範圍')
-    return renderVerticalExportSvg({
+    const common = {
       sources,
       domain: viewDomain,
       width: p.w,
@@ -103,7 +115,29 @@ export function ExportDialog({
       collapseGaps,
       title: imageTitle,
       footer: imageFooter,
-    })
+    }
+    if (p.dir === 'h') {
+      const { svg, overflow } = await renderHorizontalExportSvg({ ...common, compact })
+      return {
+        svg,
+        warnings: overflow
+          ? [
+              '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、暫時隱藏部分圖層／軸線，或改用直式長圖',
+            ]
+          : [],
+      }
+    }
+    const { svg, hidden, narrowColumns } = await renderVerticalExportSvg(common)
+    const warnings: string[] = []
+    if (narrowColumns) {
+      warnings.push('欄寬過窄，建議選更寬的比例，或在左側面板暫時隱藏部分圖層／軸線')
+    }
+    if (hidden > 0) {
+      warnings.push(
+        `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請先在畫面上縮放到較短的期間，或選更長的比例`,
+      )
+    }
+    return { svg, warnings }
   }
 
   // 選了比例（或畫面範圍改了）就重畫縮圖預覽
@@ -116,17 +150,8 @@ export function ExportDialog({
     let cancelled = false
     setPreviewBusy(true)
     void renderRatio(preset)
-      .then(({ svg, hidden, narrowColumns }) => {
+      .then(({ svg, warnings }) => {
         if (cancelled) return
-        const warnings: string[] = []
-        if (narrowColumns) {
-          warnings.push('欄寬過窄，建議選更寬的比例，或在左側面板暫時隱藏部分圖層／軸線')
-        }
-        if (hidden > 0) {
-          warnings.push(
-            `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請先在畫面上縮放到較短的期間，或選更長的比例`,
-          )
-        }
         const text = serializeSvg(svg)
         setPreview({
           url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text)}`,
@@ -143,7 +168,7 @@ export function ExportDialog({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, ratio, viewDomain, sources, showDates, showYears, showRelations, collapseGaps])
+  }, [open, ratio, viewDomain, sources, showDates, showYears, showRelations, collapseGaps, compact])
 
   if (!open) return null
 
@@ -416,37 +441,47 @@ export function ExportDialog({
             </div>
           </section>
 
-          {/* 直式圖片（選比例） */}
+          {/* 選比例出圖 */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">直式圖片（選比例）</h3>
-            <p className="mb-2 text-xs text-slate-400">
-              重新畫成適合手機與社群的直式長圖，用的是你目前看到的時間範圍。
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">出圖（選比例）</h3>
+            <p className="mb-3 text-xs text-slate-400">
+              依你選的比例重新畫一張，用的是目前看到的時間範圍。
             </p>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {RATIO_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  title={p.hint}
-                  onClick={() => setRatio(ratio === p.id ? null : p.id)}
-                  className={
-                    'rounded border px-3 py-1.5 text-sm transition-colors ' +
-                    (ratio === p.id
-                      ? 'border-slate-800 bg-slate-800 text-white'
-                      : 'border-slate-300 text-slate-700 hover:bg-slate-100')
-                  }
-                >
-                  {p.label}
-                  <span
-                    className={
-                      'ml-1.5 text-xs ' + (ratio === p.id ? 'text-slate-300' : 'text-slate-400')
-                    }
-                  >
-                    {p.hint}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {(
+              [
+                { dir: 'v', title: '直式（手機／社群長圖）' },
+                { dir: 'h', title: '橫式（簡報／分享預覽圖）' },
+              ] as const
+            ).map(({ dir, title }) => (
+              <div key={dir} className="mb-3">
+                <div className="mb-1.5 text-xs text-slate-500">{title}</div>
+                <div className="flex flex-wrap gap-2">
+                  {RATIO_PRESETS.filter((p) => p.dir === dir).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      title={p.hint}
+                      onClick={() => setRatio(ratio === p.id ? null : p.id)}
+                      className={
+                        'rounded border px-3 py-1.5 text-sm transition-colors ' +
+                        (ratio === p.id
+                          ? 'border-slate-800 bg-slate-800 text-white'
+                          : 'border-slate-300 text-slate-700 hover:bg-slate-100')
+                      }
+                    >
+                      {p.label}
+                      <span
+                        className={
+                          'ml-1.5 text-xs ' + (ratio === p.id ? 'text-slate-300' : 'text-slate-400')
+                        }
+                      >
+                        {p.hint}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
 
             {preset && (
               <div className="flex items-start gap-4">

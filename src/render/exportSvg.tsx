@@ -6,11 +6,14 @@
 //
 // 這一層不知道圖片之後要變成 PNG 還是 SVG 檔——那是 adapters 的事。
 
+import type { ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
+import { TimelineView } from './TimelineView'
 import type { TimelineSource } from './types'
 import { VerticalTimelineView } from './VerticalTimelineView'
 
-export interface VerticalExportRequest {
+/** 直式與橫式共用的匯出參數 */
+export interface ExportRequestBase {
   sources: TimelineSource[]
   /** 目前畫面的可視範圍（壓縮座標 u）——所見即所得 */
   domain: [number, number]
@@ -27,6 +30,11 @@ export interface VerticalExportRequest {
   footer: string
 }
 
+/** 橫式另外吃「精簡模式」——那是使用者調整「一張圖塞得下幾條軸線」的主要手段 */
+export interface HorizontalExportRequest extends ExportRequestBase {
+  compact: boolean
+}
+
 export interface VerticalExportResult {
   svg: SVGSVGElement
   /** 事件太多、標題排不下（只畫得出圓點）的件數 */
@@ -35,18 +43,21 @@ export interface VerticalExportResult {
   narrowColumns: boolean
 }
 
+export interface HorizontalExportResult {
+  svg: SVGSVGElement
+  /** 軸線太多，超出這個比例的高度被裁掉 */
+  overflow: boolean
+}
+
 /** 離屏渲染時用的 id，避免與畫面上的時間軸 SVG 撞名 */
 const OFFSCREEN_ID = 'hackstory-export-svg'
 
 /**
- * 以指定尺寸渲染一張直式時間軸，回傳可以序列化的 SVG 元素（呼叫端自行決定要存成什麼）。
+ * 把一個 React 元素掛到畫面外渲染一次，讀出結果後立刻拆掉。
  *
- * 作法：掛一個看不見的容器到頁面上（要真的掛上去，字型與尺寸才算得準），
- * 渲染完取出節點、立刻拆掉。
+ * 要真的掛到頁面上（不是 detached 節點），字型與尺寸才算得準。
  */
-export function renderVerticalExportSvg(
-  req: VerticalExportRequest,
-): Promise<VerticalExportResult> {
+function renderOffscreen<T>(element: ReactElement, read: (svg: SVGSVGElement) => T): Promise<T> {
   return new Promise((resolve, reject) => {
     const host = document.createElement('div')
     host.style.cssText =
@@ -59,52 +70,89 @@ export function renderVerticalExportSvg(
       host.remove()
     }
 
-    root.render(
-      <VerticalTimelineView
-        sources={req.sources}
-        domain={req.domain}
-        showDates={req.showDates}
-        showYears={req.showYears}
-        showRelations={req.showRelations}
-        collapseGaps={req.collapseGaps}
-        exportMode={{
-          width: req.width,
-          height: req.height,
-          svgId: OFFSCREEN_ID,
-          title: req.title,
-          footer: req.footer,
-        }}
-      />,
-    )
+    root.render(element)
 
     // 等瀏覽器畫完一個影格，DOM 才真的存在。
     // 分頁切到背景時 requestAnimationFrame 不會觸發，所以加一個計時器保底——
     // 否則使用者切走再切回來，預覽會永遠停在「產生預覽中…」
     let done = false
-    const whenReady = (run: () => void) => {
+    const extract = () => {
       if (done) return
       done = true
-      run()
-    }
-    const extract = () => {
       try {
         const svg = host.querySelector('svg')
         if (!(svg instanceof SVGSVGElement)) throw new Error('離屏渲染沒有產生 SVG')
-        // 取出來的是副本，取完就可以把離屏容器拆掉
-        const clone = svg.cloneNode(true) as SVGSVGElement
-        clone.removeAttribute('id')
-        resolve({
-          svg: clone,
-          hidden: Number(svg.dataset.hidden ?? 0),
-          narrowColumns: svg.dataset.narrowColumns === '1',
-        })
+        resolve(read(svg))
       } catch (e) {
         reject(e instanceof Error ? e : new Error(String(e)))
       } finally {
         cleanup()
       }
     }
-    requestAnimationFrame(() => requestAnimationFrame(() => whenReady(extract)))
-    setTimeout(() => whenReady(extract), 150)
+    requestAnimationFrame(() => requestAnimationFrame(extract))
+    setTimeout(extract, 150)
   })
+}
+
+/** 取出可序列化的副本（離屏用的 id 要拿掉，免得跟畫面上的撞名） */
+function detach(svg: SVGSVGElement): SVGSVGElement {
+  const clone = svg.cloneNode(true) as SVGSVGElement
+  clone.removeAttribute('id')
+  return clone
+}
+
+/**
+ * 以指定尺寸渲染一張**直式**時間軸，回傳可以序列化的 SVG 元素
+ * （呼叫端自行決定要存成 SVG 還是 PNG）。
+ */
+export function renderVerticalExportSvg(
+  req: ExportRequestBase,
+): Promise<VerticalExportResult> {
+  return renderOffscreen(
+    <VerticalTimelineView
+      sources={req.sources}
+      domain={req.domain}
+      showDates={req.showDates}
+      showYears={req.showYears}
+      showRelations={req.showRelations}
+      collapseGaps={req.collapseGaps}
+      exportMode={{
+        width: req.width,
+        height: req.height,
+        svgId: OFFSCREEN_ID,
+        title: req.title,
+        footer: req.footer,
+      }}
+    />,
+    (svg) => ({
+      svg: detach(svg),
+      hidden: Number(svg.dataset.hidden ?? 0),
+      narrowColumns: svg.dataset.narrowColumns === '1',
+    }),
+  )
+}
+
+/** 以指定尺寸渲染一張**橫式**時間軸 */
+export function renderHorizontalExportSvg(
+  req: HorizontalExportRequest,
+): Promise<HorizontalExportResult> {
+  return renderOffscreen(
+    <TimelineView
+      sources={req.sources}
+      domain={req.domain}
+      showDates={req.showDates}
+      showYears={req.showYears}
+      showRelations={req.showRelations}
+      collapseGaps={req.collapseGaps}
+      compact={req.compact}
+      exportMode={{
+        width: req.width,
+        height: req.height,
+        svgId: OFFSCREEN_ID,
+        title: req.title,
+        footer: req.footer,
+      }}
+    />,
+    (svg) => ({ svg: detach(svg), overflow: svg.dataset.overflow === '1' }),
+  )
 }

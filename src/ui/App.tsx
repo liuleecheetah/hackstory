@@ -1034,6 +1034,7 @@ export default function App() {
         showYears={showYears}
         showRelations={showRelations}
         collapseGaps={collapseGaps}
+        compact={compact}
         onDownloaded={(coveredAll) => {
           // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
           if (coveredAll) setDirty(false)
