@@ -108,7 +108,8 @@ export function TimelineView({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
-  const [measuredWidth, setMeasuredWidth] = useState(960)
+  // 0 = 還沒量到容器寬度。量到之前不畫，避免先用預設值畫一次再跳版
+  const [measuredWidth, setMeasuredWidth] = useState(0)
   const width = exportMode?.width ?? measuredWidth
 
   // 尺寸度量：精簡模式用縮小的一組，一般模式沿用上方的模組常數。
@@ -236,7 +237,8 @@ export function TimelineView({
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [sources.length > 0]) // 空狀態沒有 svg，出現後要重掛監聽
+    // width > 0 也要進依賴：量到寬度前 svg 還沒畫出來，那時掛不上監聽
+  }, [sources.length > 0, width > 0]) // 空狀態沒有 svg，出現後要重掛監聽
 
   // 拖曳：左右＝平移時間，上下＝捲動軸線（第一次超過門檻時鎖定方向，避免斜拖抖動）
   const dragState = useRef<{
@@ -885,7 +887,7 @@ export function TimelineView({
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full select-none overflow-y-auto">
-        {svgEl}
+        {width > 0 && svgEl}
       </div>
       {selectionDir && (
         <button

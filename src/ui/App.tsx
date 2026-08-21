@@ -212,6 +212,19 @@ export default function App() {
       (EMBED_NARROW ? 'vertical' : (INITIAL_DOCS[0]?.display?.orientation ?? 'horizontal')),
   )
   const isVertical = orientation === 'vertical'
+  // 圖層面板收合：小螢幕上把 288px 讓給時間軸（直式尤其有感——欄夠寬才不會被迫合流）
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
+  // 窄螢幕的「顯示選項」下拉
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const optionsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!optionsOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!optionsRef.current?.contains(e.target as Node)) setOptionsOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [optionsOpen])
   // render 層回報的可視時間範圍：比例匯出照這個範圍出圖（所見即所得）
   const [viewDomain, setViewDomain] = useState<[number, number] | null>(null)
   const handleDomainChange = useCallback((d: [number, number]) => setViewDomain(d), [])
@@ -734,6 +747,74 @@ export default function App() {
     )
   }
 
+  // 上方的五個顯示選項。寬螢幕攤開、窄螢幕收進下拉，兩邊用同一份定義
+  const displayOptions = (
+    <>
+      <label className="flex items-center gap-1.5 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          checked={showDates}
+          onChange={(e) => setShowDates(e.target.checked)}
+          className="accent-slate-700"
+        />
+        顯示事件日期
+      </label>
+      <label
+        className={
+          'flex items-center gap-1.5 text-sm ' +
+          (showDates ? 'text-slate-600' : 'text-slate-300')
+        }
+      >
+        <input
+          type="checkbox"
+          checked={showYears}
+          disabled={!showDates}
+          onChange={(e) => setShowYears(e.target.checked)}
+          className="accent-slate-700"
+        />
+        含年份
+      </label>
+      <label className="flex items-center gap-1.5 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          checked={showRelations}
+          onChange={(e) => setShowRelations(e.target.checked)}
+          className="accent-slate-700"
+        />
+        顯示關係線
+      </label>
+      <label className="flex items-center gap-1.5 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          checked={collapseGaps}
+          onChange={(e) => setCollapseGaps(e.target.checked)}
+          className="accent-slate-700"
+        />
+        摺疊空白
+      </label>
+      <label
+        className={
+          'flex items-center gap-1.5 text-sm ' +
+          (isVertical ? 'text-slate-300' : 'text-slate-600')
+        }
+        title={
+          isVertical
+            ? '直式暫不支援精簡模式'
+            : '把事件列縮小，讓事件很多的軸線收斂，其他軸線比較看得到'
+        }
+      >
+        <input
+          type="checkbox"
+          checked={compact && !isVertical}
+          disabled={isVertical}
+          onChange={(e) => setCompact(e.target.checked)}
+          className="accent-slate-700"
+        />
+        精簡模式
+      </label>
+    </>
+  )
+
   return (
     <div className="flex h-screen flex-col bg-white">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-2">
@@ -840,70 +921,22 @@ export default function App() {
           </>
         )}
 
-        <span className="ml-auto flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={showDates}
-              onChange={(e) => setShowDates(e.target.checked)}
-              className="accent-slate-700"
-            />
-            顯示事件日期
-          </label>
-          <label
-            className={
-              'flex items-center gap-1.5 text-sm ' +
-              (showDates ? 'text-slate-600' : 'text-slate-300')
-            }
+        {/* 顯示選項：寬螢幕直接攤開，窄螢幕收進下拉選單——省下一整列工具列高度 */}
+        <span className="ml-auto hidden items-center gap-3 xl:flex">{displayOptions}</span>
+        <div ref={optionsRef} className="relative ml-auto xl:hidden">
+          <button
+            type="button"
+            onClick={() => setOptionsOpen((v) => !v)}
+            className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
           >
-            <input
-              type="checkbox"
-              checked={showYears}
-              disabled={!showDates}
-              onChange={(e) => setShowYears(e.target.checked)}
-              className="accent-slate-700"
-            />
-            含年份
-          </label>
-          <label className="flex items-center gap-1.5 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={showRelations}
-              onChange={(e) => setShowRelations(e.target.checked)}
-              className="accent-slate-700"
-            />
-            顯示關係線
-          </label>
-          <label className="flex items-center gap-1.5 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={collapseGaps}
-              onChange={(e) => setCollapseGaps(e.target.checked)}
-              className="accent-slate-700"
-            />
-            摺疊空白
-          </label>
-          <label
-            className={
-              'flex items-center gap-1.5 text-sm ' +
-              (isVertical ? 'text-slate-300' : 'text-slate-600')
-            }
-            title={
-              isVertical
-                ? '直式暫不支援精簡模式'
-                : '把事件列縮小，讓事件很多的軸線收斂，其他軸線比較看得到'
-            }
-          >
-            <input
-              type="checkbox"
-              checked={compact && !isVertical}
-              disabled={isVertical}
-              onChange={(e) => setCompact(e.target.checked)}
-              className="accent-slate-700"
-            />
-            精簡模式
-          </label>
-        </span>
+            顯示選項 ▾
+          </button>
+          {optionsOpen && (
+            <div className="absolute right-0 z-30 mt-1 flex w-56 flex-col gap-2 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+              {displayOptions}
+            </div>
+          )}
+        </div>
 
         {/* 橫式／直式切換：直式是給閱讀與分享用的，時間由上往下流 */}
         <div className="flex overflow-hidden rounded-md border border-slate-300">
@@ -962,6 +995,8 @@ export default function App() {
           onAddTrack={handleAddTrack}
           onRenameTrack={renameTrack}
           onRemoveTrack={removeTrack}
+          collapsed={panelCollapsed}
+          onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
         />
         <div className="min-w-0 flex-1">
           {isVertical ? (

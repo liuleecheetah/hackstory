@@ -30,6 +30,9 @@ interface Props {
   onAddTrack: (layerId: string) => void
   onRenameTrack: (layerId: string, trackId: string, title: string) => void
   onRemoveTrack: (layerId: string, trackId: string) => void
+  /** 面板收起來了（只剩一條窄邊，把寬度讓給時間軸） */
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 /** 這個圖層裡有幾筆「指向其他檔案」的關係（目前不畫，但要告訴使用者） */
@@ -54,6 +57,8 @@ export function LayerPanel({
   onAddTrack,
   onRenameTrack,
   onRemoveTrack,
+  collapsed = false,
+  onToggleCollapsed,
 }: Props) {
   // 正在重新命名的圖層與草稿文字
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -76,9 +81,39 @@ export function LayerPanel({
     }
     setEditingTrack(null)
   }
+  // 收起來時只留一條窄邊：小螢幕上這 288px 讓給時間軸，差別很大
+  if (collapsed) {
+    return (
+      <aside className="flex w-9 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-50 py-2">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          title="展開圖層面板"
+          className="rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-100"
+        >
+          »
+        </button>
+        <div
+          className="mt-3 text-xs tracking-widest text-slate-500"
+          style={{ writingMode: 'vertical-rl' }}
+        >
+          圖層 {layers.length}
+        </div>
+      </aside>
+    )
+  }
+
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
       <div className="flex items-center gap-1.5 border-b border-slate-200 px-3 py-2">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          title="收起圖層面板（把寬度讓給時間軸）"
+          className="-ml-1 rounded px-1 text-sm text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+        >
+          «
+        </button>
         <h2 className="text-sm font-bold text-slate-700">圖層</h2>
         {!readOnly && (
           <button

@@ -164,7 +164,8 @@ export function VerticalTimelineView({
   const svgRef = useRef<SVGSVGElement>(null)
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
-  const [measuredWidth, setMeasuredWidth] = useState(960)
+  // 0 = 還沒量到容器寬度。量到之前不畫，否則手機上會先用預設值畫成多欄再跳成單欄
+  const [measuredWidth, setMeasuredWidth] = useState(0)
   const width = exportMode?.width ?? measuredWidth
   // 「回到選取的事件」浮動鈕的方向（事件捲出畫面時才出現）
   const [returnDir, setReturnDir] = useState<'up' | 'down' | null>(null)
@@ -646,7 +647,8 @@ export function VerticalTimelineView({
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sources.length > 0]) // 空狀態沒有 svg，出現後要重掛監聽
+    // width > 0 也要進依賴：量到寬度前 svg 還沒畫出來，那時掛不上監聽
+  }, [sources.length > 0, width > 0]) // 空狀態沒有 svg，出現後要重掛監聽
 
   /** 把某個時間點捲到畫面中央 */
   const scrollToU = (u: number) => {
@@ -1100,6 +1102,12 @@ export function VerticalTimelineView({
             <text ref={rangeLabelRef} x={6} y={21} fontSize={10} fill="#94a3b8">
               {formatRangeLabel(layout.tView)}
             </text>
+            {/* 軸被拉長之後，畫面上只看得到一小段——順手告訴讀者整條軸有多長 */}
+            {!exportMode && layout.contentH > layout.baseH * 1.2 && (
+              <text x={width - 10} y={21} textAnchor="end" fontSize={10} fill="#cbd5e1">
+                {`全 ${formatRangeLabel([warp.toT(layout.axisDomain[0]), warp.toT(layout.axisDomain[1])])}`}
+              </text>
+            )}
             {mode === 'columns'
               ? layout.columns.map(({ rect, band, hidden }) =>
                   band ? (
@@ -1194,7 +1202,7 @@ export function VerticalTimelineView({
           reportDomain()
         }}
       >
-        {svgEl}
+        {width > 0 && svgEl}
       </div>
       {returnDir && selectedU != null && (
         <button
