@@ -1,6 +1,7 @@
 // 直式排版的數學測試：欄放不放得下、欄怎麼切、上下打架的事件怎麼錯開。
 import { describe, expect, it } from 'vitest'
 import {
+  centerColumnRects,
   columnRects,
   fitContentHeight,
   countDroppedLabels,
@@ -41,6 +42,7 @@ describe('columnRects：每欄的位置與寬度', () => {
     const rects = columnRects(664, 3)
     expect(rects.map((r) => r.x)).toEqual([RULER_W, RULER_W + 200, RULER_W + 400])
     expect(rects.map((r) => r.w)).toEqual([200, 200, 200])
+    expect(rects.every((r) => !r.mirrored)).toBe(true)
   })
 
   it('所有欄寬加總 = 扣掉刻度尺後的可用寬度（不多不少）', () => {
@@ -170,8 +172,9 @@ describe('fitContentHeight：擠不下就把軸拉長', () => {
 
 describe('visibleURange：畫面上真正看得到的那一段', () => {
   // 軸從 y=100 開始、長 1000px，對應時間 0–2000
+  const uAt = (y: number) => ((y - 100) / 1000) * 2000
   const call = (scrollTop: number, viewportH: number) =>
-    visibleURange(scrollTop, viewportH, 100, 1000, [0, 2000])
+    visibleURange(uAt, scrollTop, viewportH, [0, 2000])
 
   it('捲到最上面時，從整條軸的開頭算起', () => {
     expect(call(0, 500)).toEqual([0, 800])
@@ -193,6 +196,49 @@ describe('visibleURange：畫面上真正看得到的那一段', () => {
     const [a, b] = call(-500, 300)
     expect(a).toBeGreaterThanOrEqual(0)
     expect(b).toBeLessThanOrEqual(2000)
+  })
+
+  it('時間方向反過來（上面是晚、下面是早）時，回傳的範圍仍然由小到大', () => {
+    const reversedUAt = (y: number) => 2000 - ((y - 100) / 1000) * 2000
+    const [a, b] = visibleURange(reversedUAt, 600, 500, [0, 2000])
+    expect(a).toBeLessThan(b)
+    expect(a).toBe(0)
+    expect(b).toBe(1000)
+  })
+})
+
+describe('centerColumnRects：刻度尺置中、軸線分左右', () => {
+  it('兩條軸線剛好一邊一條，左邊那條是鏡像的', () => {
+    const { rulerX, columns } = centerColumnRects(664, 2)
+    expect(rulerX).toBe(300)
+    expect(columns.map((c) => c.mirrored)).toEqual([true, false])
+    expect(columns[0]).toEqual({ x: 0, w: 300, mirrored: true })
+    expect(columns[1]).toEqual({ x: 364, w: 300, mirrored: false })
+  })
+
+  it('刻度尺正好在中央，左右兩側一樣寬', () => {
+    const { rulerX, columns } = centerColumnRects(1000, 4)
+    const left = columns.filter((c) => c.mirrored)
+    const right = columns.filter((c) => !c.mirrored)
+    expect(rulerX).toBe((1000 - RULER_W) / 2)
+    expect(left.reduce((s, c) => s + c.w, 0)).toBeCloseTo(rulerX, 6)
+    expect(right.reduce((s, c) => s + c.w, 0)).toBeCloseTo(rulerX, 6)
+  })
+
+  it('單數條軸線時，多的那一條放右邊', () => {
+    const { columns } = centerColumnRects(1000, 3)
+    expect(columns.filter((c) => c.mirrored).length).toBe(1)
+    expect(columns.filter((c) => !c.mirrored).length).toBe(2)
+  })
+
+  it('只有一條軸線時全部放右邊（左側沒有東西可對照）', () => {
+    const { columns } = centerColumnRects(800, 1)
+    expect(columns.length).toBe(1)
+    expect(columns[0].mirrored).toBe(false)
+  })
+
+  it('沒有軸線時回傳空陣列', () => {
+    expect(centerColumnRects(800, 0).columns).toEqual([])
   })
 })
 

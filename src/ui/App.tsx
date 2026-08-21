@@ -214,6 +214,10 @@ export default function App() {
   const isVertical = orientation === 'vertical'
   // 圖層面板收合：小螢幕上把 288px 讓給時間軸（直式尤其有感——欄夠寬才不會被迫合流）
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+  // 直式專屬：時間方向反轉、刻度尺置中對照
+  const [reversed, setReversed] = useState(false)
+  const [centerAxis, setCenterAxis] = useState(false)
+
   // 窄螢幕的「顯示選項」下拉
   const [optionsOpen, setOptionsOpen] = useState(false)
   const optionsRef = useRef<HTMLDivElement>(null)
@@ -709,6 +713,8 @@ export default function App() {
             <VerticalTimelineView
               sources={visibleSources}
               collapseGaps={collapseGaps}
+              reversed={reversed}
+              centerAxis={centerAxis}
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
             />
@@ -812,6 +818,35 @@ export default function App() {
         />
         精簡模式
       </label>
+      {/* 只有直式才有意義的兩個選項 */}
+      {isVertical && (
+        <>
+          <label
+            className="flex items-center gap-1.5 text-sm text-slate-600"
+            title="最新的事件排在最上面，像新聞或社群那樣由新往舊讀"
+          >
+            <input
+              type="checkbox"
+              checked={reversed}
+              onChange={(e) => setReversed(e.target.checked)}
+              className="accent-slate-700"
+            />
+            最新的在上面
+          </label>
+          <label
+            className="flex items-center gap-1.5 text-sm text-slate-600"
+            title="年份刻度尺移到畫面中央，軸線分左右兩側，貼著同一根時間軸對照（需要兩條以上軸線）"
+          >
+            <input
+              type="checkbox"
+              checked={centerAxis}
+              onChange={(e) => setCenterAxis(e.target.checked)}
+              className="accent-slate-700"
+            />
+            刻度置中對照
+          </label>
+        </>
+      )}
     </>
   )
 
@@ -1007,6 +1042,8 @@ export default function App() {
               showDates={showDates}
               showYears={showYears}
               showRelations={showRelations}
+              reversed={reversed}
+              centerAxis={centerAxis}
               collapseGaps={collapseGaps}
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
@@ -1071,6 +1108,8 @@ export default function App() {
         showRelations={showRelations}
         collapseGaps={collapseGaps}
         compact={compact}
+        reversed={reversed}
+        centerAxis={centerAxis}
         onDownloaded={(coveredAll) => {
           // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
           if (coveredAll) setDirty(false)

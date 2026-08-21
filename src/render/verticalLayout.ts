@@ -27,15 +27,53 @@ export function pickVerticalMode(containerWidth: number, bandCount: number): Ver
   return (containerWidth - RULER_W) / bandCount >= MIN_COL_W ? 'columns' : 'merged'
 }
 
-/** columns 模式：算出每欄的 x 起點與寬度（加總剛好等於扣掉刻度尺後的可用寬度） */
-export function columnRects(
-  containerWidth: number,
-  bandCount: number,
-): Array<{ x: number; w: number }> {
+/** 一欄的位置。mirrored = 這一欄貼著中央刻度尺、圖形靠右、文字往左長 */
+export interface VerticalColumn {
+  x: number
+  w: number
+  mirrored: boolean
+}
+
+/** columns 模式：刻度尺在最左邊，每欄依序往右排 */
+export function columnRects(containerWidth: number, bandCount: number): VerticalColumn[] {
   if (bandCount <= 0) return []
   const available = Math.max(0, containerWidth - RULER_W)
   const w = available / bandCount
-  return Array.from({ length: bandCount }, (_, i) => ({ x: RULER_W + i * w, w }))
+  return Array.from({ length: bandCount }, (_, i) => ({
+    x: RULER_W + i * w,
+    w,
+    mirrored: false,
+  }))
+}
+
+/**
+ * 對照模式：刻度尺移到畫面正中央，軸線平均分到左右兩側。
+ *
+ * 左側那幾欄是**鏡像**的——圖形貼著中央的刻度尺、標題往左邊長出去，
+ * 這樣左右兩邊的事件都緊鄰同一根時間軸，同一個高度就是同一個時間，一眼就能對照。
+ */
+export function centerColumnRects(
+  containerWidth: number,
+  bandCount: number,
+): { rulerX: number; columns: VerticalColumn[] } {
+  if (bandCount <= 0) return { rulerX: 0, columns: [] }
+  const side = Math.max(0, (containerWidth - RULER_W) / 2)
+  const leftCount = Math.floor(bandCount / 2)
+  const rightCount = bandCount - leftCount
+  const columns: VerticalColumn[] = []
+  // 左側：由外往內排，最後一欄貼著刻度尺
+  if (leftCount > 0) {
+    const w = side / leftCount
+    for (let i = 0; i < leftCount; i++) columns.push({ x: i * w, w, mirrored: true })
+  }
+  // 右側：由刻度尺往外排
+  if (rightCount > 0) {
+    const w = side / rightCount
+    for (let i = 0; i < rightCount; i++) {
+      columns.push({ x: side + RULER_W + i * w, w, mirrored: false })
+    }
+  }
+  return { rulerX: side, columns }
 }
 
 /** 一個事件在垂直方向佔掉的範圍（含它的標題那一行） */
@@ -140,18 +178,16 @@ export function shapeGutter(
  * 左上角的範圍標籤要用這個算，否則標籤會說謊（寫著 1855–2030，眼前其實是 1856–1868）。
  */
 export function visibleURange(
+  uAt: (y: number) => number,
   scrollTop: number,
   viewportH: number,
-  axisTop: number,
-  contentH: number,
   domain: [number, number],
 ): [number, number] {
   const [d0, d1] = domain
-  const span = d1 - d0 || 1
   const clamp = (u: number) => Math.min(Math.max(u, d0), d1)
-  const uAt = (y: number) => d0 + ((y - axisTop) / (contentH || 1)) * span
   const a = clamp(uAt(scrollTop))
   const b = clamp(uAt(scrollTop + viewportH))
+  // 反轉時間方向時上面是「晚」、下面是「早」，回傳的範圍一律由小到大
   return a <= b ? [a, b] : [b, a]
 }
 

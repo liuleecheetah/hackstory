@@ -30,6 +30,12 @@ export interface ExportRequestBase {
   footer: string
 }
 
+/** 直式另外吃兩個排版選項，匯出的圖才會跟畫面上一致 */
+export interface VerticalExportRequest extends ExportRequestBase {
+  reversed: boolean
+  centerAxis: boolean
+}
+
 /** 橫式另外吃「精簡模式」——那是使用者調整「一張圖塞得下幾條軸線」的主要手段 */
 export interface HorizontalExportRequest extends ExportRequestBase {
   compact: boolean
@@ -106,7 +112,7 @@ function detach(svg: SVGSVGElement): SVGSVGElement {
  * （呼叫端自行決定要存成 SVG 還是 PNG）。
  */
 export function renderVerticalExportSvg(
-  req: ExportRequestBase,
+  req: VerticalExportRequest,
 ): Promise<VerticalExportResult> {
   return renderOffscreen(
     <VerticalTimelineView
@@ -115,6 +121,8 @@ export function renderVerticalExportSvg(
       showDates={req.showDates}
       showYears={req.showYears}
       showRelations={req.showRelations}
+      reversed={req.reversed}
+      centerAxis={req.centerAxis}
       collapseGaps={req.collapseGaps}
       exportMode={{
         width: req.width,

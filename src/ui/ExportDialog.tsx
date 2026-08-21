@@ -34,6 +34,10 @@ interface Props {
   collapseGaps?: boolean
   /** 精簡模式：橫式圖片塞不塞得下所有軸線，主要靠這個 */
   compact?: boolean
+  /** 直式：最新的在上面 */
+  reversed?: boolean
+  /** 直式：刻度尺置中對照 */
+  centerAxis?: boolean
 }
 
 /**
@@ -73,6 +77,8 @@ export function ExportDialog({
   showRelations = true,
   collapseGaps = false,
   compact = false,
+  reversed = false,
+  centerAxis = false,
 }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
@@ -127,7 +133,11 @@ export function ExportDialog({
           : [],
       }
     }
-    const { svg, hidden, narrowColumns } = await renderVerticalExportSvg(common)
+    const { svg, hidden, narrowColumns } = await renderVerticalExportSvg({
+      ...common,
+      reversed,
+      centerAxis,
+    })
     const warnings: string[] = []
     if (narrowColumns) {
       warnings.push('欄寬過窄，建議選更寬的比例，或在左側面板暫時隱藏部分圖層／軸線')
@@ -168,7 +178,19 @@ export function ExportDialog({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, ratio, viewDomain, sources, showDates, showYears, showRelations, collapseGaps, compact])
+  }, [
+    open,
+    ratio,
+    viewDomain,
+    sources,
+    showDates,
+    showYears,
+    showRelations,
+    collapseGaps,
+    compact,
+    reversed,
+    centerAxis,
+  ])
 
   if (!open) return null
 
