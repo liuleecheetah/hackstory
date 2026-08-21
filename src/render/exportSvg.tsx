@@ -19,6 +19,7 @@ export interface VerticalExportRequest {
   height: number
   showDates: boolean
   showYears: boolean
+  showRelations: boolean
   collapseGaps: boolean
   /** 圖片頂部的標題 */
   title: string
@@ -64,6 +65,7 @@ export function renderVerticalExportSvg(
         domain={req.domain}
         showDates={req.showDates}
         showYears={req.showYears}
+        showRelations={req.showRelations}
         collapseGaps={req.collapseGaps}
         exportMode={{
           width: req.width,

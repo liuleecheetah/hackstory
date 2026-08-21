@@ -14,7 +14,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
 import { estimateTextWidth } from './layout'
-import { buildBands, buildTimelineBase } from './timelineData'
+import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type { EventSelection, ScaleMode, ScaleRequest, TimelineSource } from './types'
@@ -56,6 +56,8 @@ interface Props {
   showYears?: boolean
   /** 是否摺疊大段空白（SPEC display.collapseGaps），預設不摺疊 */
   collapseGaps?: boolean
+  /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
+  showRelations?: boolean
   /** ui 層下的指令：「切到某個尺度」 */
   scaleRequest?: ScaleRequest | null
   /** 縮放後回報目前落在哪個尺度，讓 ui 層的按鈕高亮 */
@@ -134,6 +136,7 @@ export function VerticalTimelineView({
   showDates = true,
   showYears = true,
   collapseGaps = false,
+  showRelations = true,
   scaleRequest,
   onScaleModeChange,
   selectedKey,
@@ -150,6 +153,8 @@ export function VerticalTimelineView({
   const width = exportMode?.width ?? measuredWidth
   // 「回到選取的事件」浮動鈕的方向（事件捲出畫面時才出現）
   const [returnDir, setReturnDir] = useState<'up' | 'down' | null>(null)
+  // 滑鼠懸停的事件：不用點擊，關係線就會先亮起來（與橫式同語彙）
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null)
 
   // 資料準備與橫式共用同一份（timelineData），所以兩種方向不可能畫出不同的事件
   const base = useMemo(() => buildTimelineBase(sources, collapseGaps), [sources, collapseGaps])
@@ -200,21 +205,6 @@ export function VerticalTimelineView({
 
   // 匯出時一律多欄並排（寬度是使用者指定的，不做單欄合流的退場）
   const mode = exportMode ? 'columns' : pickVerticalMode(width, bands.length)
-
-  // 直式不畫關係線（V4 才做）。手機嵌入沒有工具列，讀者完全沒有線索——
-  // 所以在軸的開頭明講有幾組關係、以及怎麼看到它們。
-  const relationCount = useMemo(
-    () =>
-      sources.reduce((n, s) => {
-        const ids = new Set(s.doc.events.map((e) => e.id))
-        return (
-          n +
-          sameDocumentRelations(s.doc.relations).filter((r) => ids.has(r.from) && ids.has(r.to))
-            .length
-        )
-      }, 0),
-    [sources],
-  )
 
   // 單欄合流時每列開頭的軸線縮寫：同一份文件有多條軸就用軸線名，否則用文件名
   const abbrOf = useMemo(() => {
@@ -416,6 +406,61 @@ export function VerticalTimelineView({
     // 這一欄有幾件事件擠到畫不下標題（只剩圓點）——要讓使用者知道，不能默默藏起來
     const hiddenOf = (items: PlacedEvent[]) => items.filter((it) => it.labelY === null).length
 
+    // 每個事件圖形的中心點，供關係線定位
+    const anchors = new Map<string, { x: number; y: number }>()
+    for (const c of layoutColumns) {
+      for (const it of c.items) {
+        anchors.set(it.key, {
+          x: it.x + it.shapeW / 2,
+          y: it.isBar ? (it.yTop + it.yBot) / 2 : it.yTop,
+        })
+      }
+    }
+
+    // 關係線：只連同一份文件內、兩端都畫得出來的事件。
+    // 跨文件關係（fromDoc／toDoc）在這裡濾掉——事件 id 只在文件內唯一，
+    // 若不明確略過，外部 id 剛好與本文件事件同名時會畫出一條錯誤的線。
+    //
+    // 幾何是橫式那條曲線的鏡像：橫式讓曲線往上下鼓、共用一個 midY；
+    // 直式時間往下流，改成往左右鼓、共用一個 midX。
+    const relationLines = sources.flatMap((source) =>
+      sameDocumentRelations(source.doc.relations).flatMap((rel, i) => {
+        const fromKey = `${source.id}/${rel.from}`
+        const toKey = `${source.id}/${rel.to}`
+        const from = anchors.get(fromKey)
+        const to = anchors.get(toKey)
+        if (!from || !to) return []
+
+        // 同一欄（單欄合流時全部都是）：曲線往右鼓出去繞過中間的事件。
+        // 鼓多遠看兩件事隔多久——時間跨得愈遠的線繞得愈外面，
+        // 好幾條線才不會疊成一束看不出誰是誰
+        const sameColumn = Math.abs(from.x - to.x) < 12
+        const bow = Math.min(96, 32 + Math.abs(to.y - from.y) * 0.12)
+        const midX = sameColumn ? Math.max(from.x, to.x) + bow : (from.x + to.x) / 2
+        const d = sameColumn
+          ? `M ${from.x + 8} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x + 8} ${to.y}`
+          : `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`
+
+        const label = rel.label ?? RELATION_LABELS[rel.type] ?? rel.type
+        // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
+        const labelW = estimateTextWidth(label, 11) + 18
+        const labelX = Math.min(Math.max(midX, labelW / 2 + 4), width - labelW / 2 - 4)
+        return [
+          {
+            id: `${source.id}/rel-${i}`,
+            d,
+            fromKey,
+            toKey,
+            type: rel.type,
+            label,
+            labelW,
+            labelX,
+            labelY: (from.y + to.y) / 2,
+          },
+        ]
+      }),
+    )
+
     // 事件擠在最下面時，標題會被堆到軸的盡頭之外——SVG 要留得下它們
     const lowest = layoutColumns.reduce(
       (m, c) => c.items.reduce((n, it) => Math.max(n, it.labelY ?? 0, it.yBot), m),
@@ -453,6 +498,7 @@ export function VerticalTimelineView({
       headerTop,
       axisTop,
       contentH,
+      relationLines,
       columns: layoutColumns.map((c) => ({ ...c, hidden: hiddenOf(c.items) })),
       ticks,
       y,
@@ -462,7 +508,7 @@ export function VerticalTimelineView({
       hiddenTotal,
       narrowColumns,
     }
-  }, [bands, mode, width, warp, domain, abbrOf, exportMode])
+  }, [bands, sources, mode, width, warp, domain, abbrOf, exportMode])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -663,21 +709,16 @@ export function VerticalTimelineView({
           })}
           <line x1={RULER_W} x2={RULER_W} y1={HEADER_H} y2={layout.totalH} stroke="#e2e8f0" />
 
-        {/* 直式沒有關係線，但不能讓讀者以為這份時間軸沒有因果關聯 */}
-        {relationCount > 0 &&
-          (() => {
-            // 手機的寬度放不下完整句子，放不下就換短的——
-            // 寧可短，也不能截成半句話，把「點事件可以看」這個重點吃掉
-            const room = Math.max(0, width - RULER_W - COL_PAD * 2)
-            const full = `⇄ 這份時間軸有 ${relationCount} 組事件關係，直式不畫線——點事件可以看到`
-            const brief = `⇄ ${relationCount} 組事件關係：點事件查看`
-            const text = estimateTextWidth(full, 11) <= room ? full : fitText(brief, room, 11)
-            return (
-              <text x={RULER_W + COL_PAD} y={layout.axisTop - 6} fontSize={11} fill="#b45309">
-                {text}
-              </text>
-            )
-          })()}
+        {/* 單欄合流時關係線要點了才畫，所以得先讓讀者知道「有關係可以看」 */}
+        {showRelations && mode === 'merged' && layout.relationLines.length > 0 && (
+          <text x={RULER_W + COL_PAD} y={layout.axisTop - 6} fontSize={11} fill="#b45309">
+            {fitText(
+              `⇄ ${layout.relationLines.length} 組事件關係：點事件查看`,
+              Math.max(0, width - RULER_W - COL_PAD * 2),
+              11,
+            )}
+          </text>
+        )}
 
         {/* 斷軸記號：⫽ 加上「略過多久」，虛線橫貫全寬。
             沒有這個記號，讀者會以為 1870→1888 跟 1950→1953 佔一樣的高度是等比例的 */}
@@ -717,6 +758,47 @@ export function VerticalTimelineView({
           )
         })}
 
+          {/* 事件關係線（畫在事件圖形下方；點選或滑過事件時相關的線會亮起）。
+              單欄合流（手機）時所有關係都變成同一欄內的長弧線，全部畫出來會糊成一團——
+              所以那個模式改成「點了才顯示該事件的關係」，畫面乾淨，關係也只差一下點擊 */}
+          {showRelations && layout.relationLines.length > 0 && (
+            <g pointerEvents="none">
+              <defs>
+                <marker
+                  id="hst-rel-arrow-v"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="6.5"
+                  markerHeight="6.5"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+                </marker>
+              </defs>
+              {layout.relationLines.map(({ id, d, fromKey, toKey, type }) => {
+                const active =
+                  selectedKey === fromKey ||
+                  selectedKey === toKey ||
+                  hoveredKey === fromKey ||
+                  hoveredKey === toKey
+                if (mode === 'merged' && !active) return null
+                return (
+                  <path
+                    key={id}
+                    d={d}
+                    fill="none"
+                    stroke={active ? '#d97706' : '#94a3b8'}
+                    strokeWidth={active ? 2.5 : 1.25}
+                    strokeDasharray={type === 'same_event' ? '4 3' : undefined}
+                    opacity={active ? 0.95 : 0.35}
+                    markerEnd="url(#hst-rel-arrow-v)"
+                  />
+                )
+              })}
+            </g>
+          )}
+
           {/* 事件 */}
           {layout.columns.map(({ band, items }, ci) => (
             <g key={band ? `${band.key}-ev` : `merged-ev-${ci}`}>
@@ -731,6 +813,8 @@ export function VerticalTimelineView({
                   <g
                     key={it.key}
                     className={onEventSelect ? 'cursor-pointer' : undefined}
+                    onMouseEnter={() => setHoveredKey(it.key)}
+                    onMouseLeave={() => setHoveredKey((prev) => (prev === it.key ? null : prev))}
                     onClick={(e) => {
                       if (!onEventSelect) return
                       e.stopPropagation()
@@ -895,6 +979,44 @@ export function VerticalTimelineView({
               })}
             </g>
           ))}
+
+          {/* 亮起的關係說明標籤：畫在最上層，白底圓角框，不與事件文字交疊 */}
+          {showRelations && (
+            <g pointerEvents="none">
+              {layout.relationLines
+                .filter(
+                  ({ fromKey, toKey }) =>
+                    selectedKey === fromKey ||
+                    selectedKey === toKey ||
+                    hoveredKey === fromKey ||
+                    hoveredKey === toKey,
+                )
+                .map(({ id, label, labelW, labelX, labelY }) => (
+                  <g key={`${id}-label`}>
+                    <rect
+                      x={labelX - labelW / 2}
+                      y={labelY - 10}
+                      width={labelW}
+                      height={20}
+                      rx={10}
+                      fill="#fffbeb"
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={labelX}
+                      y={labelY + 4}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fontWeight={600}
+                      fill="#b45309"
+                    >
+                      {label}
+                    </text>
+                  </g>
+                ))}
+            </g>
+          )}
 
           {/* 欄標題列：捲動時固定在畫面上緣，讀到一半也知道自己在看哪一欄 */}
           <g ref={headerRef}>

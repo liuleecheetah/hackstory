@@ -30,6 +30,7 @@ interface Props {
   viewDomain?: [number, number] | null
   showDates?: boolean
   showYears?: boolean
+  showRelations?: boolean
   collapseGaps?: boolean
 }
 
@@ -60,6 +61,7 @@ export function ExportDialog({
   viewDomain,
   showDates = true,
   showYears = true,
+  showRelations = true,
   collapseGaps = false,
 }: Props) {
   const [message, setMessage] = useState<string | null>(null)
@@ -97,6 +99,7 @@ export function ExportDialog({
       height: p.h,
       showDates,
       showYears,
+      showRelations,
       collapseGaps,
       title: imageTitle,
       footer: imageFooter,
@@ -140,7 +143,7 @@ export function ExportDialog({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, ratio, viewDomain, sources, showDates, showYears, collapseGaps])
+  }, [open, ratio, viewDomain, sources, showDates, showYears, showRelations, collapseGaps])
 
   if (!open) return null
 
