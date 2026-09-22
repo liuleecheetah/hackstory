@@ -29,6 +29,7 @@ import { THEMES } from '../render/theme'
 import type { RelationInfo } from './EventDetailCard'
 import { EventDetailCard } from './EventDetailCard'
 import { ExportDialog } from './ExportDialog'
+import { ExportStudio } from './ExportStudio'
 import { RelationDialog } from './RelationDialog'
 import { ImportDialog } from './ImportDialog'
 import { LayerPanel } from './LayerPanel'
@@ -185,6 +186,8 @@ export default function App() {
   const [activeMode, setActiveMode] = useState<ScaleMode>('year')
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  // 出圖工作室（全螢幕）：做簡報、社群用的圖
+  const [studioOpen, setStudioOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [showDates, setShowDates] = useState(true)
   const [showYears, setShowYears] = useState(true)
@@ -776,6 +779,7 @@ export default function App() {
         dirty={dirty}
         saveStatus={saveStatus}
         onOpenExport={() => setExportOpen(true)}
+        onOpenStudio={() => setStudioOpen(true)}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -869,8 +873,22 @@ export default function App() {
         onClose={() => setExportOpen(false)}
         layers={layers}
         orientation={orientation}
-        sources={visibleSources}
+        onOpenStudio={() => {
+          setExportOpen(false)
+          setStudioOpen(true)
+        }}
+        onDownloaded={(coveredAll) => {
+          // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
+          if (coveredAll) setDirty(false)
+        }}
+      />
+      <ExportStudio
+        open={studioOpen}
+        onClose={() => setStudioOpen(false)}
+        layers={layers}
+        hiddenTracks={hiddenTracks}
         viewDomain={viewDomain}
+        orientation={orientation}
         showDates={showDates}
         showYears={showYears}
         showRelations={showRelations}
@@ -878,10 +896,6 @@ export default function App() {
         compact={compact}
         reversed={reversed}
         centerAxis={centerAxis}
-        onDownloaded={(coveredAll) => {
-          // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
-          if (coveredAll) setDirty(false)
-        }}
       />
       {selection && cardVisible && (
         <EventDetailCard

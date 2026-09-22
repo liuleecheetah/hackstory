@@ -7,6 +7,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import type { HstEvent, Relation, TimelineDocument, Track } from '../core'
 import { nextRelationId, removeEventFromDocument, removeRelationFrom } from '../core'
 import { DEFAULT_PALETTE } from '../render/theme'
+import type { TimelineSource } from '../render/types'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -19,6 +20,47 @@ export interface Layer {
 
 /** 圖層預設輪流使用的顏色：跟時間軸共用同一組色盲安全色盤 */
 const LAYER_PALETTE = DEFAULT_PALETTE
+
+/**
+ * 把圖層清單變成 render 要畫的資料來源。
+ *
+ * 被暫時隱藏的軸線（連同其事件）在這裡就濾掉——render 層拿到的 doc 就是該畫的資料，
+ * 不需要知道「隱藏」這個概念（分層鐵律）。
+ * 唯一的例外是 fullDoc：相對時間必須靠完整的錨點才推算得準，見下方說明。
+ *
+ * 畫面上用「圖層是否顯示」與面板上的隱藏軸線；出圖工作室則用它自己勾選的那一組，
+ * 兩邊共用同一套規則，才不會畫出不一樣的東西。
+ *
+ * @param isLayerOn 這個圖層要不要畫
+ * @param hiddenTracks 被隱藏的軸線，鍵為「圖層 id/軸線 id」
+ */
+export function sourcesFor(
+  layers: Layer[],
+  isLayerOn: (layer: Layer) => boolean,
+  hiddenTracks: ReadonlySet<string>,
+): TimelineSource[] {
+  return (
+    layers
+      .filter(isLayerOn)
+      .map(({ id, doc, color }) => {
+        // 「本來是不是多軸」以原始文件為準，傳給 render 決定標題與配色，
+        // 這樣隱藏到只剩一條時，那條軸仍保留軸線名與軸線配色
+        const multiTrack = doc.tracks.length > 1
+        // 這個圖層沒有任何被隱藏的軸線 → 原樣傳下去，保持物件 identity 避免不必要的重算
+        const hidden = new Set(
+          doc.tracks.map((t) => t.id).filter((tid) => hiddenTracks.has(`${id}/${tid}`)),
+        )
+        if (hidden.size === 0) return { id, doc, color, multiTrack }
+        const tracks = doc.tracks.filter((t) => !hidden.has(t.id))
+        const events = doc.events.filter((e) => !hidden.has(e.track))
+        // fullDoc 附上完整文件供相對時間求解：隱藏軸線只該影響「畫什麼」，
+        // 不該讓可見軸線上、錨定在隱藏事件的相對時間事件變成無法推估而消失
+        return { id, doc: { ...doc, tracks, events }, color, multiTrack, fullDoc: doc }
+      })
+      // 整份文件的軸線都被隱藏 → 這個圖層暫時不畫
+      .filter((s) => s.doc.tracks.length > 0)
+  )
+}
 
 export function useLayers(initialDocs: TimelineDocument[]) {
   // 遞增序號：產生圖層 id 與輪流配色
@@ -295,33 +337,9 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     })
   }, [])
 
-  /**
-   * 給 render 層畫的資料：只含可見圖層，依面板順序排列。
-   * 被暫時隱藏的軸線（連同其事件）在這裡就濾掉——render 層拿到的 doc 就是該畫的資料，
-   * 不需要知道「隱藏」這個概念（分層鐵律）。
-   * 唯一的例外是 fullDoc：相對時間必須靠完整的錨點才推算得準，見下方說明。
-   */
+  /** 給 render 層畫的資料：只含可見圖層，依面板順序排列（規則見 sourcesFor） */
   const visibleSources = useMemo(
-    () =>
-      layers
-        .filter((l) => l.visible)
-        .map(({ id, doc, color }) => {
-          // 「本來是不是多軸」以原始文件為準，傳給 render 決定標題與配色，
-          // 這樣隱藏到只剩一條時，那條軸仍保留軸線名與軸線配色
-          const multiTrack = doc.tracks.length > 1
-          // 這個圖層沒有任何被隱藏的軸線 → 原樣傳下去，保持物件 identity 避免不必要的重算
-          const hidden = new Set(
-            doc.tracks.map((t) => t.id).filter((tid) => hiddenTracks.has(`${id}/${tid}`)),
-          )
-          if (hidden.size === 0) return { id, doc, color, multiTrack }
-          const tracks = doc.tracks.filter((t) => !hidden.has(t.id))
-          const events = doc.events.filter((e) => !hidden.has(e.track))
-          // fullDoc 附上完整文件供相對時間求解：隱藏軸線只該影響「畫什麼」，
-          // 不該讓可見軸線上、錨定在隱藏事件的相對時間事件變成無法推估而消失
-          return { id, doc: { ...doc, tracks, events }, color, multiTrack, fullDoc: doc }
-        })
-        // 整份文件的軸線都被隱藏 → 這個圖層暫時不畫
-        .filter((s) => s.doc.tracks.length > 0),
+    () => sourcesFor(layers, (l) => l.visible, hiddenTracks),
     [layers, hiddenTracks],
   )
 

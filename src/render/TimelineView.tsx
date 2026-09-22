@@ -72,6 +72,8 @@ export interface HorizontalExportOptions {
   svgId: string
   /** 圖片頂部的標題（通常是文件名） */
   title: string
+  /** 標題下方的副標（選填；有值時標題列會加高） */
+  subtitle?: string
   /** 圖片底部的出處小字 */
   footer: string
 }
@@ -89,6 +91,7 @@ const SCALE_SPANS: Record<Exclude<ScaleMode, 'year'>, number> = {
 const MIN_SPAN = DAY / 4 // 最多放大到 6 小時
 const MAX_SPAN = 400 * 365 * DAY // 最多縮小到 400 年
 const BASE_TITLE_H = 42 // 匯出圖片頂部的標題列
+const BASE_TITLE_SUB_H = 64 // 有副標時的標題列
 const BASE_FOOTER_H = 22 // 匯出圖片底部的出處小字
 
 export function TimelineView({
@@ -124,7 +127,7 @@ export function TimelineView({
   const F = T.font
   const S = T.scale
   const AXIS_H = BASE_AXIS_H * S
-  const TITLE_H = BASE_TITLE_H * S
+  const TITLE_H = (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
   const FOOTER_H = BASE_FOOTER_H * S
   const M = useMemo(
     () => ({
@@ -525,6 +528,11 @@ export function TimelineView({
             <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
               {truncate(exportMode.title, 40)}
             </text>
+            {exportMode.subtitle && (
+              <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
+                {truncate(exportMode.subtitle, 60)}
+              </text>
+            )}
             <clipPath id="hst-export-clip">
               <rect x={0} y={0} width={width} height={exportAvailH} />
             </clipPath>

@@ -7,6 +7,8 @@
 // 做法：自架的字型 CSS 把思源黑體切成約一百片，每片涵蓋一段字元範圍（unicode-range）。
 // 掃描圖上實際出現的字，只挑需要的那幾片、轉成 base64 塞進 SVG——不必整套字型都放進去。
 
+import { serializeSvg, svgToPngBlob } from './export'
+
 /** 字型的一個切片：粗細、檔案網址、涵蓋的字元範圍 */
 export interface FontSlice {
   family: string
@@ -151,4 +153,26 @@ export async function embeddedFontCssForText(
     css: await buildEmbeddedFontCss(requiredSlices(text, slices)),
     missing: uncoveredChars(text, slices),
   }
+}
+
+/**
+ * SVG 元素 → 嵌好思源黑體的 PNG。
+ * missing：不在思源黑體裡、會用替代字型的字（呼叫端要告訴使用者，不靜默換字）
+ */
+export async function svgToPngWithFonts(
+  svg: SVGSVGElement,
+  width: number,
+  height: number,
+  opts: { scale?: number; background?: string } = {},
+): Promise<{ blob: Blob; missing: string[] }> {
+  const { css, missing } = await embeddedFontCssForText(svg.textContent ?? '')
+  const text = serializeSvg(svg, { embeddedFontCss: css, background: opts.background })
+  return { blob: await svgToPngBlob(text, width, height, opts.scale ?? 2), missing }
+}
+
+/** 「有 N 個字會用替代字型」的提醒文字；沒有就回傳空字串 */
+export function missingGlyphNote(missing: string[]): string {
+  if (missing.length === 0) return ''
+  const shown = missing.slice(0, 5).join('、') + (missing.length > 5 ? '…' : '')
+  return `有 ${missing.length} 個字不在思源黑體裡，會用替代字型（${shown}）`
 }

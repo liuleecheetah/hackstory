@@ -21,7 +21,10 @@ export function embedCode(url: string): string {
  * embeddedFontCss：要嵌進去的字型樣式（由 fonts.ts 產生）。PNG 一定要帶，
  * 不然轉檔時看不到思源黑體；SVG 檔可選——帶了檔案會大，但在沒裝字型的電腦上也正確。
  */
-export function serializeSvg(svg: SVGSVGElement, opts: { embeddedFontCss?: string } = {}): string {
+export function serializeSvg(
+  svg: SVGSVGElement,
+  opts: { embeddedFontCss?: string; background?: string } = {},
+): string {
   const clone = svg.cloneNode(true) as SVGSVGElement
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   // 思源黑體排第一：跟網頁畫面同一套字；沒嵌字型、電腦也沒裝時才退回系統字
@@ -37,7 +40,7 @@ export function serializeSvg(svg: SVGSVGElement, opts: { embeddedFontCss?: strin
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
   bg.setAttribute('width', '100%')
   bg.setAttribute('height', '100%')
-  bg.setAttribute('fill', '#ffffff')
+  bg.setAttribute('fill', opts.background ?? '#ffffff')
   // 白底要畫在字型樣式之後、所有內容之前
   clone.insertBefore(bg, opts.embeddedFontCss ? clone.firstChild!.nextSibling : clone.firstChild)
   return new XMLSerializer().serializeToString(clone)
@@ -75,6 +78,22 @@ export async function svgToPngBlob(
     )
   } finally {
     URL.revokeObjectURL(url)
+  }
+}
+
+/**
+ * 把 PNG 複製到剪貼簿，可以直接貼進 Keynote／PowerPoint／Google 簡報。
+ * 傳入「還在產生中的 PNG」：Safari 規定要在按下按鈕的當下就開始寫剪貼簿，
+ * 等圖做好才寫會被拒絕，所以把「等待」交給剪貼簿自己處理。
+ * 回傳 false 代表這個瀏覽器不讓複製（呼叫端改成下載）。
+ */
+export async function copyPngToClipboard(png: Promise<Blob>): Promise<boolean> {
+  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) return false
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+    return true
+  } catch {
+    return false
   }
 }
 

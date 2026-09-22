@@ -70,6 +70,7 @@ export interface ToolbarProps {
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   // 輸出
   onOpenExport: () => void
+  onOpenStudio: () => void
 }
 
 /** 分段切換按鈕的樣式：選到的是強調色底 */
@@ -100,6 +101,7 @@ export function Toolbar(props: ToolbarProps) {
     dirty,
     saveStatus,
     onOpenExport,
+    onOpenStudio,
   } = props
   const isVertical = orientation === 'vertical'
 
@@ -353,8 +355,16 @@ export function Toolbar(props: ToolbarProps) {
         )}
       </div>
 
-      {/* ── 輸出（出圖工作室、會議模式之後加在這裡）── */}
+      {/* ── 輸出（會議模式之後加在這裡）── */}
       <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenStudio}
+          title="選版型、比例、主題與標題，做簡報或社群用的圖"
+          className="btn"
+        >
+          出圖工作室
+        </button>
         <button type="button" onClick={onOpenExport} className="btn">
           匯出／分享
         </button>

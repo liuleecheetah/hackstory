@@ -54,6 +54,8 @@ export interface VerticalExportOptions {
   svgId: string
   /** 圖片頂部的標題（通常是文件名） */
   title: string
+  /** 標題下方的副標（選填；有值時標題列會加高） */
+  subtitle?: string
   /** 圖片底部的出處小字 */
   footer: string
 }
@@ -121,6 +123,7 @@ function verticalSizes(T: RenderTheme) {
     KEY_BAR_W: T.keyBarH,
     MIN_BAR_H: 10 * S, // 很短的區間事件至少畫這麼長，才看得見
     TITLE_H: 42 * S, // 匯出圖片頂部的標題列
+    TITLE_SUB_H: 64 * S, // 有副標時的標題列
     FOOTER_H: 22 * S, // 匯出圖片底部的出處小字
     ROW_H: 96 * S, // 一個事件「舒服讀」大概需要的高度（決定整條軸最長拉到多長）
     // 標題最多可以離自己的時間位置多遠。超過就不畫標題，只留圓點——
@@ -209,7 +212,8 @@ export function VerticalTimelineView({
     BAR_W,
     KEY_BAR_W,
     MIN_BAR_H,
-    TITLE_H,
+    TITLE_H: TITLE_ONLY_H,
+    TITLE_SUB_H,
     FOOTER_H,
     ROW_H,
     MAX_DRIFT,
@@ -217,6 +221,7 @@ export function VerticalTimelineView({
     RULER_W,
     MIN_COL_W,
   } = useMemo(() => verticalSizes(T), [T])
+  const TITLE_H = exportMode?.subtitle ? TITLE_SUB_H : TITLE_ONLY_H
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
   // 0 = 還沒量到容器寬度。量到之前不畫，否則手機上會先用預設值畫成多欄再跳成單欄
@@ -1228,6 +1233,11 @@ export function VerticalTimelineView({
                 <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
                   {fitText(exportMode.title, width - 28 * S, F.title)}
                 </text>
+                {exportMode.subtitle && (
+                  <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
+                    {fitText(exportMode.subtitle, width - 28 * S, F.subtitle)}
+                  </text>
+                )}
               </>
             )}
             <g transform={`translate(0 ${layout.headerTop})`}>

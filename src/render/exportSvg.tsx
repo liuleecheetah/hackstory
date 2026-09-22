@@ -8,6 +8,8 @@
 
 import type { ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { RenderTheme } from './theme'
+import { buildTimelineBase } from './timelineData'
 import { TimelineView } from './TimelineView'
 import type { TimelineSource } from './types'
 import { VerticalTimelineView } from './VerticalTimelineView'
@@ -15,8 +17,10 @@ import { VerticalTimelineView } from './VerticalTimelineView'
 /** 直式與橫式共用的匯出參數 */
 export interface ExportRequestBase {
   sources: TimelineSource[]
-  /** 目前畫面的可視範圍（壓縮座標 u）——所見即所得 */
-  domain: [number, number]
+  /** 目前畫面的可視範圍（壓縮座標 u）——所見即所得。與 timeRange 擇一；都沒給就畫全部 */
+  domain?: [number, number]
+  /** 用真實時間（毫秒）指定範圍，例如「1980 到 2020 年」。優先於 domain */
+  timeRange?: [number, number]
   /** 邏輯尺寸（像素） */
   width: number
   height: number
@@ -26,8 +30,25 @@ export interface ExportRequestBase {
   collapseGaps: boolean
   /** 圖片頂部的標題 */
   title: string
+  /** 標題下方的副標（選填） */
+  subtitle?: string
   /** 圖片底部的出處小字 */
   footer: string
+  /** 主題（字級、尺寸、配色），預設螢幕主題 */
+  theme?: RenderTheme
+}
+
+/**
+ * 決定要畫哪一段時間（壓縮座標 u）。
+ * 真實時間要先經過「摺疊空白」的換算，才對得上時間軸的座標——這是 render 的知識，
+ * 所以 ui 只要說「1980 到 2020 年」，換算留在這裡做。
+ */
+function resolveDomain(req: ExportRequestBase): [number, number] {
+  if (!req.timeRange && req.domain) return req.domain
+  const { warp, initialDomain } = buildTimelineBase(req.sources, req.collapseGaps)
+  if (!req.timeRange) return initialDomain
+  const [a, b] = req.timeRange
+  return [warp.toU(Math.min(a, b)), warp.toU(Math.max(a, b))]
 }
 
 /** 直式另外吃兩個排版選項，匯出的圖才會跟畫面上一致 */
@@ -117,7 +138,8 @@ export function renderVerticalExportSvg(
   return renderOffscreen(
     <VerticalTimelineView
       sources={req.sources}
-      domain={req.domain}
+      domain={resolveDomain(req)}
+      theme={req.theme}
       showDates={req.showDates}
       showYears={req.showYears}
       showRelations={req.showRelations}
@@ -129,6 +151,7 @@ export function renderVerticalExportSvg(
         height: req.height,
         svgId: OFFSCREEN_ID,
         title: req.title,
+        subtitle: req.subtitle,
         footer: req.footer,
       }}
     />,
@@ -147,7 +170,8 @@ export function renderHorizontalExportSvg(
   return renderOffscreen(
     <TimelineView
       sources={req.sources}
-      domain={req.domain}
+      domain={resolveDomain(req)}
+      theme={req.theme}
       showDates={req.showDates}
       showYears={req.showYears}
       showRelations={req.showRelations}
@@ -158,6 +182,7 @@ export function renderHorizontalExportSvg(
         height: req.height,
         svgId: OFFSCREEN_ID,
         title: req.title,
+        subtitle: req.subtitle,
         footer: req.footer,
       }}
     />,

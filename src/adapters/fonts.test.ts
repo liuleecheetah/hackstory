@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseFontCss, parseUnicodeRange, requiredSlices, uncoveredChars } from './fonts'
+import {
+  missingGlyphNote,
+  parseFontCss,
+  parseUnicodeRange,
+  requiredSlices,
+  uncoveredChars,
+} from './fonts'
 
 // 直接拿網站上真正的自架字型 CSS 來測，而不是自己編一份
 const CSS = readFileSync(new URL('../../public/fonts/noto-sans-tc/noto-sans-tc.css', import.meta.url), 'utf8')
@@ -63,5 +69,16 @@ describe('uncoveredChars：沒有字型的字要誠實列出', () => {
 
   it('罕見字（擴充 B 區的𠀋）列出來，而且不重複', () => {
     expect(uncoveredChars('𠀋𠀋與常用字', slices)).toEqual(['𠀋'])
+  })
+})
+
+describe('missingGlyphNote：替代字型的提醒文字', () => {
+  it('沒有缺字就不提醒', () => {
+    expect(missingGlyphNote([])).toBe('')
+  })
+
+  it('列出缺的字，超過五個以刪節號帶過', () => {
+    expect(missingGlyphNote(['𠀋'])).toBe('有 1 個字不在思源黑體裡，會用替代字型（𠀋）')
+    expect(missingGlyphNote(['a', 'b', 'c', 'd', 'e', 'f'])).toContain('（a、b、c、d、e…）')
   })
 })

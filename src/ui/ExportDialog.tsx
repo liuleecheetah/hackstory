@@ -1,21 +1,18 @@
 // ui 層：匯出對話框
 // 下載各圖層的 .hst.json、把目前畫面存成 SVG / PNG、複製 iframe 嵌入碼。
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   documentToJson,
   downloadBlob,
   downloadText,
   embedCode,
   serializeSvg,
-  svgToPngBlob,
 } from '../adapters/export'
-import { embeddedFontCssForText } from '../adapters/fonts'
+import { missingGlyphNote, svgToPngWithFonts } from '../adapters/fonts'
 import { documentToMarkdown } from '../adapters/markdown'
 import type { Layer } from '../compose/useLayers'
 import { validateDocument } from '../core'
-import { renderHorizontalExportSvg, renderVerticalExportSvg } from '../render/exportSvg'
-import type { TimelineSource } from '../render/types'
 
 interface Props {
   open: boolean
@@ -25,42 +22,9 @@ interface Props {
   onDownloaded?: (coveredAll: boolean) => void
   /** 目前的檢視方向：分享出去的連結要跟「我現在看到的樣子」一致 */
   orientation?: 'horizontal' | 'vertical'
-  /** 目前顯示中的圖層（比例匯出要重畫一張，所以需要原始資料） */
-  sources?: TimelineSource[]
-  /** 目前畫面的可視時間範圍（壓縮座標 u）——比例匯出照這個範圍出圖 */
-  viewDomain?: [number, number] | null
-  showDates?: boolean
-  showYears?: boolean
-  showRelations?: boolean
-  collapseGaps?: boolean
-  /** 精簡模式：橫式圖片塞不塞得下所有軸線，主要靠這個 */
-  compact?: boolean
-  /** 直式：最新的在上面 */
-  reversed?: boolean
-  /** 直式：刻度尺置中對照 */
-  centerAxis?: boolean
+  /** 開啟出圖工作室（比例出圖搬到那裡了） */
+  onOpenStudio: () => void
 }
-
-/**
- * 圖片比例。w/h 是邏輯尺寸，PNG 一律 2 倍輸出
- * （9:16 → 1080×1920、16:9 → 1920×1080）。
- *
- * dir 決定用哪一種畫法重畫：直式是長圖，橫式是時間由左往右。
- */
-const RATIO_PRESETS = [
-  { id: '9-16', dir: 'v', label: '9:16', hint: '手機全螢幕／限時動態', w: 540, h: 960 },
-  { id: '4-5', dir: 'v', label: '4:5', hint: '社群貼文（直式）', w: 540, h: 675 },
-  { id: '3-4', dir: 'v', label: '3:4', hint: '一般直式', w: 540, h: 720 },
-  { id: '1-1', dir: 'v', label: '1:1', hint: '方形', w: 540, h: 540 },
-  { id: 'a4', dir: 'v', label: 'A4', hint: '直式列印', w: 620, h: 877 },
-  { id: '16-9', dir: 'h', label: '16:9', hint: '簡報／YouTube', w: 960, h: 540 },
-  { id: 'og', dir: 'h', label: '1.91:1', hint: '臉書／分享預覽圖', w: 600, h: 315 },
-  { id: '2-1', dir: 'h', label: '2:1', hint: 'X（Twitter）', w: 600, h: 300 },
-  { id: '4-3', dir: 'h', label: '4:3', hint: '傳統簡報', w: 800, h: 600 },
-  { id: 'a4-land', dir: 'h', label: 'A4', hint: '橫式列印', w: 877, h: 620 },
-] as const
-
-type RatioId = (typeof RATIO_PRESETS)[number]['id']
 
 /** 畫面上時間軸 SVG 的 id（render 層掛的） */
 const SVG_ID = 'hackstory-timeline-svg'
@@ -71,141 +35,18 @@ export function ExportDialog({
   layers,
   onDownloaded,
   orientation = 'horizontal',
-  sources = [],
-  viewDomain,
-  showDates = true,
-  showYears = true,
-  showRelations = true,
-  collapseGaps = false,
-  compact = false,
-  reversed = false,
-  centerAxis = false,
+  onOpenStudio,
 }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
   const [shareSrc, setShareSrc] = useState('')
-  // 比例匯出：選中的比例、縮圖預覽、以及畫不好時要提醒的話
-  const [ratio, setRatio] = useState<RatioId | null>(null)
-  const [preview, setPreview] = useState<{ url: string; warnings: string[] } | null>(null)
-  const [previewBusy, setPreviewBusy] = useState(false)
 
   const say = (msg: string, ms = 3000) => {
     setMessage(msg)
     window.setTimeout(() => setMessage(null), ms)
   }
 
-  /**
-   * SVG → PNG，並把圖上用到的思源黑體切片嵌進去（不嵌的話 PNG 會變成系統字）。
-   * 有字不在思源黑體裡時，回傳一句提醒，不靜默換字。
-   */
-  const pngWithFonts = async (svg: SVGSVGElement, w: number, h: number) => {
-    const { css, missing } = await embeddedFontCssForText(svg.textContent ?? '')
-    const blob = await svgToPngBlob(serializeSvg(svg, { embeddedFontCss: css }), w, h, 2)
-    const note =
-      missing.length > 0
-        ? `；有 ${missing.length} 個字不在思源黑體裡，會用替代字型（${missing.slice(0, 5).join('、')}${missing.length > 5 ? '…' : ''}）`
-        : ''
-    return { blob, note }
-  }
 
-  const preset = RATIO_PRESETS.find((r) => r.id === ratio) ?? null
-
-  /** 圖片頂部標題與底部出處：讓輸出的圖自帶脈絡 */
-  const imageTitle =
-    layers.length === 1
-      ? layers[0].doc.meta.title
-      : layers.length > 1
-        ? `${layers[0].doc.meta.title} 等 ${layers.length} 份`
-        : 'HackStory'
-  const today = new Date()
-  const imageFooter = `以 HackStory 製作 · ${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`
-
-  /** 依選的比例重畫一張圖：直式比例畫成長圖，橫式比例畫成時間由左往右 */
-  const renderRatio = async (
-    p: NonNullable<typeof preset>,
-  ): Promise<{ svg: SVGSVGElement; warnings: string[] }> => {
-    if (!viewDomain) throw new Error('還沒有可以出圖的時間範圍')
-    const common = {
-      sources,
-      domain: viewDomain,
-      width: p.w,
-      height: p.h,
-      showDates,
-      showYears,
-      showRelations,
-      collapseGaps,
-      title: imageTitle,
-      footer: imageFooter,
-    }
-    if (p.dir === 'h') {
-      const { svg, overflow } = await renderHorizontalExportSvg({ ...common, compact })
-      return {
-        svg,
-        warnings: overflow
-          ? [
-              '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、暫時隱藏部分圖層／軸線，或改用直式長圖',
-            ]
-          : [],
-      }
-    }
-    const { svg, hidden, narrowColumns } = await renderVerticalExportSvg({
-      ...common,
-      reversed,
-      centerAxis,
-    })
-    const warnings: string[] = []
-    if (narrowColumns) {
-      warnings.push('欄寬過窄，建議選更寬的比例，或在左側面板暫時隱藏部分圖層／軸線')
-    }
-    if (hidden > 0) {
-      warnings.push(
-        `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請先在畫面上縮放到較短的期間，或選更長的比例`,
-      )
-    }
-    return { svg, warnings }
-  }
-
-  // 選了比例（或畫面範圍改了）就重畫縮圖預覽
-  useEffect(() => {
-    if (!open || !preset || !viewDomain || sources.length === 0) {
-      setPreview(null)
-      setPreviewBusy(false)
-      return
-    }
-    let cancelled = false
-    setPreviewBusy(true)
-    void renderRatio(preset)
-      .then(({ svg, warnings }) => {
-        if (cancelled) return
-        const text = serializeSvg(svg)
-        setPreview({
-          url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text)}`,
-          warnings,
-        })
-      })
-      .catch((e: Error) => {
-        if (!cancelled) say(`預覽失敗：${e.message}`)
-      })
-      .finally(() => {
-        if (!cancelled) setPreviewBusy(false)
-      })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    open,
-    ratio,
-    viewDomain,
-    sources,
-    showDates,
-    showYears,
-    showRelations,
-    collapseGaps,
-    compact,
-    reversed,
-    centerAxis,
-  ])
 
   if (!open) return null
 
@@ -231,35 +72,17 @@ export function ExportDialog({
     const width = svg.width.baseVal.value
     const height = svg.height.baseVal.value
     say('正在嵌入字型、產生 PNG…', 10_000)
-    void pngWithFonts(svg, width, height)
-      .then(({ blob, note }) => {
+    void svgToPngWithFonts(svg, width, height)
+      .then(({ blob, missing }) => {
         downloadBlob('hackstory-timeline.png', blob)
-        say(`已下載 PNG 圖片${note}`, note ? 8000 : 3000)
+        const note = missingGlyphNote(missing)
+        say(`已下載 PNG 圖片${note ? '；' + note : ''}`, note ? 8000 : 3000)
       })
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }
 
   // 只有直式才寫進網址：橫式不標記，嵌入到手機上時才能自動切成好讀的直式
   const orientParam = orientation === 'vertical' ? '&orient=vertical' : ''
-  /** 依比例下載：SVG 直接存，PNG 一律 2 倍解析度 */
-  const downloadRatio = (kind: 'svg' | 'png') => {
-    if (!preset) return
-    void renderRatio(preset)
-      .then(async ({ svg }) => {
-        const text = serializeSvg(svg)
-        const name = `hackstory-${preset.id}`
-        if (kind === 'svg') {
-          downloadText(`${name}.svg`, text, 'image/svg+xml')
-          say(`已下載 ${preset.label} SVG`)
-          return
-        }
-        say('正在嵌入字型、產生 PNG…', 10_000)
-        const { blob, note } = await pngWithFonts(svg, preset.w, preset.h)
-        downloadBlob(`${name}.png`, blob)
-        say(`已下載 ${preset.label} PNG（${preset.w * 2}×${preset.h * 2}）${note}`, note ? 8000 : 3000)
-      })
-      .catch((e: Error) => say(`匯出失敗：${e.message}`))
-  }
 
   const embedUrl = `${window.location.origin}${window.location.pathname}?embed=1${orientParam}`
   const embedHtml = embedCode(embedUrl)
@@ -480,90 +303,15 @@ export function ExportDialog({
             </div>
           </section>
 
-          {/* 選比例出圖 */}
+          {/* 出圖工作室：選版型、比例、主題、標題，做簡報用的圖 */}
           <section>
-            <h3 className="mb-1 text-base font-semibold text-ink">出圖（選比例）</h3>
-            <p className="mb-3 text-sm text-ink-faint">
-              依你選的比例重新畫一張，用的是目前看到的時間範圍。
+            <h3 className="mb-1 text-base font-semibold text-ink">出圖工作室</h3>
+            <p className="mb-2 text-sm text-ink-faint">
+              要做簡報或社群用的圖？在工作室裡選版型、比例、主題與標題，預覽就是下載下來的樣子。
             </p>
-            {(
-              [
-                { dir: 'v', title: '直式（手機／社群長圖）' },
-                { dir: 'h', title: '橫式（簡報／分享預覽圖）' },
-              ] as const
-            ).map(({ dir, title }) => (
-              <div key={dir} className="mb-3">
-                <div className="mb-1.5 text-sm text-ink-muted">{title}</div>
-                <div className="flex flex-wrap gap-2">
-                  {RATIO_PRESETS.filter((p) => p.dir === dir).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      title={p.hint}
-                      onClick={() => setRatio(ratio === p.id ? null : p.id)}
-                      className={
-                        'rounded border px-3 py-1.5 text-base transition-colors ' +
-                        (ratio === p.id
-                          ? 'border-accent bg-accent text-white'
-                          : 'border-line text-ink hover:bg-surface-alt')
-                      }
-                    >
-                      {p.label}
-                      <span
-                        className={
-                          'ml-1.5 text-sm ' + (ratio === p.id ? 'text-white/70' : 'text-ink-faint')
-                        }
-                      >
-                        {p.hint}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {preset && (
-              <div className="flex items-start gap-4">
-                <div
-                  className="shrink-0 overflow-hidden rounded border border-line bg-surface"
-                  style={{ width: 160, height: Math.round((160 * preset.h) / preset.w) }}
-                >
-                  {preview ? (
-                    <img src={preview.url} alt="預覽" className="h-full w-full object-contain" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm text-ink-faint">
-                      {previewBusy ? '產生預覽中…' : '沒有可預覽的內容'}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="mb-2 text-sm text-ink-muted">
-                    {preset.w * 2}×{preset.h * 2} 像素（PNG 為 2 倍解析度）
-                  </p>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => downloadRatio('png')}
-                      className="btn"
-                    >
-                      下載 PNG
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => downloadRatio('svg')}
-                      className="btn"
-                    >
-                      下載 SVG
-                    </button>
-                  </div>
-                  {preview?.warnings.map((w) => (
-                    <p key={w} className="text-sm text-amber-700">
-                      ⚠ {w}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            )}
+            <button type="button" onClick={onOpenStudio} className="btn btn-primary">
+              開啟出圖工作室
+            </button>
           </section>
 
           {/* iframe */}
