@@ -43,23 +43,23 @@ export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate,
 
   return (
     <div
-      className="fixed z-40 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-xl"
+      className="fixed z-40 flex flex-col gap-2 rounded-lg border border-line bg-surface p-4 shadow-xl"
       style={style}
     >
-      <h3 className="text-sm font-bold text-slate-800">建立關係</h3>
+      <h3 className="text-base font-bold text-ink">建立關係</h3>
       {/* 讀起來像一句話：起點 →（類型）→ 目標 */}
-      <p className="text-xs leading-relaxed text-slate-600">
+      <p className="text-sm leading-relaxed text-ink-muted">
         「<span className="font-medium">{fromTitle}</span>」
         <span className="mx-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">{typeLabel}</span>
         「<span className="font-medium">{toTitle}</span>」
       </p>
 
-      <label className="block text-xs text-slate-500">
+      <label className="block text-sm text-ink-muted">
         關係類型
         <select
           value={type}
           onChange={(e) => setType(e.target.value as RelationType)}
-          className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          className="mt-0.5 w-full rounded border border-line px-2 py-1 text-base"
         >
           {TYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -69,14 +69,14 @@ export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate,
         </select>
       </label>
 
-      <label className="block text-xs text-slate-500">
+      <label className="block text-sm text-ink-muted">
         線上顯示的說明（選填）
         <input
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="例：104 年後成真"
-          className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+          className="mt-0.5 w-full rounded border border-line px-2 py-1 text-base"
         />
       </label>
 
@@ -84,14 +84,14 @@ export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate,
         <button
           type="button"
           onClick={() => onCreate(type, label)}
-          className="rounded bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700"
+          className="btn btn-primary"
         >
           建立
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+          className="btn"
         >
           取消
         </button>

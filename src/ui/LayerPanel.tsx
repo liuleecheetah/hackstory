@@ -84,17 +84,17 @@ export function LayerPanel({
   // 收起來時只留一條窄邊：小螢幕上這 288px 讓給時間軸，差別很大
   if (collapsed) {
     return (
-      <aside className="flex w-9 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-50 py-2">
+      <aside className="flex w-9 shrink-0 flex-col items-center border-r border-line bg-surface-alt py-2">
         <button
           type="button"
           onClick={onToggleCollapsed}
           title="展開圖層面板"
-          className="rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-100"
+          className="btn text-base"
         >
           »
         </button>
         <div
-          className="mt-3 text-xs tracking-widest text-slate-500"
+          className="mt-3 text-sm tracking-widest text-ink-muted"
           style={{ writingMode: 'vertical-rl' }}
         >
           圖層 {layers.length}
@@ -104,27 +104,27 @@ export function LayerPanel({
   }
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
-      <div className="flex items-center gap-1.5 border-b border-slate-200 px-3 py-2">
+    <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-surface-alt">
+      <div className="flex items-center gap-1.5 border-b border-line px-3 py-2">
         <button
           type="button"
           onClick={onToggleCollapsed}
           title="收起圖層面板（把寬度讓給時間軸）"
-          className="-ml-1 rounded px-1 text-sm text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+          className="-ml-1 rounded px-1 text-base text-ink-faint hover:bg-surface-alt hover:text-ink"
         >
           «
         </button>
-        <h2 className="text-sm font-bold text-slate-700">圖層</h2>
+        <h2 className="text-base font-bold text-ink">圖層</h2>
         {!readOnly && (
           <button
             type="button"
             onClick={onCreateBlank}
-            className="ml-auto rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+            className="btn text-base ml-auto"
           >
             ＋空白時間軸
           </button>
         )}
-        <label className="cursor-pointer rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100">
+        <label className="btn text-base cursor-pointer">
           ＋載入 .hst.json
           <input
             type="file"
@@ -141,14 +141,14 @@ export function LayerPanel({
 
       <ul className="flex-1 overflow-y-auto">
         {layers.map((layer, i) => (
-          <li key={layer.id} className="border-b border-slate-100 px-3 py-2">
+          <li key={layer.id} className="border-b border-line px-3 py-2">
             <div className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={layer.visible}
               onChange={() => onToggle(layer.id)}
               title={layer.visible ? '隱藏此圖層' : '顯示此圖層'}
-              className="accent-slate-700"
+              className="accent-accent"
             />
             {/* 多軸文件以各軸線自己的顏色區分，圖層色塊改列在下方的軸線子列 */}
             {layer.doc.tracks.length === 1 && (
@@ -157,7 +157,7 @@ export function LayerPanel({
                 value={layer.color}
                 onChange={(e) => onColor(layer.id, e.target.value)}
                 title="更改圖層顏色"
-                className="h-6 w-7 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
+                className="h-6 w-7 shrink-0 cursor-pointer rounded border border-line bg-surface p-0.5"
               />
             )}
             <div className="min-w-0 flex-1">
@@ -172,25 +172,25 @@ export function LayerPanel({
                     if (e.key === 'Enter') commitRename()
                     if (e.key === 'Escape') setEditingId(null)
                   }}
-                  className="w-full rounded border border-slate-400 px-1 py-0.5 text-sm"
+                  className="w-full rounded border border-line px-1 py-0.5 text-base"
                 />
               ) : (
                 <div
                   className={
-                    'truncate text-sm ' +
-                    (layer.visible ? 'text-slate-800' : 'text-slate-400 line-through')
+                    'truncate text-base ' +
+                    (layer.visible ? 'text-ink' : 'text-ink-faint line-through')
                   }
                   title={layer.doc.meta.title}
                 >
                   {layer.doc.meta.title}
                 </div>
               )}
-              <div className="text-xs text-slate-400">{layer.doc.events.length} 筆事件</div>
+              <div className="text-sm text-ink-faint">{layer.doc.events.length} 筆事件</div>
               {/* 指向其他檔案的關係目前一律不畫（Phase 2 才實作）——
                   不能讓使用者以為這份檔案裡沒有這些關係 */}
               {crossDocCount(layer) > 0 && (
                 <div
-                  className="text-xs text-amber-700"
+                  className="text-sm text-amber-700"
                   title="指向其他 .hst.json 檔案的關係，目前的版本還不會畫出來"
                 >
                   {crossDocCount(layer)} 筆跨檔案關係暫不顯示
@@ -205,7 +205,7 @@ export function LayerPanel({
                   setEditingId(layer.id)
                   setDraftTitle(layer.doc.meta.title)
                 }}
-                className="px-1 text-xs text-slate-400 hover:text-slate-700"
+                className="px-1 text-sm text-ink-faint hover:text-ink"
               >
                 ✎
               </button>
@@ -216,7 +216,7 @@ export function LayerPanel({
                 disabled={i === 0}
                 onClick={() => onMove(layer.id, -1)}
                 title="上移"
-                className="px-1 text-xs leading-4 text-slate-500 hover:text-slate-800 disabled:opacity-25"
+                className="px-1 text-sm leading-4 text-ink-muted hover:text-ink disabled:opacity-25"
               >
                 ▲
               </button>
@@ -225,7 +225,7 @@ export function LayerPanel({
                 disabled={i === layers.length - 1}
                 onClick={() => onMove(layer.id, 1)}
                 title="下移"
-                className="px-1 text-xs leading-4 text-slate-500 hover:text-slate-800 disabled:opacity-25"
+                className="px-1 text-sm leading-4 text-ink-muted hover:text-ink disabled:opacity-25"
               >
                 ▼
               </button>
@@ -235,7 +235,7 @@ export function LayerPanel({
                 type="button"
                 onClick={() => onRemove(layer.id)}
                 title="移除此圖層"
-                className="px-1 text-sm text-slate-400 hover:text-red-600"
+                className="px-1 text-base text-ink-faint hover:text-red-600"
               >
                 ✕
               </button>
@@ -259,7 +259,7 @@ export function LayerPanel({
                         checked={!hidden}
                         onChange={() => onToggleTrack(layer.id, track.id)}
                         title={hidden ? '顯示這條軸線' : '暫時隱藏這條軸線'}
-                        className="accent-slate-700"
+                        className="accent-accent"
                       />
                     )}
                     {multi && (
@@ -268,7 +268,7 @@ export function LayerPanel({
                         value={track.color ?? '#64748b'}
                         onChange={(e) => onTrackColor(layer.id, track.id, e.target.value)}
                         title={`更改「${track.title}」軸線的顏色`}
-                        className="h-5 w-6 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
+                        className="h-5 w-6 shrink-0 cursor-pointer rounded border border-line bg-surface p-0.5"
                       />
                     )}
                     {editingTrack === trackKey ? (
@@ -282,13 +282,13 @@ export function LayerPanel({
                           if (e.key === 'Enter') commitTrackRename(layer.id, track.id)
                           if (e.key === 'Escape') setEditingTrack(null)
                         }}
-                        className="min-w-0 flex-1 rounded border border-slate-400 px-1 py-0.5 text-xs"
+                        className="min-w-0 flex-1 rounded border border-line px-1 py-0.5 text-sm"
                       />
                     ) : (
                       <span
                         className={
-                          'min-w-0 flex-1 truncate text-xs ' +
-                          (hidden ? 'text-slate-300 line-through' : 'text-slate-600')
+                          'min-w-0 flex-1 truncate text-sm ' +
+                          (hidden ? 'text-ink-faint line-through' : 'text-ink-muted')
                         }
                       >
                         {track.title}
@@ -302,12 +302,12 @@ export function LayerPanel({
                           setEditingTrack(trackKey)
                           setDraftTrackTitle(track.title)
                         }}
-                        className="px-0.5 text-xs text-slate-400 hover:text-slate-700"
+                        className="px-0.5 text-sm text-ink-faint hover:text-ink"
                       >
                         ✎
                       </button>
                     )}
-                    <span className="text-xs text-slate-400">{count} 筆</span>
+                    <span className="text-sm text-ink-faint">{count} 筆</span>
                     {!readOnly && (
                       <button
                         type="button"
@@ -320,7 +320,7 @@ export function LayerPanel({
                               : '軸線上還有事件，無法刪除'
                         }
                         onClick={() => onRemoveTrack(layer.id, track.id)}
-                        className="px-0.5 text-xs text-slate-300 hover:text-red-600 disabled:opacity-25 disabled:hover:text-slate-300"
+                        className="px-0.5 text-sm text-ink-faint hover:text-red-600 disabled:opacity-25 disabled:hover:text-ink-faint"
                       >
                         ✕
                       </button>
@@ -333,7 +333,7 @@ export function LayerPanel({
                   <button
                     type="button"
                     onClick={() => onAddTrack(layer.id)}
-                    className="text-xs text-slate-400 hover:text-slate-700"
+                    className="text-sm text-ink-faint hover:text-ink"
                   >
                     ＋ 新增軸線
                   </button>
@@ -343,14 +343,14 @@ export function LayerPanel({
           </li>
         ))}
         {layers.length === 0 && (
-          <li className="px-3 py-6 text-center text-xs text-slate-400">
+          <li className="px-3 py-6 text-center text-sm text-ink-faint">
             還沒有圖層，點右上「＋載入 .hst.json」
           </li>
         )}
       </ul>
 
       {errors.length > 0 && (
-        <div className="max-h-40 overflow-y-auto border-t border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="max-h-40 overflow-y-auto border-t border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {errors.map((msg, i) => (
             <p key={i} className="py-0.5">
               {msg}
@@ -359,7 +359,7 @@ export function LayerPanel({
         </div>
       )}
 
-      <p className="border-t border-slate-200 px-3 py-2 text-xs leading-relaxed text-slate-400">
+      <p className="border-t border-line px-3 py-2 text-sm leading-relaxed text-ink-faint">
         每個圖層是一份獨立的 .hst.json 時間軸檔案，疊加起來就能對比不同來源的整理。
       </p>
     </aside>

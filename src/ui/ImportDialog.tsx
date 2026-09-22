@@ -168,12 +168,12 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[88vh] w-[760px] max-w-full flex-col rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-base font-bold text-slate-800">
+      <div className="flex max-h-[88vh] w-[760px] max-w-full flex-col rounded-lg bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-base font-bold text-ink">
             {preview ? '匯入預覽' : '匯入 CSV / Google Sheet'}
           </h2>
-          <button type="button" onClick={close} className="text-slate-400 hover:text-slate-700">
+          <button type="button" onClick={close} className="text-ink-faint hover:text-ink">
             ✕
           </button>
         </div>
@@ -182,8 +182,8 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
           /* ---- 第一步：選擇來源 ---- */
           <div className="flex flex-col gap-5 overflow-y-auto p-5">
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">上傳 CSV 檔案</h3>
-              <label className="inline-block cursor-pointer rounded border border-slate-300 bg-slate-50 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              <h3 className="mb-2 text-base font-semibold text-ink">上傳 CSV 檔案</h3>
+              <label className="btn inline-block cursor-pointer bg-surface-alt">
                 選擇檔案⋯
                 <input
                   type="file"
@@ -199,10 +199,10 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
             </section>
 
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">
+              <h3 className="mb-2 text-base font-semibold text-ink">
                 或貼上 Google 試算表公開網址
               </h3>
-              <p className="mb-2 text-xs text-slate-400">
+              <p className="mb-2 text-sm text-ink-faint">
                 試算表需「檔案 → 分享 → 發布到網路」或開啟「知道連結的人可檢視」。一次匯入一個分頁。
               </p>
               <div className="flex gap-2">
@@ -211,13 +211,13 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                   value={sheetUrl}
                   onChange={(e) => setSheetUrl(e.target.value)}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="min-w-0 flex-1 rounded border border-line px-3 py-2 text-base"
                 />
                 <button
                   type="button"
                   onClick={() => void handleSheet()}
                   disabled={loading || sheetUrl.trim() === ''}
-                  className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-40"
+                  className="btn btn-primary disabled:opacity-40"
                 >
                   {loading ? '讀取中⋯' : '讀取'}
                 </button>
@@ -225,18 +225,18 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
             </section>
 
             {inputError && (
-              <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-base text-red-700">
                 {inputError}
               </p>
             )}
 
-            <p className="border-t border-slate-100 pt-3 text-xs text-slate-400">
+            <p className="border-t border-line pt-3 text-sm text-ink-faint">
               看不懂格式？
               <a
                 href="https://github.com/liuleecheetah/hackstory/blob/main/docs/import-guide.md"
                 target="_blank"
                 rel="noreferrer"
-                className="underline hover:text-slate-600"
+                className="underline hover:text-ink-muted"
               >
                 閱讀匯入格式說明
               </a>
@@ -246,17 +246,17 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
         ) : (
           /* ---- 第二步：預覽與逐筆修正 ---- */
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
-              <span className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+            <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
+              <span className="rounded bg-green-100 px-2 py-1 text-sm font-medium text-green-800">
                 ✓ 成功 {preview.drafts.length} 筆
               </span>
-              <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+              <span className="rounded bg-amber-100 px-2 py-1 text-sm font-medium text-amber-800">
                 ⚠ 警告 {preview.warnings.length} 筆
               </span>
-              <span className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+              <span className="rounded bg-red-100 px-2 py-1 text-sm font-medium text-red-800">
                 ✕ 無法解析 {preview.unresolved.length} 筆
               </span>
-              <span className="ml-auto text-xs text-slate-400">
+              <span className="ml-auto text-sm text-ink-faint">
                 認得的欄位：
                 {preview.headers
                   .filter((h) => h.mapped)
@@ -269,16 +269,16 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
               {/* 待修正（放最上面，這是需要使用者動手的地方） */}
               {preview.unresolved.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold text-red-700">
+                  <h3 className="mb-2 text-base font-semibold text-red-700">
                     待修正（改好按「重試」，或按「忽略」放棄該列）
                   </h3>
                   <ul className="space-y-2">
                     {preview.unresolved.map((u) => (
                       <li key={u.key} className="rounded border border-red-200 bg-red-50 p-3">
-                        <p className="mb-2 text-xs text-red-700">{u.reason}</p>
+                        <p className="mb-2 text-sm text-red-700">{u.reason}</p>
                         <div className="flex flex-wrap items-end gap-2">
                           {(['start', 'time', 'end', 'title'] as const).map((field) => (
-                            <label key={field} className="text-xs text-slate-500">
+                            <label key={field} className="text-sm text-ink-muted">
                               {FIELD_LABELS[field]}
                               <input
                                 type="text"
@@ -297,14 +297,14 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                                       : prev,
                                   )
                                 }
-                                className="mt-0.5 block w-32 rounded border border-slate-300 bg-white px-2 py-1 text-sm"
+                                className="mt-0.5 block w-32 rounded border border-line bg-surface px-2 py-1 text-base"
                               />
                             </label>
                           ))}
                           <button
                             type="button"
                             onClick={() => handleRetry(u.key)}
-                            className="rounded bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+                            className="btn btn-primary text-base"
                           >
                             重試
                           </button>
@@ -320,7 +320,7 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                                   : prev,
                               )
                             }
-                            className="rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+                            className="btn text-base"
                           >
                             忽略
                           </button>
@@ -334,8 +334,8 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
               {/* 警告 */}
               {preview.warnings.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold text-amber-700">警告</h3>
-                  <ul className="list-disc space-y-1 pl-5 text-xs text-amber-800">
+                  <h3 className="mb-2 text-base font-semibold text-amber-700">警告</h3>
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800">
                     {preview.warnings.map((w, i) => (
                       <li key={i}>{w.message}</li>
                     ))}
@@ -345,12 +345,12 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
 
               {/* 成功清單 */}
               <section>
-                <h3 className="mb-2 text-sm font-semibold text-green-700">
+                <h3 className="mb-2 text-base font-semibold text-green-700">
                   將匯入的事件（疑似重複的列可按 ✕ 移除）
                 </h3>
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-base">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs text-slate-400">
+                    <tr className="border-b border-line text-sm text-ink-faint">
                       <th className="py-1 pr-2 font-normal">日期</th>
                       <th className="py-1 pr-2 font-normal">標題</th>
                       <th className="w-8 py-1" />
@@ -361,17 +361,17 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                       <tr
                         key={d.id}
                         className={
-                          'border-b border-slate-100 ' +
+                          'border-b border-line ' +
                           (d.suspectedDuplicateOf ? 'bg-amber-50' : '')
                         }
                       >
-                        <td className="whitespace-nowrap py-1 pr-2 text-slate-500">
+                        <td className="whitespace-nowrap py-1 pr-2 text-ink-muted">
                           {displayDate(d)}
                         </td>
-                        <td className="py-1 pr-2 text-slate-800">
+                        <td className="py-1 pr-2 text-ink">
                           {d.title}
                           {d.suspectedDuplicateOf && (
-                            <span className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-xs text-amber-900">
+                            <span className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-sm text-amber-900">
                               疑似重複
                             </span>
                           )}
@@ -387,7 +387,7 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                                   : prev,
                               )
                             }
-                            className="text-slate-300 hover:text-red-600"
+                            className="text-ink-faint hover:text-red-600"
                           >
                             ✕
                           </button>
@@ -399,22 +399,22 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
               </section>
             </div>
 
-            <div className="flex items-center gap-3 border-t border-slate-200 px-4 py-3">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
+            <div className="flex items-center gap-3 border-t border-line px-4 py-3">
+              <label className="flex items-center gap-2 text-base text-ink-muted">
                 圖層標題
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-56 rounded border border-slate-300 px-2 py-1 text-sm"
+                  className="w-56 rounded border border-line px-2 py-1 text-base"
                 />
               </label>
-              {inputError && <span className="text-xs text-red-600">{inputError}</span>}
+              {inputError && <span className="text-sm text-red-600">{inputError}</span>}
               <div className="ml-auto flex gap-2">
                 <button
                   type="button"
                   onClick={close}
-                  className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                  className="btn"
                 >
                   取消
                 </button>
@@ -422,7 +422,7 @@ export function ImportDialog({ open, onClose, onImport }: Props) {
                   type="button"
                   onClick={handleImport}
                   disabled={preview.drafts.length === 0}
-                  className="rounded bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-40"
+                  className="btn btn-primary disabled:opacity-40"
                 >
                   匯入 {preview.drafts.length} 筆為新圖層
                   {preview.unresolved.length > 0 && `（放棄未修正 ${preview.unresolved.length} 筆）`}

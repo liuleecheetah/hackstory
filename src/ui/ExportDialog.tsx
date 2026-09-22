@@ -302,10 +302,10 @@ export function ExportDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[88vh] w-[560px] max-w-full flex-col rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-base font-bold text-slate-800">匯出與分享</h2>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700">
+      <div className="flex max-h-[88vh] w-[560px] max-w-full flex-col rounded-lg bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-base font-bold text-ink">匯出與分享</h2>
+          <button type="button" onClick={onClose} className="text-ink-faint hover:text-ink">
             ✕
           </button>
         </div>
@@ -313,16 +313,16 @@ export function ExportDialog({
         <div className="flex flex-col gap-5 overflow-y-auto p-5">
           {/* .hst.json */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">下載時間軸檔案（.hst.json）</h3>
-            <p className="mb-2 text-xs text-slate-400">
+            <h3 className="mb-1 text-base font-semibold text-ink">下載時間軸檔案（.hst.json）</h3>
+            <p className="mb-2 text-sm text-ink-faint">
               每個圖層是一份可攜的檔案：可以備份、寄給別人、或在這裡重新載入疊加。
             </p>
             <ul className="space-y-1">
               {layers.map((layer) => (
                 <li key={layer.id} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                  <span className="min-w-0 flex-1 truncate text-base text-ink">
                     {layer.doc.meta.title}
-                    <span className="ml-2 text-xs text-slate-400">
+                    <span className="ml-2 text-sm text-ink-faint">
                       {layer.doc.events.length} 筆事件
                     </span>
                   </span>
@@ -334,21 +334,21 @@ export function ExportDialog({
                         onDownloaded?.(layers.length === 1)
                       }
                     }}
-                    className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    className="btn text-base"
                   >
                     下載
                   </button>
                 </li>
               ))}
               {layers.length === 0 && (
-                <li className="text-xs text-slate-400">目前沒有圖層</li>
+                <li className="text-sm text-ink-faint">目前沒有圖層</li>
               )}
             </ul>
             {layers.length > 1 && (
               <button
                 type="button"
                 onClick={handleDownloadAll}
-                className="mt-2 rounded bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+                className="btn btn-primary text-base mt-2"
               >
                 下載全部（{layers.length} 份）
               </button>
@@ -357,39 +357,39 @@ export function ExportDialog({
 
           {/* Markdown 大事記 */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">
+            <h3 className="mb-1 text-base font-semibold text-ink">
               匯出大事記（Markdown）
             </h3>
-            <p className="mb-2 text-xs text-slate-400">
+            <p className="mb-2 text-sm text-ink-faint">
               依時間排序的中文大事記，可直接貼進 HackMD、共筆或報導草稿。適合對外說明；要完整資料仍請用上面的
               .hst.json。
             </p>
             <ul className="space-y-1">
               {layers.map((layer) => (
                 <li key={layer.id} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                  <span className="min-w-0 flex-1 truncate text-base text-ink">
                     {layer.doc.meta.title}
-                    <span className="ml-2 text-xs text-slate-400">
+                    <span className="ml-2 text-sm text-ink-faint">
                       {layer.doc.events.length} 筆事件
                     </span>
                   </span>
                   <button
                     type="button"
                     onClick={() => downloadMarkdown(layer)}
-                    className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    className="btn text-base"
                   >
                     下載 .md
                   </button>
                 </li>
               ))}
-              {layers.length === 0 && <li className="text-xs text-slate-400">目前沒有圖層</li>}
+              {layers.length === 0 && <li className="text-sm text-ink-faint">目前沒有圖層</li>}
             </ul>
           </section>
 
           {/* 分享連結（免後端） */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">分享連結</h3>
-            <p className="mb-2 text-xs leading-relaxed text-slate-400">
+            <h3 className="mb-1 text-base font-semibold text-ink">分享連結</h3>
+            <p className="mb-2 text-sm leading-relaxed text-ink-faint">
               把上面下載的 .hst.json 放上任何公開網址（最簡單：GitHub 或 Gist 的 raw
               網址），或直接用「公開的 Google 試算表」網址——貼進下面，就會產生一個開啟即見的分享連結。
             </p>
@@ -398,7 +398,7 @@ export function ExportDialog({
               value={shareSrc}
               onChange={(e) => setShareSrc(e.target.value)}
               placeholder="https://raw.githubusercontent.com/... 或 https://docs.google.com/spreadsheets/..."
-              className="mb-2 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="mb-2 w-full rounded border border-line px-3 py-2 text-base"
             />
             {shareLink && (
               <div className="space-y-2">
@@ -407,12 +407,12 @@ export function ExportDialog({
                     readOnly
                     value={shareLink}
                     onFocus={(e) => e.target.select()}
-                    className="min-w-0 flex-1 rounded border border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs text-slate-700"
+                    className="min-w-0 flex-1 rounded border border-line bg-surface-alt px-2 py-1.5 font-mono text-sm text-ink"
                   />
                   <button
                     type="button"
                     onClick={() => copy(shareLink, '分享連結')}
-                    className="shrink-0 rounded bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+                    className="btn btn-primary text-base shrink-0"
                   >
                     複製連結
                   </button>
@@ -422,17 +422,17 @@ export function ExportDialog({
                     readOnly
                     value={shareEmbedHtml}
                     onFocus={(e) => e.target.select()}
-                    className="min-w-0 flex-1 rounded border border-slate-300 bg-slate-50 px-2 py-1.5 font-mono text-xs text-slate-700"
+                    className="min-w-0 flex-1 rounded border border-line bg-surface-alt px-2 py-1.5 font-mono text-sm text-ink"
                   />
                   <button
                     type="button"
                     onClick={() => copy(shareEmbedHtml, '嵌入碼')}
-                    className="shrink-0 rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+                    className="btn text-base shrink-0"
                   >
                     複製嵌入碼
                   </button>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-sm text-ink-faint">
                   想同時分享多份：在連結後面繼續接 <code>&src=另一個網址</code>，開啟時會疊成多個圖層。
                 </p>
               </div>
@@ -441,22 +441,22 @@ export function ExportDialog({
 
           {/* 圖片 */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">匯出目前畫面為圖片</h3>
-            <p className="mb-2 text-xs text-slate-400">
+            <h3 className="mb-1 text-base font-semibold text-ink">匯出目前畫面為圖片</h3>
+            <p className="mb-2 text-sm text-ink-faint">
               時間範圍依你目前的縮放；軸線則會全部畫進去，包含捲出畫面外的部分。
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleSvg}
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                className="btn"
               >
                 下載 SVG（向量）
               </button>
               <button
                 type="button"
                 onClick={handlePng}
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                className="btn"
               >
                 下載 PNG（點陣，2 倍解析度）
               </button>
@@ -465,8 +465,8 @@ export function ExportDialog({
 
           {/* 選比例出圖 */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">出圖（選比例）</h3>
-            <p className="mb-3 text-xs text-slate-400">
+            <h3 className="mb-1 text-base font-semibold text-ink">出圖（選比例）</h3>
+            <p className="mb-3 text-sm text-ink-faint">
               依你選的比例重新畫一張，用的是目前看到的時間範圍。
             </p>
             {(
@@ -476,7 +476,7 @@ export function ExportDialog({
               ] as const
             ).map(({ dir, title }) => (
               <div key={dir} className="mb-3">
-                <div className="mb-1.5 text-xs text-slate-500">{title}</div>
+                <div className="mb-1.5 text-sm text-ink-muted">{title}</div>
                 <div className="flex flex-wrap gap-2">
                   {RATIO_PRESETS.filter((p) => p.dir === dir).map((p) => (
                     <button
@@ -485,16 +485,16 @@ export function ExportDialog({
                       title={p.hint}
                       onClick={() => setRatio(ratio === p.id ? null : p.id)}
                       className={
-                        'rounded border px-3 py-1.5 text-sm transition-colors ' +
+                        'rounded border px-3 py-1.5 text-base transition-colors ' +
                         (ratio === p.id
-                          ? 'border-slate-800 bg-slate-800 text-white'
-                          : 'border-slate-300 text-slate-700 hover:bg-slate-100')
+                          ? 'border-accent bg-accent text-white'
+                          : 'border-line text-ink hover:bg-surface-alt')
                       }
                     >
                       {p.label}
                       <span
                         className={
-                          'ml-1.5 text-xs ' + (ratio === p.id ? 'text-slate-300' : 'text-slate-400')
+                          'ml-1.5 text-sm ' + (ratio === p.id ? 'text-white/70' : 'text-ink-faint')
                         }
                       >
                         {p.hint}
@@ -508,39 +508,39 @@ export function ExportDialog({
             {preset && (
               <div className="flex items-start gap-4">
                 <div
-                  className="shrink-0 overflow-hidden rounded border border-slate-200 bg-white"
+                  className="shrink-0 overflow-hidden rounded border border-line bg-surface"
                   style={{ width: 160, height: Math.round((160 * preset.h) / preset.w) }}
                 >
                   {preview ? (
                     <img src={preview.url} alt="預覽" className="h-full w-full object-contain" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center text-sm text-ink-faint">
                       {previewBusy ? '產生預覽中…' : '沒有可預覽的內容'}
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="mb-2 text-xs text-slate-500">
+                  <p className="mb-2 text-sm text-ink-muted">
                     {preset.w * 2}×{preset.h * 2} 像素（PNG 為 2 倍解析度）
                   </p>
                   <div className="mb-2 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => downloadRatio('png')}
-                      className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                      className="btn"
                     >
                       下載 PNG
                     </button>
                     <button
                       type="button"
                       onClick={() => downloadRatio('svg')}
-                      className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                      className="btn"
                     >
                       下載 SVG
                     </button>
                   </div>
                   {preview?.warnings.map((w) => (
-                    <p key={w} className="text-xs text-amber-700">
+                    <p key={w} className="text-sm text-amber-700">
                       ⚠ {w}
                     </p>
                   ))}
@@ -551,8 +551,8 @@ export function ExportDialog({
 
           {/* iframe */}
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">嵌入到其他網頁（iframe）</h3>
-            <p className="mb-2 text-xs text-slate-400">
+            <h3 className="mb-1 text-base font-semibold text-ink">嵌入到其他網頁（iframe）</h3>
+            <p className="mb-2 text-sm text-ink-faint">
               把下面這段貼進部落格或網站的 HTML，就會顯示乾淨的時間軸檢視（部署上線後網址會自動變成正式網址）。
             </p>
             <textarea
@@ -560,19 +560,19 @@ export function ExportDialog({
               value={embedHtml}
               rows={3}
               onFocus={(e) => e.target.select()}
-              className="w-full rounded border border-slate-300 bg-slate-50 p-2 font-mono text-xs text-slate-700"
+              className="w-full rounded border border-line bg-surface-alt p-2 font-mono text-sm text-ink"
             />
             <button
               type="button"
               onClick={handleCopyEmbed}
-              className="mt-2 rounded bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700"
+              className="btn btn-primary mt-2"
             >
               複製嵌入碼
             </button>
           </section>
 
           {message && (
-            <p className="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            <p className="rounded border border-green-200 bg-green-50 px-3 py-2 text-base text-green-800">
               {message}
             </p>
           )}

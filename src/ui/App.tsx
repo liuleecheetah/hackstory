@@ -707,7 +707,7 @@ export default function App() {
   // 嵌入模式：無面板、無工具列的乾淨檢視（縮放平移、點事件看詳情仍可用）
   if (isEmbed) {
     return (
-      <div className="flex h-screen flex-col bg-white">
+      <div className="flex h-screen flex-col bg-surface">
         <div className="min-h-0 flex-1">
           {isVertical ? (
             <VerticalTimelineView
@@ -731,19 +731,19 @@ export default function App() {
           <EventDetailCard selection={selection} onClose={() => setCardVisible(false)} />
         )}
         {loadErrors.length > 0 && (
-          <div className="border-t border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700">
+          <div className="border-t border-red-200 bg-red-50 px-3 py-1 text-sm text-red-700">
             {loadErrors.map((msg, i) => (
               <p key={i}>{msg}</p>
             ))}
           </div>
         )}
-        <footer className="border-t border-slate-100 px-3 py-1 text-right text-xs text-slate-400">
+        <footer className="border-t border-line px-3 py-1 text-right text-sm text-ink-faint">
           以{' '}
           <a
             href={window.location.origin + window.location.pathname}
             target="_blank"
             rel="noreferrer"
-            className="underline hover:text-slate-600"
+            className="underline hover:text-ink-muted"
           >
             HackStory
           </a>{' '}
@@ -756,19 +756,19 @@ export default function App() {
   // 上方的五個顯示選項。寬螢幕攤開、窄螢幕收進下拉，兩邊用同一份定義
   const displayOptions = (
     <>
-      <label className="flex items-center gap-1.5 text-sm text-slate-600">
+      <label className="flex items-center gap-1.5 text-base text-ink-muted">
         <input
           type="checkbox"
           checked={showDates}
           onChange={(e) => setShowDates(e.target.checked)}
-          className="accent-slate-700"
+          className="accent-accent"
         />
         顯示事件日期
       </label>
       <label
         className={
-          'flex items-center gap-1.5 text-sm ' +
-          (showDates ? 'text-slate-600' : 'text-slate-300')
+          'flex items-center gap-1.5 text-base ' +
+          (showDates ? 'text-ink-muted' : 'text-ink-faint')
         }
       >
         <input
@@ -776,32 +776,32 @@ export default function App() {
           checked={showYears}
           disabled={!showDates}
           onChange={(e) => setShowYears(e.target.checked)}
-          className="accent-slate-700"
+          className="accent-accent"
         />
         含年份
       </label>
-      <label className="flex items-center gap-1.5 text-sm text-slate-600">
+      <label className="flex items-center gap-1.5 text-base text-ink-muted">
         <input
           type="checkbox"
           checked={showRelations}
           onChange={(e) => setShowRelations(e.target.checked)}
-          className="accent-slate-700"
+          className="accent-accent"
         />
         顯示關係線
       </label>
-      <label className="flex items-center gap-1.5 text-sm text-slate-600">
+      <label className="flex items-center gap-1.5 text-base text-ink-muted">
         <input
           type="checkbox"
           checked={collapseGaps}
           onChange={(e) => setCollapseGaps(e.target.checked)}
-          className="accent-slate-700"
+          className="accent-accent"
         />
         摺疊空白
       </label>
       <label
         className={
-          'flex items-center gap-1.5 text-sm ' +
-          (isVertical ? 'text-slate-300' : 'text-slate-600')
+          'flex items-center gap-1.5 text-base ' +
+          (isVertical ? 'text-ink-faint' : 'text-ink-muted')
         }
         title={
           isVertical
@@ -814,7 +814,7 @@ export default function App() {
           checked={compact && !isVertical}
           disabled={isVertical}
           onChange={(e) => setCompact(e.target.checked)}
-          className="accent-slate-700"
+          className="accent-accent"
         />
         精簡模式
       </label>
@@ -822,26 +822,26 @@ export default function App() {
       {isVertical && (
         <>
           <label
-            className="flex items-center gap-1.5 text-sm text-slate-600"
+            className="flex items-center gap-1.5 text-base text-ink-muted"
             title="最新的事件排在最上面，像新聞或社群那樣由新往舊讀"
           >
             <input
               type="checkbox"
               checked={reversed}
               onChange={(e) => setReversed(e.target.checked)}
-              className="accent-slate-700"
+              className="accent-accent"
             />
             最新的在上面
           </label>
           <label
-            className="flex items-center gap-1.5 text-sm text-slate-600"
+            className="flex items-center gap-1.5 text-base text-ink-muted"
             title="年份刻度尺移到畫面中央，軸線分左右兩側，貼著同一根時間軸對照（需要兩條以上軸線）"
           >
             <input
               type="checkbox"
               checked={centerAxis}
               onChange={(e) => setCenterAxis(e.target.checked)}
-              className="accent-slate-700"
+              className="accent-accent"
             />
             刻度置中對照
           </label>
@@ -851,16 +851,16 @@ export default function App() {
   )
 
   return (
-    <div className="flex h-screen flex-col bg-white">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-2">
-        <h1 className="text-lg font-bold tracking-wide text-slate-800">HackStory</h1>
-        <span className="text-xs text-slate-400">
+    <div className="flex h-screen flex-col bg-surface">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2">
+        <h1 className="text-lg font-bold tracking-wide text-ink">HackStory</h1>
+        <span className="text-sm text-ink-faint">
           {layers.length} 個圖層，顯示中 {visibleSources.length} 個
         </span>
 
         {readOnly ? (
           <>
-            <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-500">
+            <span className="rounded bg-surface-alt px-2 py-1 text-sm text-ink-muted">
               唯讀檢視（分享連結）
             </span>
             <button
@@ -869,14 +869,14 @@ export default function App() {
                 setEditableCopy(true)
                 showNotice('已建立可編輯副本——之後的修改會自動存成這個瀏覽器的草稿')
               }}
-              className="rounded-md bg-slate-800 px-3 py-1 text-sm text-white hover:bg-slate-700"
+              className="btn btn-primary"
             >
               建立可編輯副本
             </button>
             <button
               type="button"
               onClick={() => setExportOpen(true)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+              className="btn"
             >
               匯出／分享
             </button>
@@ -886,33 +886,33 @@ export default function App() {
             <button
               type="button"
               onClick={() => setLibraryOpen(true)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+              className="btn"
             >
               共用庫
             </button>
             <button
               type="button"
               onClick={() => setImportOpen(true)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+              className="btn"
             >
               匯入 CSV / Google Sheet
             </button>
             <button
               type="button"
               onClick={() => setExportOpen(true)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+              className="btn"
             >
               匯出／分享
             </button>
 
             {/* 復原／重做 */}
-            <div className="flex overflow-hidden rounded-md border border-slate-300">
+            <div className="btn-group">
               <button
                 type="button"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 title="復原（Ctrl/Cmd+Z）"
-                className="px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+                className="text-ink-muted hover:bg-surface-alt disabled:opacity-30"
               >
                 ↩
               </button>
@@ -921,7 +921,7 @@ export default function App() {
                 onClick={handleRedo}
                 disabled={!canRedo}
                 title="重做（Ctrl/Cmd+Shift+Z）"
-                className="border-l border-slate-300 px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+                className="text-ink-muted hover:bg-surface-alt disabled:opacity-30"
               >
                 ↪
               </button>
@@ -929,7 +929,7 @@ export default function App() {
 
             {/* 草稿保存狀態：顯示的訊息與實際寫入結果一致 */}
             {dirty && saveStatus === 'saving' && (
-              <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
+              <span className="rounded border border-line bg-surface-alt px-2 py-1 text-sm text-ink-muted">
                 正在保存草稿…
               </span>
             )}
@@ -938,7 +938,7 @@ export default function App() {
                 type="button"
                 onClick={() => setExportOpen(true)}
                 title="修改已存為瀏覽器草稿；下載 .hst.json 才是永久保存。點我開啟匯出"
-                className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800 hover:bg-amber-100"
+                className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-800 hover:bg-amber-100"
               >
                 草稿已保存（尚未下載）
               </button>
@@ -948,7 +948,7 @@ export default function App() {
                 type="button"
                 onClick={() => setExportOpen(true)}
                 title="瀏覽器無法寫入草稿（可能空間不足或被封鎖）。請立即下載 .hst.json 保存"
-                className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                className="rounded border border-red-300 bg-red-50 px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-100"
               >
                 ⚠ 草稿保存失敗——請立即下載
               </button>
@@ -962,29 +962,29 @@ export default function App() {
           <button
             type="button"
             onClick={() => setOptionsOpen((v) => !v)}
-            className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100"
+            className="btn"
           >
             顯示選項 ▾
           </button>
           {optionsOpen && (
-            <div className="absolute right-0 z-30 mt-1 flex w-56 flex-col gap-2 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+            <div className="absolute right-0 z-30 mt-1 flex w-56 flex-col gap-2 rounded-md border border-line bg-surface p-3 shadow-lg">
               {displayOptions}
             </div>
           )}
         </div>
 
         {/* 橫式／直式切換：直式是給閱讀與分享用的，時間由上往下流 */}
-        <div className="flex overflow-hidden rounded-md border border-slate-300">
+        <div className="btn-group">
           {(Object.keys(ORIENTATION_LABELS) as Array<'horizontal' | 'vertical'>).map((dir) => (
             <button
               key={dir}
               type="button"
               onClick={() => setOrientation(dir)}
               className={
-                'px-3 py-1 text-sm transition-colors ' +
+                'transition-colors ' +
                 (orientation === dir
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-100')
+                  ? 'bg-accent text-white'
+                  : 'bg-surface text-ink-muted hover:bg-surface-alt')
               }
             >
               {ORIENTATION_LABELS[dir]}
@@ -993,17 +993,17 @@ export default function App() {
         </div>
 
         {/* 尺度切換（像 Google 日曆），橫直式共用 */}
-        <div className="flex overflow-hidden rounded-md border border-slate-300">
+        <div className="btn-group">
           {(Object.keys(SCALE_LABELS) as ScaleMode[]).map((mode) => (
             <button
               key={mode}
               type="button"
               onClick={() => setScaleRequest((prev) => ({ mode, nonce: (prev?.nonce ?? 0) + 1 }))}
               className={
-                'px-3 py-1 text-sm transition-colors ' +
+                'transition-colors ' +
                 (activeMode === mode
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-100')
+                  ? 'bg-accent text-white'
+                  : 'bg-surface text-ink-muted hover:bg-surface-alt')
               }
             >
               {SCALE_LABELS[mode]}
@@ -1069,7 +1069,7 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 px-4 py-1.5 text-xs text-slate-400">
+      <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line px-4 py-1.5 text-sm text-ink-faint">
         <span>
           {isVertical
             ? '直式：往下捲動＝平移時間　｜　Ctrl／⌘＋滾輪：縮放　｜　點事件：詳情與編輯　｜　雙擊欄內空白處：新增事件'
@@ -1080,7 +1080,7 @@ export default function App() {
           href="https://github.com/liuleecheetah/hackstory/issues/new/choose"
           target="_blank"
           rel="noreferrer"
-          className="ml-auto rounded border border-slate-200 px-2 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          className="ml-auto rounded border border-line px-2 py-0.5 text-ink-muted hover:bg-surface-alt hover:text-ink"
         >
           🧪 Beta 測試中，回報問題或給建議
         </a>
@@ -1133,7 +1133,7 @@ export default function App() {
 
       {/* 找到上次的草稿：詢問是否恢復。草稿一律先過驗證器，格式不符的不會進畫面 */}
       {pendingDraft && (
-        <div className="fixed left-1/2 top-14 z-50 flex max-w-2xl -translate-x-1/2 flex-col gap-2 rounded-md border border-sky-300 bg-sky-50 px-4 py-2 text-sm text-sky-900 shadow">
+        <div className="fixed left-1/2 top-14 z-50 flex max-w-2xl -translate-x-1/2 flex-col gap-2 rounded-md border border-sky-300 bg-sky-50 px-4 py-2 text-base text-sky-900 shadow">
           <div className="flex flex-wrap items-center gap-3">
             {pendingDraft.layers.length > 0
               ? `找到上次的草稿（${timeAgo(pendingDraft.savedAt)}，${pendingDraft.layers.length} 個圖層）`
@@ -1145,7 +1145,7 @@ export default function App() {
                   restoreLayers(pendingDraft.layers)
                   setPendingDraft(null)
                 }}
-                className="rounded bg-sky-700 px-3 py-1 text-xs text-white hover:bg-sky-800"
+                className="rounded bg-sky-700 px-3 py-1 text-sm text-white hover:bg-sky-800"
               >
                 恢復草稿
               </button>
@@ -1160,7 +1160,7 @@ export default function App() {
                 }
                 setPendingDraft(null)
               }}
-              className="rounded border border-sky-300 px-3 py-1 text-xs hover:bg-sky-100"
+              className="rounded border border-sky-300 px-3 py-1 text-sm hover:bg-sky-100"
             >
               捨棄
             </button>
@@ -1168,7 +1168,7 @@ export default function App() {
 
           {/* 絕不靜默丟資料：格式不符的圖層要明講是哪一份、為什麼 */}
           {pendingDraft.broken.length > 0 && (
-            <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+            <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-800">
               <div className="font-medium">
                 有 {pendingDraft.broken.length} 個圖層格式不符，不會被載入：
               </div>
@@ -1184,13 +1184,13 @@ export default function App() {
 
       {/* 連結模式的提示橫幅 */}
       {linking && (
-        <div className="fixed left-1/2 top-14 z-50 -translate-x-1/2 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 shadow">
+        <div className="fixed left-1/2 top-14 z-50 -translate-x-1/2 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-base text-amber-800 shadow">
           連結模式：點選「{linking.fromTitle.slice(0, 12)}
           {linking.fromTitle.length > 12 && '…'}」要連到的目標事件｜Esc 取消
         </div>
       )}
       {notice && (
-        <div className="fixed left-1/2 top-24 z-50 -translate-x-1/2 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 shadow">
+        <div className="fixed left-1/2 top-24 z-50 -translate-x-1/2 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-base text-red-700 shadow">
           {notice}
         </div>
       )}

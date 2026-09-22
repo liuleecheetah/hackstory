@@ -93,10 +93,10 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[88vh] w-[640px] max-w-full flex-col rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-base font-bold text-slate-800">共用庫</h2>
-          <button type="button" onClick={close} className="text-slate-400 hover:text-slate-700">
+      <div className="flex max-h-[88vh] w-[640px] max-w-full flex-col rounded-lg bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-base font-bold text-ink">共用庫</h2>
+          <button type="button" onClick={close} className="text-ink-faint hover:text-ink">
             ✕
           </button>
         </div>
@@ -106,7 +106,7 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
           {notice && (
             <p
               className={
-                'rounded border px-3 py-2 text-sm ' +
+                'rounded border px-3 py-2 text-base ' +
                 (notice.kind === 'ok'
                   ? 'border-green-200 bg-green-50 text-green-800'
                   : notice.kind === 'warn'
@@ -119,13 +119,13 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
           )}
 
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">精選時間軸</h3>
-            <p className="mb-3 text-xs text-slate-400">
+            <h3 className="mb-1 text-base font-semibold text-ink">精選時間軸</h3>
+            <p className="mb-3 text-sm text-ink-faint">
               點「載入」把時間軸加成一個圖層，跟你手上的軸疊加對比。載入後可自由編輯，不會影響原始檔案。
             </p>
 
             {indexError && (
-              <div className="flex items-center gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="flex items-center gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-base text-red-700">
                 {indexError}
                 <button
                   type="button"
@@ -133,14 +133,14 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
                     setIndexError(null)
                     setEntries(null) // 清掉才會重抓
                   }}
-                  className="rounded border border-red-300 px-2 py-0.5 text-xs hover:bg-red-100"
+                  className="rounded border border-red-300 px-2 py-0.5 text-sm hover:bg-red-100"
                 >
                   重試
                 </button>
               </div>
             )}
             {!indexError && entries === null && (
-              <p className="text-sm text-slate-400">正在讀取目錄⋯</p>
+              <p className="text-base text-ink-faint">正在讀取目錄⋯</p>
             )}
 
             {entries !== null && (
@@ -148,26 +148,26 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
                 {entries.map((entry) => (
                   <li
                     key={entry.id}
-                    className="flex items-start gap-3 rounded border border-slate-200 p-3"
+                    className="flex items-start gap-3 rounded border border-line p-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-800">
+                      <p className="text-base font-medium text-ink">
                         {entry.title}
                         {entry.period && (
-                          <span className="ml-2 text-xs font-normal text-slate-400">
+                          <span className="ml-2 text-sm font-normal text-ink-faint">
                             {entry.period}
                           </span>
                         )}
                       </p>
                       {entry.description && (
-                        <p className="mt-0.5 text-xs text-slate-500">{entry.description}</p>
+                        <p className="mt-0.5 text-sm text-ink-muted">{entry.description}</p>
                       )}
                       {entry.topics && entry.topics.length > 0 && (
                         <p className="mt-1 flex flex-wrap gap-1">
                           {entry.topics.map((t) => (
                             <span
                               key={t}
-                              className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
+                              className="rounded bg-surface-alt px-1.5 py-0.5 text-sm text-ink-muted"
                             >
                               {t}
                             </span>
@@ -179,7 +179,7 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
                       type="button"
                       onClick={() => void handleEntry(entry)}
                       disabled={loadingId !== null}
-                      className="shrink-0 rounded bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-700 disabled:opacity-40"
+                      className="btn btn-primary text-base shrink-0 disabled:opacity-40"
                     >
                       {loadingId === entry.id
                         ? '載入中⋯'
@@ -194,10 +194,10 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
           </section>
 
           <section>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">
+            <h3 className="mb-1 text-base font-semibold text-ink">
               或貼上別人分享的時間軸網址
             </h3>
-            <p className="mb-2 text-xs text-slate-400">
+            <p className="mb-2 text-sm text-ink-faint">
               支援放在 GitHub、Gist 等處的 .hst.json 檔案網址，或 Google 試算表公開網址。
             </p>
             <div className="flex gap-2">
@@ -206,26 +206,26 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://…/xxx.hst.json"
-                className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+                className="min-w-0 flex-1 rounded border border-line px-3 py-2 text-base"
               />
               <button
                 type="button"
                 onClick={() => void handleUrl()}
                 disabled={urlLoading || url.trim() === ''}
-                className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-40"
+                className="btn btn-primary disabled:opacity-40"
               >
                 {urlLoading ? '載入中⋯' : '載入'}
               </button>
             </div>
           </section>
 
-          <p className="border-t border-slate-100 pt-3 text-xs text-slate-400">
+          <p className="border-t border-line pt-3 text-sm text-ink-faint">
             想把自己整理的時間軸放上共用庫？
             <a
               href="https://github.com/liuleecheetah/hackstory/issues/new/choose"
               target="_blank"
               rel="noreferrer"
-              className="underline hover:text-slate-600"
+              className="underline hover:text-ink-muted"
             >
               開一個 GitHub issue 投稿
             </a>

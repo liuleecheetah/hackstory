@@ -51,7 +51,7 @@ const CONFIDENCE: Record<string, { label: string; cls: string }> = {
   verified: { label: '已查證', cls: 'bg-green-100 text-green-800' },
   reported: { label: '據報導', cls: 'bg-sky-100 text-sky-800' },
   disputed: { label: '有爭議', cls: 'bg-red-100 text-red-800' },
-  unknown: { label: '未查證', cls: 'bg-slate-100 text-slate-600' },
+  unknown: { label: '未查證', cls: 'bg-surface-alt text-ink-muted' },
 }
 
 /** 結束日期欄的「進行中」寫法（與匯入器一致） */
@@ -311,12 +311,12 @@ export function EventDetailCard({
   const setField = (field: Exclude<keyof FormState, 'relativeMode'>, value: string) =>
     setForm((prev) => (prev ? { ...prev, [field]: value } : prev))
 
-  const inputCls = 'w-full rounded border border-slate-300 px-2 py-1 text-sm'
-  const labelCls = 'block text-xs text-slate-500'
+  const inputCls = 'w-full rounded border border-line px-2 py-1 text-base'
+  const labelCls = 'block text-sm text-ink-muted'
 
   return (
     <div
-      className="fixed z-40 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
+      className="fixed z-40 flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-xl"
       style={style}
     >
       <div className="flex items-start gap-2 px-4 pt-3">
@@ -324,14 +324,14 @@ export function EventDetailCard({
           className="mt-1.5 h-3 w-3 shrink-0 rounded-full"
           style={{ backgroundColor: color }}
         />
-        <h3 className="min-w-0 flex-1 text-sm font-bold leading-snug text-slate-800">
+        <h3 className="min-w-0 flex-1 text-base font-bold leading-snug text-ink">
           {editing ? (createMode ? '新增事件' : '編輯事件') : event.title}
         </h3>
         <button
           type="button"
           onClick={onClose}
           title="關閉"
-          className="-mr-1 px-1 text-slate-400 hover:text-slate-700"
+          className="-mr-1 px-1 text-ink-faint hover:text-ink"
         >
           ✕
         </button>
@@ -349,14 +349,14 @@ export function EventDetailCard({
               className={inputCls}
             />
           </label>
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-muted">
             <input
               type="checkbox"
               checked={form.relativeMode}
               onChange={(e) =>
                 setForm((prev) => (prev ? { ...prev, relativeMode: e.target.checked } : prev))
               }
-              className="accent-slate-700"
+              className="accent-accent"
             />
             改用相對時間（不知道日期，只知道先後順序）
           </label>
@@ -462,13 +462,13 @@ export function EventDetailCard({
             />
           </label>
 
-          {formError && <p className="text-xs text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
 
           <div className="flex items-center gap-2 pt-1">
             <button
               type="button"
               onClick={save}
-              className="rounded bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700"
+              className="btn btn-primary"
             >
               儲存
             </button>
@@ -482,41 +482,41 @@ export function EventDetailCard({
                   setFormError(null)
                 }
               }}
-              className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              className="btn"
             >
               取消
             </button>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-sm text-ink-faint">
             改動保留在這個圖層裡，記得用「匯出／分享」下載保存。
           </p>
         </div>
       ) : (
         /* ---- 檢視模式 ---- */
         <>
-          <div className="min-h-0 space-y-2 overflow-y-auto px-4 py-3 text-sm">
-            <p className="text-slate-600">
+          <div className="min-h-0 space-y-2 overflow-y-auto px-4 py-3 text-base">
+            <p className="text-ink-muted">
               {startText}
               {endText && ` — ${endText}`}
               {confidence && (
-                <span className={`ml-2 rounded px-1.5 py-0.5 text-xs ${confidence.cls}`}>
+                <span className={`ml-2 rounded px-1.5 py-0.5 text-sm ${confidence.cls}`}>
                   {confidence.label}
                 </span>
               )}
             </p>
 
             {event.description && (
-              <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
+              <p className="whitespace-pre-wrap leading-relaxed text-ink">
                 {event.description}
               </p>
             )}
 
             {event.location?.name && (
-              <p className="text-slate-500">地點：{event.location.name}</p>
+              <p className="text-ink-muted">地點：{event.location.name}</p>
             )}
 
             {onToggleKey && (
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+              <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-muted">
                 <input
                   type="checkbox"
                   checked={isKey}
@@ -532,7 +532,7 @@ export function EventDetailCard({
                 {event.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
+                    className="rounded bg-surface-alt px-1.5 py-0.5 text-sm text-ink-muted"
                   >
                     {tag}
                   </span>
@@ -542,13 +542,13 @@ export function EventDetailCard({
 
             {(relations.length > 0 || onStartLink) && (
               <div>
-                <p className="mb-1 text-xs font-semibold text-slate-500">關係</p>
+                <p className="mb-1 text-sm font-semibold text-ink-muted">關係</p>
                 {relations.length > 0 && (
                   <ul className="space-y-1">
                     {relations.map((r, i) => (
                       <li
                         key={r.relation.id ?? `${r.direction}-${i}`}
-                        className="flex items-start gap-1 text-xs text-slate-600"
+                        className="flex items-start gap-1 text-sm text-ink-muted"
                       >
                         <span className="min-w-0 flex-1 leading-relaxed">
                           {r.direction === 'out' ? (
@@ -560,14 +560,14 @@ export function EventDetailCard({
                               「{r.otherTitle}」<b className="mx-0.5">{r.typeLabel}</b>此事件
                             </>
                           )}
-                          {r.label && <span className="text-slate-400">（{r.label}）</span>}
+                          {r.label && <span className="text-ink-faint">（{r.label}）</span>}
                         </span>
                         {onRemoveRelation && (
                           <button
                             type="button"
                             title="刪除這條關係"
                             onClick={() => onRemoveRelation(r.relation)}
-                            className="px-1 text-slate-300 hover:text-red-600"
+                            className="px-1 text-ink-faint hover:text-red-600"
                           >
                             ✕
                           </button>
@@ -580,7 +580,7 @@ export function EventDetailCard({
                   <button
                     type="button"
                     onClick={onStartLink}
-                    className="mt-1.5 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-100"
+                    className="btn text-base mt-1.5"
                   >
                     ＋ 連到另一個事件
                   </button>
@@ -590,10 +590,10 @@ export function EventDetailCard({
 
             {event.sources && event.sources.length > 0 && (
               <div>
-                <p className="mb-1 text-xs font-semibold text-slate-500">資料來源</p>
+                <p className="mb-1 text-sm font-semibold text-ink-muted">資料來源</p>
                 <ul className="space-y-0.5">
                   {event.sources.map((s, i) => (
-                    <li key={i} className="truncate text-xs">
+                    <li key={i} className="truncate text-sm">
                       {s.url ? (
                         <a
                           href={s.url}
@@ -604,7 +604,7 @@ export function EventDetailCard({
                           {s.title ?? s.url}
                         </a>
                       ) : (
-                        <span className="text-slate-600">{s.title}</span>
+                        <span className="text-ink-muted">{s.title}</span>
                       )}
                     </li>
                   ))}
@@ -614,11 +614,11 @@ export function EventDetailCard({
           </div>
 
           {onUpdate && (
-            <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-2">
+            <div className="flex items-center gap-2 border-t border-line px-4 py-2">
               <button
                 type="button"
                 onClick={startEdit}
-                className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                className="btn text-base"
               >
                 ✎ 編輯事件
               </button>
@@ -633,7 +633,7 @@ export function EventDetailCard({
                       onDelete()
                     }
                   }}
-                  className="ml-auto px-2 text-xs text-red-500 hover:text-red-700"
+                  className="ml-auto px-2 text-sm text-red-500 hover:text-red-700"
                 >
                   刪除
                 </button>
@@ -643,7 +643,7 @@ export function EventDetailCard({
         </>
       )}
 
-      <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+      <p className="border-t border-line px-4 py-2 text-sm text-ink-faint">
         {docTitle}
         {trackTitle !== docTitle && `｜${trackTitle}`}
       </p>
