@@ -31,6 +31,7 @@ import { RelationDialog } from './RelationDialog'
 import { ImportDialog } from './ImportDialog'
 import { LayerPanel } from './LayerPanel'
 import { LibraryDialog } from './LibraryDialog'
+import { Toolbar } from './Toolbar'
 
 /** 關係類型的中文名稱 */
 const REL_TYPE_LABELS: Record<string, string> = {
@@ -39,19 +40,6 @@ const REL_TYPE_LABELS: Record<string, string> = {
   derives_from: '衍生自',
   contradicts: '與之矛盾',
   same_event: '同一事件',
-}
-
-/** 橫式／直式切換的按鈕文字 */
-const ORIENTATION_LABELS: Record<'horizontal' | 'vertical', string> = {
-  horizontal: '橫式',
-  vertical: '直式',
-}
-
-const SCALE_LABELS: Record<ScaleMode, string> = {
-  day: '日',
-  week: '週',
-  month: '月',
-  year: '年',
 }
 
 // 分享連結：網址帶 ?src=公開網址 時，載入分享的時間軸（可多個），不載入預設範例
@@ -217,18 +205,6 @@ export default function App() {
   // 直式專屬：時間方向反轉、刻度尺置中對照
   const [reversed, setReversed] = useState(false)
   const [centerAxis, setCenterAxis] = useState(false)
-
-  // 窄螢幕的「顯示選項」下拉
-  const [optionsOpen, setOptionsOpen] = useState(false)
-  const optionsRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!optionsOpen) return
-    const onDown = (e: PointerEvent) => {
-      if (!optionsRef.current?.contains(e.target as Node)) setOptionsOpen(false)
-    }
-    document.addEventListener('pointerdown', onDown)
-    return () => document.removeEventListener('pointerdown', onDown)
-  }, [optionsOpen])
   // render 層回報的可視時間範圍：比例匯出照這個範圍出圖（所見即所得）
   const [viewDomain, setViewDomain] = useState<[number, number] | null>(null)
   const handleDomainChange = useCallback((d: [number, number]) => setViewDomain(d), [])
@@ -753,264 +729,48 @@ export default function App() {
     )
   }
 
-  // 上方的五個顯示選項。寬螢幕攤開、窄螢幕收進下拉，兩邊用同一份定義
-  const displayOptions = (
-    <>
-      <label className="flex items-center gap-1.5 text-base text-ink-muted">
-        <input
-          type="checkbox"
-          checked={showDates}
-          onChange={(e) => setShowDates(e.target.checked)}
-          className="accent-accent"
-        />
-        顯示事件日期
-      </label>
-      <label
-        className={
-          'flex items-center gap-1.5 text-base ' +
-          (showDates ? 'text-ink-muted' : 'text-ink-faint')
-        }
-      >
-        <input
-          type="checkbox"
-          checked={showYears}
-          disabled={!showDates}
-          onChange={(e) => setShowYears(e.target.checked)}
-          className="accent-accent"
-        />
-        含年份
-      </label>
-      <label className="flex items-center gap-1.5 text-base text-ink-muted">
-        <input
-          type="checkbox"
-          checked={showRelations}
-          onChange={(e) => setShowRelations(e.target.checked)}
-          className="accent-accent"
-        />
-        顯示關係線
-      </label>
-      <label className="flex items-center gap-1.5 text-base text-ink-muted">
-        <input
-          type="checkbox"
-          checked={collapseGaps}
-          onChange={(e) => setCollapseGaps(e.target.checked)}
-          className="accent-accent"
-        />
-        摺疊空白
-      </label>
-      <label
-        className={
-          'flex items-center gap-1.5 text-base ' +
-          (isVertical ? 'text-ink-faint' : 'text-ink-muted')
-        }
-        title={
-          isVertical
-            ? '直式暫不支援精簡模式'
-            : '把事件列縮小，讓事件很多的軸線收斂，其他軸線比較看得到'
-        }
-      >
-        <input
-          type="checkbox"
-          checked={compact && !isVertical}
-          disabled={isVertical}
-          onChange={(e) => setCompact(e.target.checked)}
-          className="accent-accent"
-        />
-        精簡模式
-      </label>
-      {/* 只有直式才有意義的兩個選項 */}
-      {isVertical && (
-        <>
-          <label
-            className="flex items-center gap-1.5 text-base text-ink-muted"
-            title="最新的事件排在最上面，像新聞或社群那樣由新往舊讀"
-          >
-            <input
-              type="checkbox"
-              checked={reversed}
-              onChange={(e) => setReversed(e.target.checked)}
-              className="accent-accent"
-            />
-            最新的在上面
-          </label>
-          <label
-            className="flex items-center gap-1.5 text-base text-ink-muted"
-            title="年份刻度尺移到畫面中央，軸線分左右兩側，貼著同一根時間軸對照（需要兩條以上軸線）"
-          >
-            <input
-              type="checkbox"
-              checked={centerAxis}
-              onChange={(e) => setCenterAxis(e.target.checked)}
-              className="accent-accent"
-            />
-            刻度置中對照
-          </label>
-        </>
-      )}
-    </>
-  )
-
   return (
     <div className="flex h-screen flex-col bg-surface">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2">
-        <h1 className="text-lg font-bold tracking-wide text-ink">HackStory</h1>
-        <span className="text-sm text-ink-faint">
-          {layers.length} 個圖層，顯示中 {visibleSources.length} 個
-        </span>
-
-        {readOnly ? (
-          <>
-            <span className="rounded bg-surface-alt px-2 py-1 text-sm text-ink-muted">
-              唯讀檢視（分享連結）
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setEditableCopy(true)
-                showNotice('已建立可編輯副本——之後的修改會自動存成這個瀏覽器的草稿')
-              }}
-              className="btn btn-primary"
-            >
-              建立可編輯副本
-            </button>
-            <button
-              type="button"
-              onClick={() => setExportOpen(true)}
-              className="btn"
-            >
-              匯出／分享
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setLibraryOpen(true)}
-              className="btn"
-            >
-              共用庫
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="btn"
-            >
-              匯入 CSV / Google Sheet
-            </button>
-            <button
-              type="button"
-              onClick={() => setExportOpen(true)}
-              className="btn"
-            >
-              匯出／分享
-            </button>
-
-            {/* 復原／重做 */}
-            <div className="btn-group">
-              <button
-                type="button"
-                onClick={handleUndo}
-                disabled={!canUndo}
-                title="復原（Ctrl/Cmd+Z）"
-                className="text-ink-muted hover:bg-surface-alt disabled:opacity-30"
-              >
-                ↩
-              </button>
-              <button
-                type="button"
-                onClick={handleRedo}
-                disabled={!canRedo}
-                title="重做（Ctrl/Cmd+Shift+Z）"
-                className="text-ink-muted hover:bg-surface-alt disabled:opacity-30"
-              >
-                ↪
-              </button>
-            </div>
-
-            {/* 草稿保存狀態：顯示的訊息與實際寫入結果一致 */}
-            {dirty && saveStatus === 'saving' && (
-              <span className="rounded border border-line bg-surface-alt px-2 py-1 text-sm text-ink-muted">
-                正在保存草稿…
-              </span>
-            )}
-            {dirty && saveStatus === 'saved' && (
-              <button
-                type="button"
-                onClick={() => setExportOpen(true)}
-                title="修改已存為瀏覽器草稿；下載 .hst.json 才是永久保存。點我開啟匯出"
-                className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-800 hover:bg-amber-100"
-              >
-                草稿已保存（尚未下載）
-              </button>
-            )}
-            {dirty && saveStatus === 'error' && (
-              <button
-                type="button"
-                onClick={() => setExportOpen(true)}
-                title="瀏覽器無法寫入草稿（可能空間不足或被封鎖）。請立即下載 .hst.json 保存"
-                className="rounded border border-red-300 bg-red-50 px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-100"
-              >
-                ⚠ 草稿保存失敗——請立即下載
-              </button>
-            )}
-          </>
-        )}
-
-        {/* 顯示選項：寬螢幕直接攤開，窄螢幕收進下拉選單——省下一整列工具列高度 */}
-        <span className="ml-auto hidden items-center gap-3 xl:flex">{displayOptions}</span>
-        <div ref={optionsRef} className="relative ml-auto xl:hidden">
-          <button
-            type="button"
-            onClick={() => setOptionsOpen((v) => !v)}
-            className="btn"
-          >
-            顯示選項 ▾
-          </button>
-          {optionsOpen && (
-            <div className="absolute right-0 z-30 mt-1 flex w-56 flex-col gap-2 rounded-md border border-line bg-surface p-3 shadow-lg">
-              {displayOptions}
-            </div>
-          )}
-        </div>
-
-        {/* 橫式／直式切換：直式是給閱讀與分享用的，時間由上往下流 */}
-        <div className="btn-group">
-          {(Object.keys(ORIENTATION_LABELS) as Array<'horizontal' | 'vertical'>).map((dir) => (
-            <button
-              key={dir}
-              type="button"
-              onClick={() => setOrientation(dir)}
-              className={
-                'transition-colors ' +
-                (orientation === dir
-                  ? 'bg-accent text-white'
-                  : 'bg-surface text-ink-muted hover:bg-surface-alt')
-              }
-            >
-              {ORIENTATION_LABELS[dir]}
-            </button>
-          ))}
-        </div>
-
-        {/* 尺度切換（像 Google 日曆），橫直式共用 */}
-        <div className="btn-group">
-          {(Object.keys(SCALE_LABELS) as ScaleMode[]).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setScaleRequest((prev) => ({ mode, nonce: (prev?.nonce ?? 0) + 1 }))}
-              className={
-                'transition-colors ' +
-                (activeMode === mode
-                  ? 'bg-accent text-white'
-                  : 'bg-surface text-ink-muted hover:bg-surface-alt')
-              }
-            >
-              {SCALE_LABELS[mode]}
-            </button>
-          ))}
-        </div>
-      </header>
+      <Toolbar
+        layerCount={layers.length}
+        visibleCount={visibleSources.length}
+        orientation={orientation}
+        onOrientationChange={setOrientation}
+        activeMode={activeMode}
+        onScaleSelect={(mode) =>
+          setScaleRequest((prev) => ({ mode, nonce: (prev?.nonce ?? 0) + 1 }))
+        }
+        display={{
+          showDates,
+          setShowDates,
+          showYears,
+          setShowYears,
+          showRelations,
+          setShowRelations,
+          collapseGaps,
+          setCollapseGaps,
+          compact,
+          setCompact,
+          reversed,
+          setReversed,
+          centerAxis,
+          setCenterAxis,
+        }}
+        readOnly={readOnly}
+        onMakeEditableCopy={() => {
+          setEditableCopy(true)
+          showNotice('已建立可編輯副本——之後的修改會自動存成這個瀏覽器的草稿')
+        }}
+        onOpenLibrary={() => setLibraryOpen(true)}
+        onOpenImport={() => setImportOpen(true)}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        dirty={dirty}
+        saveStatus={saveStatus}
+        onOpenExport={() => setExportOpen(true)}
+      />
 
       <div className="flex min-h-0 flex-1">
         <LayerPanel
