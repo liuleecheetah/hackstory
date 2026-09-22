@@ -10,6 +10,7 @@ import {
   serializeSvg,
   svgToPngBlob,
 } from '../adapters/export'
+import { embeddedFontCssForText } from '../adapters/fonts'
 import { documentToMarkdown } from '../adapters/markdown'
 import type { Layer } from '../compose/useLayers'
 import { validateDocument } from '../core'
@@ -88,9 +89,23 @@ export function ExportDialog({
   const [preview, setPreview] = useState<{ url: string; warnings: string[] } | null>(null)
   const [previewBusy, setPreviewBusy] = useState(false)
 
-  const say = (msg: string) => {
+  const say = (msg: string, ms = 3000) => {
     setMessage(msg)
-    window.setTimeout(() => setMessage(null), 3000)
+    window.setTimeout(() => setMessage(null), ms)
+  }
+
+  /**
+   * SVG → PNG，並把圖上用到的思源黑體切片嵌進去（不嵌的話 PNG 會變成系統字）。
+   * 有字不在思源黑體裡時，回傳一句提醒，不靜默換字。
+   */
+  const pngWithFonts = async (svg: SVGSVGElement, w: number, h: number) => {
+    const { css, missing } = await embeddedFontCssForText(svg.textContent ?? '')
+    const blob = await svgToPngBlob(serializeSvg(svg, { embeddedFontCss: css }), w, h, 2)
+    const note =
+      missing.length > 0
+        ? `；有 ${missing.length} 個字不在思源黑體裡，會用替代字型（${missing.slice(0, 5).join('、')}${missing.length > 5 ? '…' : ''}）`
+        : ''
+    return { blob, note }
   }
 
   const preset = RATIO_PRESETS.find((r) => r.id === ratio) ?? null
@@ -215,10 +230,11 @@ export function ExportDialog({
     if (!svg) return
     const width = svg.width.baseVal.value
     const height = svg.height.baseVal.value
-    void svgToPngBlob(serializeSvg(svg), width, height)
-      .then((blob) => {
+    say('正在嵌入字型、產生 PNG…', 10_000)
+    void pngWithFonts(svg, width, height)
+      .then(({ blob, note }) => {
         downloadBlob('hackstory-timeline.png', blob)
-        say('已下載 PNG 圖片')
+        say(`已下載 PNG 圖片${note}`, note ? 8000 : 3000)
       })
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }
@@ -237,9 +253,10 @@ export function ExportDialog({
           say(`已下載 ${preset.label} SVG`)
           return
         }
-        const blob = await svgToPngBlob(text, preset.w, preset.h, 2)
+        say('正在嵌入字型、產生 PNG…', 10_000)
+        const { blob, note } = await pngWithFonts(svg, preset.w, preset.h)
         downloadBlob(`${name}.png`, blob)
-        say(`已下載 ${preset.label} PNG（${preset.w * 2}×${preset.h * 2}）`)
+        say(`已下載 ${preset.label} PNG（${preset.w * 2}×${preset.h * 2}）${note}`, note ? 8000 : 3000)
       })
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }

@@ -16,17 +16,30 @@ export function embedCode(url: string): string {
   return `<iframe src="${url}" width="960" height="600" style="border:1px solid #ddd" title="HackStory 時間軸"></iframe>`
 }
 
-/** 把畫面上的 SVG 元素序列化成獨立的 .svg 檔內容（自帶白底與字型設定） */
-export function serializeSvg(svg: SVGSVGElement): string {
+/**
+ * 把畫面上的 SVG 元素序列化成獨立的 .svg 檔內容（自帶白底與字型設定）。
+ * embeddedFontCss：要嵌進去的字型樣式（由 fonts.ts 產生）。PNG 一定要帶，
+ * 不然轉檔時看不到思源黑體；SVG 檔可選——帶了檔案會大，但在沒裝字型的電腦上也正確。
+ */
+export function serializeSvg(svg: SVGSVGElement, opts: { embeddedFontCss?: string } = {}): string {
   const clone = svg.cloneNode(true) as SVGSVGElement
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-  clone.setAttribute('font-family', "system-ui, 'Noto Sans TC', 'PingFang TC', sans-serif")
+  // 思源黑體排第一：跟網頁畫面同一套字；沒嵌字型、電腦也沒裝時才退回系統字
+  clone.setAttribute('font-family', "'Noto Sans TC', system-ui, 'PingFang TC', sans-serif")
+  if (opts.embeddedFontCss) {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+    style.textContent = opts.embeddedFontCss
+    defs.appendChild(style)
+    clone.insertBefore(defs, clone.firstChild)
+  }
   // 畫面上的白底來自 CSS，存成獨立檔案要自己帶一塊白色背景
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
   bg.setAttribute('width', '100%')
   bg.setAttribute('height', '100%')
   bg.setAttribute('fill', '#ffffff')
-  clone.insertBefore(bg, clone.firstChild)
+  // 白底要畫在字型樣式之後、所有內容之前
+  clone.insertBefore(bg, opts.embeddedFontCss ? clone.firstChild!.nextSibling : clone.firstChild)
   return new XMLSerializer().serializeToString(clone)
 }
 
@@ -45,6 +58,8 @@ export async function svgToPngBlob(
       img.onerror = () => reject(new Error('SVG 圖片載入失敗'))
       img.src = url
     })
+    // 等圖片（含嵌入的字型）完全解碼再畫，避免字型還沒套上就被畫進 PNG
+    await img.decode().catch(() => {})
     const canvas = document.createElement('canvas')
     canvas.width = Math.round(width * scale)
     canvas.height = Math.round(height * scale)

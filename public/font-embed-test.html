@@ -1,0 +1,64 @@
+<!doctype html>
+<!-- 暫時的驗收頁（U2a）：確認 PNG 匯出有把思源黑體嵌進去。驗收完就刪除，不要 commit。 -->
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8" />
+<title>字型嵌入測試</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; background: #f5f4f0; color: #1a1a1a; }
+  h1 { font-size: 22px; }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .card { background: #fff; border: 1px solid #ccc; padding: 12px; border-radius: 6px; }
+  .card h2 { font-size: 16px; margin: 0 0 8px; }
+  #status { font-size: 15px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<h1>PNG 字型嵌入測試</h1>
+<p>兩張都是用「下載 PNG」同一套程式產生的圖片。為了避開「電腦本身裝了思源黑體」的干擾，字型故意取了一個電腦上不存在的名字。</p>
+<div id="status">產生中…</div>
+<div class="row">
+  <div class="card"><h2>左：沒嵌字型 → 應該是<b>明體</b>（有襯線、筆畫粗細不一）</h2><img id="without" /></div>
+  <div class="card"><h2>右：有嵌字型 → 應該是<b>思源黑體</b>（跟網站畫面一樣），第二行是粗體</h2><img id="with" /></div>
+</div>
+<script type="module">
+  import { serializeSvg, svgToPngBlob } from '/src/adapters/export.ts'
+  import { embeddedFontCssForText } from '/src/adapters/fonts.ts'
+
+  const NS = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(NS, 'svg')
+  svg.setAttribute('width', '420')
+  svg.setAttribute('height', '120')
+  const lines = [
+    ['1865《從地球到月球》：以巨砲送人上月球', 400],
+    ['2019/5/24 同婚專法施行・亞洲第一', 700],
+    ['二二八事件 國民政府 台灣菁英受難', 400],
+  ]
+  lines.forEach(([text, weight], i) => {
+    const t = document.createElementNS(NS, 'text')
+    t.setAttribute('x', '12')
+    t.setAttribute('y', String(32 + i * 34))
+    t.setAttribute('font-size', '20')
+    t.setAttribute('font-weight', String(weight))
+    t.setAttribute('fill', '#1e293b')
+    t.textContent = text
+    svg.appendChild(t)
+  })
+
+  const fake = (s) =>
+    s.replace(/font-family="[^"]*"/, `font-family="'HSEmbedTest', serif"`)
+      .replaceAll("font-family:'Noto Sans TC'", "font-family:'HSEmbedTest'")
+
+  try {
+    const { css } = await embeddedFontCssForText(svg.textContent)
+    const withPng = await svgToPngBlob(fake(serializeSvg(svg, { embeddedFontCss: css })), 420, 120, 1)
+    const withoutPng = await svgToPngBlob(fake(serializeSvg(svg)), 420, 120, 1)
+    document.getElementById('with').src = URL.createObjectURL(withPng)
+    document.getElementById('without').src = URL.createObjectURL(withoutPng)
+    document.getElementById('status').textContent = '完成。請比較左右兩張。'
+  } catch (e) {
+    document.getElementById('status').textContent = '失敗：' + e.message
+  }
+</script>
+</body>
+</html>
