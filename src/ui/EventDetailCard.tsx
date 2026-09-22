@@ -63,6 +63,26 @@ const CARD_GAP = 14
 /** 卡片至少要有這麼高才值得往上開，否則寧可往下開 */
 const MIN_UP_ROOM = 220
 
+/**
+ * 某個元素在畫面上「真的看得到」的範圍：
+ * 視窗本身，再逐層扣掉會裁切內容的外框（SVG 畫布、會捲動的容器）
+ */
+function visibleClip(el: Element): { left: number; right: number; top: number; bottom: number } {
+  const clip = { left: 0, right: window.innerWidth, top: 0, bottom: window.innerHeight }
+  const cut = (r: DOMRect) => {
+    clip.left = Math.max(clip.left, r.left)
+    clip.right = Math.min(clip.right, r.right)
+    clip.top = Math.max(clip.top, r.top)
+    clip.bottom = Math.min(clip.bottom, r.bottom)
+  }
+  if (el instanceof SVGElement && el.ownerSVGElement) cut(el.ownerSVGElement.getBoundingClientRect())
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const s = getComputedStyle(p)
+    if (s.overflowX !== 'visible' || s.overflowY !== 'visible') cut(p.getBoundingClientRect())
+  }
+  return clip
+}
+
 interface FormState {
   title: string
   startRaw: string
@@ -145,6 +165,16 @@ export function EventDetailCard({
         const r = anchor.getBoundingClientRect()
         ax = r.left
         ay = r.top + r.height / 2
+        // 事件被捲動、平移或縮放到時間軸看得到的範圍外：卡片先收起，事件回來再出現。
+        // 不這樣做的話，卡片會被推到畫面邊緣，蓋住圖層面板、指著一個看不到的東西
+        const clip = visibleClip(anchor)
+        const cx = r.left + r.width / 2
+        if (cx < clip.left || cx > clip.right || ay < clip.top || ay > clip.bottom) {
+          return { width: CARD_W, left: -9999, top: 0, visibility: 'hidden' }
+        }
+      } else if (!createMode) {
+        // 事件目前沒有畫出來（例如所在圖層或軸線被隱藏）：同樣先收起
+        return { width: CARD_W, left: -9999, top: 0, visibility: 'hidden' }
       }
 
       // 工具列下緣以上是禁區——蓋住了使用者就按不到那些按鈕
@@ -185,7 +215,7 @@ export function EventDetailCard({
 
     tick()
     return () => cancelAnimationFrame(raf)
-  }, [selection.key, clientX, clientY])
+  }, [selection.key, clientX, clientY, createMode])
 
   // 日期文字：起（—迄），依精度誠實顯示；進行中事件顯示「至今仍持續」；
   // 相對時間事件顯示先後關係並註明畫面位置只是推估
