@@ -173,7 +173,7 @@ export function ExportStudio(props: Props) {
     const warnings: string[] = []
     if (rangeKind === 'years' && !timeRange) warnings.push('自訂年份還沒填完整，暫時畫出全部時間')
     if (layout === 'A') {
-      const { svg, overflow } = await renderHorizontalExportSvg({ ...common, compact })
+      const { svg, overflow } = await renderHorizontalExportSvg({ ...common, compact, swimlane: true })
       if (overflow) {
         warnings.push(
           '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、取消勾選部分圖層／軸線，或改用直式',

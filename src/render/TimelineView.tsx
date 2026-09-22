@@ -6,10 +6,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
-import { assignLanes, estimateTextWidth, truncate } from './layout'
+import { assignLanes, estimateTextWidth, truncate, wrapLines } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { RenderTheme } from './theme'
-import { deriveTheme, THEMES } from './theme'
+import { deriveTheme, textOnColor, THEMES } from './theme'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
   EventSelection,
@@ -46,6 +46,11 @@ interface Props {
   compact?: boolean
   /** 主題：字級、尺寸、顏色（預設「螢幕」主題） */
   theme?: RenderTheme
+  /**
+   * 版型 A「多軸泳道」的外觀：左側滿高色塊寫軸線名、頂部整條刻度帶、方頭長條。
+   * 只在匯出（出圖工作室）時生效，畫面上的檢視不受影響
+   */
+  swimlane?: boolean
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -92,6 +97,7 @@ const MIN_SPAN = DAY / 4 // 最多放大到 6 小時
 const MAX_SPAN = 400 * 365 * DAY // 最多縮小到 400 年
 const BASE_TITLE_H = 42 // 匯出圖片頂部的標題列
 const BASE_TITLE_SUB_H = 64 // 有副標時的標題列
+const BASE_LANE_LABEL_W = 132 // 泳道外觀：左側軸線名色塊的寬度
 const BASE_FOOTER_H = 22 // 匯出圖片底部的出處小字
 
 export function TimelineView({
@@ -104,6 +110,7 @@ export function TimelineView({
   collapseGaps = false,
   compact = false,
   theme = THEMES.screen,
+  swimlane = false,
   selectedKey,
   onEventSelect,
   onEventCreate,
@@ -129,6 +136,11 @@ export function TimelineView({
   const AXIS_H = BASE_AXIS_H * S
   const TITLE_H = (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
   const FOOTER_H = BASE_FOOTER_H * S
+  // 泳道外觀（版型 A，只在匯出時）：時間軸往右讓出一欄給軸線名色塊。
+  // 沒開時 plotL = 0、plotW = width，所有座標與以前完全相同
+  const lane = swimlane && !!exportMode
+  const plotL = lane ? BASE_LANE_LABEL_W * S : 0
+  const plotW = Math.max(1, width - plotL)
   const M = useMemo(
     () => ({
       laneH: T.laneH,
@@ -142,6 +154,8 @@ export function TimelineView({
     }),
     [T],
   )
+  // 軸線名改畫在左側色塊裡（泳道外觀），軸線上方就不必再留一列標題
+  const labelRowH = lane ? 8 * S : M.trackLabelH
 
   // 與方向無關的資料準備都交給資料層（timelineData）：相對時間求解、空白摺疊
   // 對應、初始可視範圍、事件定位時間。分兩步呼叫是為了快取——切換「顯示日期」
@@ -278,7 +292,7 @@ export function TimelineView({
   const layout = useMemo(() => {
     const [a, b] = domain
     // 先把真實時間換算到壓縮座標，再投影到像素
-    const x = (t: number) => ((warp.toU(t) - a) / (b - a)) * width
+    const x = (t: number) => plotL + ((warp.toU(t) - a) / (b - a)) * plotW
 
     let y = AXIS_H + 8 * S
 
@@ -306,7 +320,7 @@ export function TimelineView({
           )
           // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
           const labelSide: 'right' | 'left' =
-            shapeR + 6 * S + labelW > width && shapeL - 6 * S - labelW > 0 ? 'left' : 'right'
+            shapeR + 6 * S + labelW > width && shapeL - 6 * S - labelW > plotL ? 'left' : 'right'
           const occL = labelSide === 'left' ? shapeL - 6 * S - labelW : shapeL
           const occR = labelSide === 'right' ? shapeR + 6 * S + labelW : shapeR
           return { ...pe, label: pe.title, shapeL, shapeR, labelSide, occL, occR }
@@ -316,7 +330,23 @@ export function TimelineView({
       const lanes = assignLanes(items.map((it) => ({ left: it.occL, right: it.occR })))
       const laneCount = items.length > 0 ? Math.max(...lanes) + 1 : 1
       const bandTop = y
-      const bandH = M.trackLabelH + laneCount * M.laneH + 6 * S
+      // 泳道外觀：軸線名折行放進左側色塊（有「文件｜軸線」時分兩層：文件名小字、軸線名粗體），
+      // 軸線至少要高到放得下這些字
+      let laneLabel: { head: string[]; tail: string[] } | null = null
+      let labelBlockH = 0
+      if (lane) {
+        const [head, tail] = band.label.includes('｜')
+          ? [band.label.slice(0, band.label.indexOf('｜')), band.label.slice(band.label.indexOf('｜') + 1)]
+          : ['', band.label]
+        const textW = plotL - 4 * S - 20 * S
+        laneLabel = {
+          head: head ? wrapLines(head, textW, F.date, 2) : [],
+          tail: wrapLines(tail, textW, F.track, 3),
+        }
+        labelBlockH =
+          laneLabel.head.length * F.date * 1.4 + laneLabel.tail.length * F.track * 1.4 + 20 * S
+      }
+      const bandH = Math.max(labelRowH + laneCount * M.laneH + 6 * S, labelBlockH)
       y += bandH + M.bandGap
 
       // 這條軸線最早／最新事件的位置（u 座標），供 hover 浮現的跳轉按鈕使用
@@ -334,6 +364,7 @@ export function TimelineView({
         docTitle: band.docTitle,
         trackTitle: band.trackTitle,
         label: band.label,
+        laneLabel,
         color: band.color,
         bandTop,
         bandH,
@@ -342,7 +373,7 @@ export function TimelineView({
         items: items.map((it, j) => ({
           ...it,
           lane: lanes[j],
-          cy: bandTop + M.trackLabelH + lanes[j] * M.laneH + M.laneH / 2,
+          cy: bandTop + labelRowH + lanes[j] * M.laneH + M.laneH / 2,
         })),
       }
     })
@@ -377,7 +408,7 @@ export function TimelineView({
         // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
         const labelW = estimateTextWidth(label, F.date) + 18 * S
         const labelX = Math.min(
-          Math.max((from.x + to.x) / 2, labelW / 2 + 4),
+          Math.max((from.x + to.x) / 2, plotL + labelW / 2 + 4),
           width - labelW / 2 - 4,
         )
         return [
@@ -397,7 +428,7 @@ export function TimelineView({
     )
 
     return { bands, relationLines, height: Math.max(y + 8, 320), x }
-  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H])
+  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -422,12 +453,12 @@ export function TimelineView({
   }
   // 每段密集區依自己佔的像素寬各自產生刻度，摺疊區內不放刻度
   const ticks = denseRanges.flatMap(([a, b]) => {
-    const px = ((warp.toU(b) - warp.toU(a)) / (domain[1] - domain[0])) * width
+    const px = ((warp.toU(b) - warp.toU(a)) / (domain[1] - domain[0])) * plotW
     if (px < 50) return []
     return getTicks([a, b], px).filter((d) => d.getTime() >= a && d.getTime() <= b)
   })
   // 壓縮座標 → 像素（畫斷軸記號用）
-  const xOfU = (u: number) => ((u - domain[0]) / (domain[1] - domain[0])) * width
+  const xOfU = (u: number) => plotL + ((u - domain[0]) / (domain[1] - domain[0])) * plotW
 
   // 「回到選取的事件」：選取的事件被平移／縮放到畫面外時，往它的方向浮現一顆小鈕拉它回來。
   // 事件在畫面內時鈕自動消失——平常完全不佔畫面。
@@ -549,6 +580,8 @@ export function TimelineView({
             <stop offset="1" stopColor={C.halo} stopOpacity="1" />
           </linearGradient>
         </defs>
+        {/* 泳道外觀：頂部整條刻度帶（淡底、粗年份） */}
+        {lane && <rect x={0} y={0} width={width} height={AXIS_H} fill={C.grid} opacity={0.6} />}
         {/* 直式格線 */}
         {ticks.map((d, i) => (
           <line
@@ -570,8 +603,9 @@ export function TimelineView({
             x={layout.x(d.getTime())}
             y={AXIS_H - 10 * S}
             textAnchor="middle"
-            fontSize={F.event}
-            fill={C.inkMuted}
+            fontSize={lane ? F.track : F.event}
+            fontWeight={lane ? 700 : undefined}
+            fill={lane ? C.ink : C.inkMuted}
           >
             {formatTick(d)}
           </text>
@@ -584,7 +618,7 @@ export function TimelineView({
         {/* 斷軸記號：⫽ 加上「略過多久」，虛線貫穿到底 */}
         {warp.gaps.map((g, i) => {
           const xg = xOfU(g.uCenter)
-          if (xg < -30 || xg > width + 30) return null
+          if (xg < plotL - 30 || xg > width + 30) return null
           return (
             <g key={`gap-${i}`}>
               <line x1={xg - 6 * S} y1={AXIS_H - 5 * S} x2={xg - 1 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
@@ -609,11 +643,16 @@ export function TimelineView({
         {/* 軸線底色與標題 */}
         {layout.bands.map(({ key, label, color, bandTop, bandH }) => (
           <g key={`${key}-bg`}>
-            <rect x={0} y={bandTop} width={width} height={bandH} fill={color} opacity={0.05} />
-            <rect x={0} y={bandTop} width={3} height={bandH} fill={color} />
-            <text x={12 * S} y={bandTop + 18 * S} fontSize={F.track} fontWeight={700} fill={color}>
-              {label}
-            </text>
+            <rect x={plotL} y={bandTop} width={plotW} height={bandH} fill={color} opacity={0.05} />
+            {/* 泳道外觀的軸線名畫在左側色塊（最上層，見下方），這裡不重複 */}
+            {!lane && (
+              <>
+                <rect x={0} y={bandTop} width={3} height={bandH} fill={color} />
+                <text x={12 * S} y={bandTop + 18 * S} fontSize={F.track} fontWeight={700} fill={color}>
+                  {label}
+                </text>
+              </>
+            )}
           </g>
         ))}
 
@@ -718,17 +757,18 @@ export function TimelineView({
                         y={cy - barH / 2 - 4}
                         width={shapeR - shapeL + 8}
                         height={barH + 8}
-                        rx={(barH + 8) / 2}
+                        rx={lane ? 4 * S : (barH + 8) / 2}
                         fill={fill}
                         opacity={0.15}
                       />
                     ) : (
+                      /* 泳道外觀把關鍵事件的光暈加大加深，遠看也分得出重點 */
                       <circle
                         cx={(shapeL + shapeR) / 2}
                         cy={cy}
-                        r={dotR + 4}
+                        r={dotR + (lane ? 6 * S : 4)}
                         fill={fill}
-                        opacity={0.15}
+                        opacity={lane ? 0.25 : 0.15}
                       />
                     ))}
                   {/* 選取光環 */}
@@ -739,7 +779,7 @@ export function TimelineView({
                         y={cy - barH / 2 - 3}
                         width={shapeR - shapeL + 6}
                         height={barH + 6}
-                        rx={(barH + 6) / 2}
+                        rx={lane ? 3 * S : (barH + 6) / 2}
                         fill="none"
                         stroke={fill}
                         strokeWidth={2}
@@ -763,7 +803,7 @@ export function TimelineView({
                         y={cy - barH / 2}
                         width={shapeR - shapeL}
                         height={barH}
-                        rx={barH / 2}
+                        rx={lane ? 2 * S : barH / 2}
                         fill={fill}
                         opacity={0.85}
                       />
@@ -846,6 +886,36 @@ export function TimelineView({
               ))}
           </g>
         )}
+
+        {/* 泳道外觀：左側滿高色塊寫軸線名。畫在事件之後，
+            被平移到左邊界外的事件圖形會被色塊蓋住，不會露在軸線名上 */}
+        {lane &&
+          layout.bands.map(({ key, laneLabel, color, bandTop, bandH }) => {
+            if (!laneLabel) return null
+            const ink = textOnColor(color, C)
+            let ty = bandTop + 10 * S
+            return (
+              <g key={`${key}-lane`}>
+                <rect x={0} y={bandTop} width={plotL - 4 * S} height={bandH} fill={color} />
+                {laneLabel.head.map((line, i) => {
+                  ty += F.date * 1.4
+                  return (
+                    <text key={`h${i}`} x={10 * S} y={ty - F.date * 0.3} fontSize={F.date} fill={ink} opacity={0.85}>
+                      {line}
+                    </text>
+                  )
+                })}
+                {laneLabel.tail.map((line, i) => {
+                  ty += F.track * 1.4
+                  return (
+                    <text key={`t${i}`} x={10 * S} y={ty - F.track * 0.3} fontSize={F.track} fontWeight={700} fill={ink}>
+                      {line}
+                    </text>
+                  )
+                })}
+              </g>
+            )
+          })}
 
         {/* hover 某條軸線時浮現「跳到最早／最新事件」按鈕（⇤／⇥），平常完全不佔畫面 */}
         {layout.bands

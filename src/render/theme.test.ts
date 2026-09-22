@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrastRatio, deriveTheme, THEMES } from './theme'
+import { contrastRatio, deriveTheme, textOnColor, THEMES } from './theme'
 
 describe('螢幕主題與改版前的數字完全相同', () => {
   it('一般密度', () => {
@@ -84,5 +84,20 @@ describe('contrastRatio：WCAG 公式', () => {
   it('黑對白是 21、同色是 1', () => {
     expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21)
     expect(contrastRatio('#abc', '#aabbcc')).toBeCloseTo(1)
+  })
+})
+
+describe('textOnColor：色塊上的字色', () => {
+  const C = THEMES.screen.colors
+  it('深色塊用白字、淺色塊用暗字', () => {
+    expect(textOnColor('#0072b2', C)).toBe(C.onColorLight)
+    expect(textOnColor('#f0e442', C)).toBe(C.onColorDark)
+  })
+  it('挑出來的字色對比度至少 4.5（色盤裡每一色都看得清楚）', () => {
+    for (const t of Object.values(THEMES)) {
+      for (const fill of t.palette) {
+        expect(contrastRatio(textOnColor(fill, t.colors), fill), fill).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 })

@@ -38,3 +38,26 @@ export function estimateTextWidth(text: string, fontSize = 12): number {
 export function truncate(text: string, maxChars: number): string {
   return text.length > maxChars ? text.slice(0, maxChars) + '…' : text
 }
+
+/**
+ * 把文字折成幾行，每行不超過 maxW 像素（依 estimateTextWidth 估算）。
+ * 超過 maxLines 行時，最後一行以「…」收尾——寧可截短也不溢出色塊。
+ */
+export function wrapLines(text: string, maxW: number, fontSize: number, maxLines: number): string[] {
+  const lines: string[] = []
+  let line = ''
+  for (const ch of text) {
+    if (line && estimateTextWidth(line + ch, fontSize) > maxW) {
+      lines.push(line)
+      line = ''
+    }
+    line += ch
+  }
+  if (line) lines.push(line)
+  if (lines.length <= maxLines) return lines
+  const kept = lines.slice(0, Math.max(1, maxLines))
+  let last = kept[kept.length - 1]
+  while (last && estimateTextWidth(last + '…', fontSize) > maxW) last = [...last].slice(0, -1).join('')
+  kept[kept.length - 1] = last + '…'
+  return kept
+}

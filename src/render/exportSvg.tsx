@@ -60,6 +60,8 @@ export interface VerticalExportRequest extends ExportRequestBase {
 /** 橫式另外吃「精簡模式」——那是使用者調整「一張圖塞得下幾條軸線」的主要手段 */
 export interface HorizontalExportRequest extends ExportRequestBase {
   compact: boolean
+  /** 版型 A「多軸泳道」外觀：左側軸線名色塊、頂部刻度帶、方頭長條 */
+  swimlane?: boolean
 }
 
 export interface VerticalExportResult {
@@ -177,6 +179,7 @@ export function renderHorizontalExportSvg(
       showRelations={req.showRelations}
       collapseGaps={req.collapseGaps}
       compact={req.compact}
+      swimlane={req.swimlane}
       exportMode={{
         width: req.width,
         height: req.height,

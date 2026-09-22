@@ -35,6 +35,9 @@ export interface ThemeColors {
   warn: string
   warnBg: string
   warnLine: string
+  /** 放在軸線色塊上的字：深色塊用亮字、淺色塊用暗字（依對比度自動挑） */
+  onColorLight: string
+  onColorDark: string
 }
 
 /** 六級字（px） */
@@ -110,6 +113,8 @@ const LIGHT_COLORS: ThemeColors = {
   warn: '#b45309',
   warnBg: '#fffbeb',
   warnLine: '#f59e0b',
+  onColorLight: '#ffffff',
+  onColorDark: '#111827',
 }
 
 /** 依倍率與密度算出字級與幾何 */
@@ -172,6 +177,8 @@ export const THEMES: Record<ThemeId, RenderTheme> = {
       warn: '#fcd34d',
       warnBg: '#3a2e12',
       warnLine: '#f59e0b',
+      onColorLight: '#ffffff',
+      onColorDark: '#111827',
     },
     DARK_PALETTE,
   ),
@@ -223,4 +230,11 @@ export function contrastRatio(fg: string, bg: string): number {
   const a = luminance(fg)
   const b = luminance(bg)
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
+/** 放在某個色塊上的字要用亮字還是暗字：挑對比度較高的那個 */
+export function textOnColor(fill: string, colors: ThemeColors): string {
+  return contrastRatio(colors.onColorLight, fill) >= contrastRatio(colors.onColorDark, fill)
+    ? colors.onColorLight
+    : colors.onColorDark
 }
