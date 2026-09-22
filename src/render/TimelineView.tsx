@@ -6,10 +6,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
+import type { CalloutSpec } from './callouts'
+import { placeCallouts } from './callouts'
+import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { assignLanes, estimateTextWidth, truncate, wrapLines } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { RenderTheme } from './theme'
 import { deriveTheme, textOnColor, THEMES } from './theme'
+import type { DateParts } from './timeScale'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
   EventSelection,
@@ -38,6 +42,8 @@ interface Props {
   showDates?: boolean
   /** 日期是否含年份（整條軸都在同一年時可關掉，預設顯示） */
   showYears?: boolean
+  /** 年、月、日分別控制（出圖用）；有給就取代上面兩個勾選 */
+  dateParts?: DateParts
   /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
   showRelations?: boolean
   /** 是否摺疊大段空白（SPEC display.collapseGaps），預設不摺疊 */
@@ -51,6 +57,8 @@ interface Props {
    * 只在匯出（出圖工作室）時生效，畫面上的檢視不受影響
    */
   swimlane?: boolean
+  /** 標註框：挑出來加「標題＋摘要」說明的事件（只在匯出時畫） */
+  callouts?: CalloutSpec[]
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -79,6 +87,8 @@ export interface HorizontalExportOptions {
   title: string
   /** 標題下方的副標（選填；有值時標題列會加高） */
   subtitle?: string
+  /** 圖片底部左側的註記，例如「僅列關鍵事件（25 件中的 9 件）」 */
+  note?: string
   /** 圖片底部的出處小字 */
   footer: string
 }
@@ -106,11 +116,13 @@ export function TimelineView({
   onScaleModeChange,
   showDates = true,
   showYears = true,
+  dateParts,
   showRelations = true,
   collapseGaps = false,
   compact = false,
   theme = THEMES.screen,
   swimlane = false,
+  callouts,
   selectedKey,
   onEventSelect,
   onEventCreate,
@@ -135,7 +147,8 @@ export function TimelineView({
   const S = T.scale
   const AXIS_H = BASE_AXIS_H * S
   const TITLE_H = (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
-  const FOOTER_H = BASE_FOOTER_H * S
+  // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
+  const FOOTER_H = (BASE_FOOTER_H + (exportMode?.note ? 16 : 0)) * S
   // 泳道外觀（版型 A，只在匯出時）：時間軸往右讓出一欄給軸線名色塊。
   // 沒開時 plotL = 0、plotW = width，所有座標與以前完全相同
   const lane = swimlane && !!exportMode
@@ -165,8 +178,8 @@ export function TimelineView({
 
   // 每條軸線要畫哪些事件、它們的時間範圍與標題文字（同樣與方向無關）
   const preparedBands = useMemo(
-    () => buildBands(sources, base, { showDates, showYears }, T.palette),
-    [sources, base, showDates, showYears, T.palette],
+    () => buildBands(sources, base, { showDates, showYears, dateParts }, T.palette),
+    [sources, base, showDates, showYears, dateParts, T.palette],
   )
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
@@ -427,7 +440,7 @@ export function TimelineView({
       }),
     )
 
-    return { bands, relationLines, height: Math.max(y + 8, 320), x }
+    return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x }
   }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH])
 
   // 沒有任何可見圖層：顯示提示文字
@@ -477,7 +490,38 @@ export function TimelineView({
   // 匯出模式：上面留標題列、下面留出處，中間才是時間軸；放不下的軸線會被裁掉
   const exportTop = exportMode ? TITLE_H : 0
   const exportAvailH = exportMode ? exportMode.height - TITLE_H - FOOTER_H : 0
-  const exportOverflow = exportMode ? layout.height > exportAvailH : false
+  // 容許半個像素的誤差：自動長度的畫布剛好等於內容高度時，小數誤差不該被當成「放不下」
+  const exportOverflow = exportMode ? layout.height > exportAvailH + 0.5 : false
+
+  // 標註框（只在匯出時）：找得到事件位置的才排，其餘（範圍外、被裁掉）算放不下。
+  // 框絕不蓋到事件文字，只放在畫布的空白處；自動長度試算時畫布很長，
+  // 框若得放到軸線下方，圖就會拉長到剛好放得下（見 data-content-height）
+  const calloutLayout =
+    exportMode && callouts && callouts.length > 0
+      ? (() => {
+          const bottom = exportAvailH - 4 * S
+          const withAnchor = callouts.flatMap((c) => {
+            const a = layout.anchors.get(c.key)
+            return a && a.x >= plotL && a.x <= width && a.y <= Math.min(layout.height, exportAvailH)
+              ? [{ ...c, anchorX: a.x, anchorY: a.y }]
+              : []
+          })
+          // 每個事件的圖形＋文字佔的範圍：標註框盡量不蓋到
+          const obstacles = layout.bands.flatMap((b) =>
+            b.items.map((it) => ({ x: it.occL, y: it.cy - M.laneH / 2, w: it.occR - it.occL, h: M.laneH })),
+          )
+          const result = placeCallouts(
+            withAnchor,
+            { left: plotL + 4 * S, top: AXIS_H + 4 * S, right: width - 4 * S, bottom },
+            'horizontal',
+            // 框可以放遠一點（引線拉長），只要不蓋到事件
+            calloutMetrics(T, Math.max(width, exportAvailH)),
+            obstacles,
+          )
+          const missing = callouts.filter((c) => !withAnchor.some((w) => w.key === c.key)).map((c) => c.key)
+          return { placed: result.placed, dropped: [...result.dropped, ...missing] }
+        })()
+      : null
 
   // 畫面上的檢視與匯出圖片共用同一段 SVG——「看到的」與「存下來的」保證一致
   const svgEl = (
@@ -489,8 +533,21 @@ export function TimelineView({
         className={exportMode ? 'block' : 'block cursor-grab active:cursor-grabbing'}
         style={exportMode ? { background: C.bg } : { background: C.bg, touchAction: 'none' }}
         data-overflow={exportOverflow ? '1' : '0'}
+        // 放不下而省略的標註（事件 key，以 | 分隔），讓出圖工作室能告訴使用者
+        data-callouts-dropped={calloutLayout ? calloutLayout.dropped.join('|') : undefined}
         // 全部軸線都放得下需要的高度（出圖工作室「自動長度」用）
-        data-content-height={exportMode ? Math.ceil(exportTop + layout.height + FOOTER_H) : undefined}
+        data-content-height={
+          exportMode
+            ? Math.ceil(
+                exportTop +
+                  Math.max(
+                    layout.height,
+                    ...(calloutLayout?.placed ?? []).map((p) => p.y + p.h + 10 * S),
+                  ) +
+                  FOOTER_H,
+              )
+            : undefined
+        }
         onPointerDown={exportMode ? undefined : (e) => {
           dragState.current = {
             startX: e.clientX,
@@ -948,7 +1005,15 @@ export function TimelineView({
               </g>
             )
           })}
+        {/* 標註框畫在最上層 */}
+        {calloutLayout && <CalloutLayer placed={calloutLayout.placed} theme={T} />}
         </g>
+        {/* 匯出圖片底部左側的註記（例如只列了關鍵事件），誠實告訴讀者這是精選 */}
+        {exportMode?.note && (
+          <text x={12 * S} y={exportMode.height - 24 * S} fontSize={F.footer} fill={C.inkFaint}>
+            {exportMode.note}
+          </text>
+        )}
         {/* 匯出圖片底部的出處小字 */}
         {exportMode && (
           <text

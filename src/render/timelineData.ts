@@ -17,7 +17,8 @@ import type { TimeWarp } from './gaps'
 import { buildWarp } from './gaps'
 import { truncate } from './layout'
 import { DEFAULT_PALETTE } from './theme'
-import { formatPointShort, spanMidpoint, timePointToSpan } from './timeScale'
+import type { DateParts } from './timeScale'
+import { formatPointParts, formatPointShort, spanMidpoint, timePointToSpan } from './timeScale'
 import type { TimelineSource } from './types'
 
 const DAY = 86_400_000
@@ -203,13 +204,15 @@ export interface BandTextOptions {
   showDates: boolean
   /** 日期是否含年份 */
   showYears: boolean
+  /** 年、月、日分別控制（出圖工作室用）；有給就取代上面兩個勾選 */
+  dateParts?: DateParts
 }
 
 /** 把每份文件的每條軸線攤平成「準備好要畫的軸線」 */
 export function buildBands(
   sources: TimelineSource[],
   base: TimelineBase,
-  { showDates, showYears }: BandTextOptions,
+  { showDates, showYears, dateParts }: BandTextOptions,
   /** 軸線沒指定顏色時輪流使用的色盤（由主題提供） */
   palette: string[] = DEFAULT_PALETTE,
 ): PreparedBand[] {
@@ -290,9 +293,11 @@ export function buildBands(
           // 推估位置永遠標示「（推估）」——明確告訴讀者這不是真實日期
           const dateLabel = estimate
             ? '（推估）'
-            : showDates
-              ? formatPointShort(start as AbsoluteTimePoint, showYears)
-              : ''
+            : dateParts
+              ? formatPointParts(start as AbsoluteTimePoint, dateParts)
+              : showDates
+                ? formatPointShort(start as AbsoluteTimePoint, showYears)
+                : ''
 
           return [
             {

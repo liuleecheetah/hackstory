@@ -14,7 +14,8 @@ import { estimateTextWidth } from './layout'
 import type { RenderTheme } from './theme'
 import { THEMES } from './theme'
 import { buildBands, buildTimelineBase } from './timelineData'
-import { formatPointShort, formatRangeLabel } from './timeScale'
+import type { DateParts } from './timeScale'
+import { formatPointParts, formatRangeLabel } from './timeScale'
 import type { TimelineSource } from './types'
 import type { VerticalExportOptions } from './VerticalTimelineView'
 import { fitText } from './verticalLayout'
@@ -26,6 +27,8 @@ interface Props {
   collapseGaps: boolean
   /** 最新的在上面 */
   reversed: boolean
+  /** 日期欄要寫年、月、日的哪幾個部分（沒給就全寫） */
+  dateParts?: DateParts
   /** 卡片上是否寫查證程度（已查證／據報導／有爭議） */
   showConfidence?: boolean
   /** 卡片上是否列出來源清單 */
@@ -36,11 +39,14 @@ interface Props {
   exportMode: VerticalExportOptions
 }
 
+const ALL_PARTS: DateParts = { year: true, month: true, day: true }
+
 export function ChronicleView({
   sources,
   domain,
   collapseGaps,
   reversed,
+  dateParts = ALL_PARTS,
   showConfidence = true,
   showSources = true,
   showHiddenNote = true,
@@ -54,7 +60,8 @@ export function ChronicleView({
 
   const TITLE_H = (exportMode.subtitle ? 64 : 42) * S
   const NOTE_H = 26 * S // 標題下方那一行：範圍與「依先後排列」說明
-  const FOOTER_H = 26 * S
+  // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
+  const FOOTER_H = (26 + (exportMode.note ? 16 : 0)) * S
   const padX = 20 * S
   const dateColW = 104 * S
   const spineX = padX + dateColW - 14 * S
@@ -76,12 +83,20 @@ export function ChronicleView({
         let date: string
         let year: number | null = null
         if (isAbsolute(ev.start)) {
-          const start = formatPointShort(ev.start)
-          const end = ev.end && isAbsolute(ev.end) ? formatPointShort(ev.end) : null
-          date = end ? `${start}–${end}` : ev.ongoing ? `${start} 起` : start
+          // 年份由日期欄的大字帶出（有勾「年」才寫），小字只寫月、日
+          const startYear = parseInt(ev.start.value, 10)
+          const small = { ...dateParts, year: false }
+          const start = formatPointParts(ev.start, small)
+          let end: string | null = null
+          if (ev.end && isAbsolute(ev.end)) {
+            // 跨年的區間，結束那端要寫出年份，不然讀者會以為是同一年
+            const endYear = parseInt(ev.end.value, 10)
+            end = formatPointParts(ev.end, { ...small, year: dateParts.year && endYear !== startYear })
+          }
+          date = end ? `${start}–${end}` : ev.ongoing ? `${start} 起`.trim() : start
           // 起訖太長塞不進日期欄就只寫起點，完整日期在互動版詳情卡裡
           if (estimateTextWidth(date, F.date) > dateColW - 30 * S) date = start
-          year = parseInt(ev.start.value, 10)
+          year = dateParts.year ? startYear : null
         } else {
           // 相對時間：位置是推估的，寫「約」並且不另起年份標題
           date = `約 ${new Date(pe.tStart).getFullYear()}`
@@ -106,7 +121,7 @@ export function ChronicleView({
     list.sort((a, b) => a.t - b.t)
     if (reversed) list.reverse()
     return { entries: list, tView: [base.warp.toT(d0), base.warp.toT(d1)] as [number, number] }
-  }, [sources, collapseGaps, domain, reversed, showConfidence, showSources, theme.palette, F.date, dateColW, S])
+  }, [sources, collapseGaps, domain, reversed, dateParts, showConfidence, showSources, theme.palette, F.date, dateColW, S])
 
   const top = TITLE_H + NOTE_H
   const layout = useMemo(
@@ -270,10 +285,14 @@ export function ChronicleView({
         <text x={width - 12 * S} y={height - 8 * S} textAnchor="end" fontSize={F.footer} fill={C.inkFaint}>
           {exportMode.footer}
         </text>
-        {/* 還有事件放不下時，圖上寫出來（使用者可在工作室選擇不顯示） */}
-        {showHiddenNote && layout.hidden > 0 && (
-          <text x={padX} y={height - 8 * S} fontSize={F.footer} fill={C.warn}>
-            另有 {layout.hidden} 件未列出
+        {/* 底部左側：只列關鍵事件等註記、還有事件放不下（兩者都可在工作室選擇不顯示） */}
+        {(exportMode.note || (showHiddenNote && layout.hidden > 0)) && (
+          <text x={padX} y={height - (exportMode.note ? 24 : 8) * S} fontSize={F.footer} fill={C.inkFaint}>
+            {exportMode.note}
+            {exportMode.note && showHiddenNote && layout.hidden > 0 ? ' · ' : ''}
+            {showHiddenNote && layout.hidden > 0 && (
+              <tspan fill={C.warn}>另有 {layout.hidden} 件未列出</tspan>
+            )}
           </text>
         )}
       </svg>

@@ -12,12 +12,16 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
+import type { CalloutSpec } from './callouts'
+import { placeCallouts } from './callouts'
+import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { formatSkipped } from './gaps'
 import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
 import type { RenderTheme } from './theme'
 import { THEMES } from './theme'
+import type { DateParts } from './timeScale'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
   EventSelection,
@@ -56,6 +60,8 @@ export interface VerticalExportOptions {
   title: string
   /** 標題下方的副標（選填；有值時標題列會加高） */
   subtitle?: string
+  /** 圖片底部左側的註記，例如「僅列關鍵事件（25 件中的 9 件）」 */
+  note?: string
   /** 圖片底部的出處小字 */
   footer: string
 }
@@ -66,6 +72,8 @@ interface Props {
   showDates?: boolean
   /** 日期是否含年份（預設顯示） */
   showYears?: boolean
+  /** 年、月、日分別控制（出圖用）；有給就取代上面兩個勾選 */
+  dateParts?: DateParts
   /** 是否摺疊大段空白（SPEC display.collapseGaps），預設不摺疊 */
   collapseGaps?: boolean
   /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
@@ -76,6 +84,8 @@ interface Props {
   centerAxis?: boolean
   /** 主題：字級、尺寸、顏色（預設「螢幕」主題）。直式沒有精簡模式 */
   theme?: RenderTheme
+  /** 標註框：挑出來加「標題＋摘要」說明的事件（只在匯出時畫） */
+  callouts?: CalloutSpec[]
   /** ui 層下的指令：「切到某個尺度」 */
   scaleRequest?: ScaleRequest | null
   /** 縮放後回報目前落在哪個尺度，讓 ui 層的按鈕高亮 */
@@ -178,11 +188,13 @@ export function VerticalTimelineView({
   sources,
   showDates = true,
   showYears = true,
+  dateParts,
   collapseGaps = false,
   showRelations = true,
   reversed = false,
   centerAxis = false,
   theme = THEMES.screen,
+  callouts,
   scaleRequest,
   onScaleModeChange,
   selectedKey,
@@ -214,7 +226,7 @@ export function VerticalTimelineView({
     MIN_BAR_H,
     TITLE_H: TITLE_ONLY_H,
     TITLE_SUB_H,
-    FOOTER_H,
+    FOOTER_H: FOOTER_BASE_H,
     ROW_H,
     MAX_DRIFT,
     LABEL_GAP,
@@ -222,11 +234,22 @@ export function VerticalTimelineView({
     MIN_COL_W,
   } = useMemo(() => verticalSizes(T), [T])
   const TITLE_H = exportMode?.subtitle ? TITLE_SUB_H : TITLE_ONLY_H
+  // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面
+  const FOOTER_H = FOOTER_BASE_H + (exportMode?.note ? 16 * S : 0)
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
   // 0 = 還沒量到容器寬度。量到之前不畫，否則手機上會先用預設值畫成多欄再跳成單欄
   const [measuredWidth, setMeasuredWidth] = useState(0)
   const width = exportMode?.width ?? measuredWidth
+  // 有標註框時（只在匯出），欄位往左縮，右側留一條標註專用欄——框絕不蓋到事件文字。
+  // 但欄位若因此窄到標題讀不下去，就不留（事件本身比標註重要），放不下的標註改為省略並提醒
+  const CALLOUT_BOX_W = 160 // 直式的標註框窄一點，少佔欄寬
+  const wantStrip = !!exportMode && !!callouts && callouts.length > 0
+  const stripW = calloutMetrics(T, 0, CALLOUT_BOX_W).boxW + 16 * S
+  const bandCount = Math.max(1, sources.reduce((n, s) => n + s.doc.tracks.length, 0))
+  const calloutStripW =
+    wantStrip && (width - stripW - RULER_W) / bandCount >= MIN_COL_W ? stripW : 0
+  const colAreaW = width - calloutStripW
   // 「回到選取的事件」浮動鈕的方向（事件捲出畫面時才出現）
   const [returnDir, setReturnDir] = useState<'up' | 'down' | null>(null)
   // 滑鼠懸停的事件：不用點擊，關係線就會先亮起來（與橫式同語彙）
@@ -235,8 +258,8 @@ export function VerticalTimelineView({
   // 資料準備與橫式共用同一份（timelineData），所以兩種方向不可能畫出不同的事件
   const base = useMemo(() => buildTimelineBase(sources, collapseGaps), [sources, collapseGaps])
   const bands = useMemo(
-    () => buildBands(sources, base, { showDates, showYears }, T.palette),
-    [sources, base, showDates, showYears, T.palette],
+    () => buildBands(sources, base, { showDates, showYears, dateParts }, T.palette),
+    [sources, base, showDates, showYears, dateParts, T.palette],
   )
   const { warp, initialDomain, anchorTimes } = base
 
@@ -476,13 +499,13 @@ export function VerticalTimelineView({
 
     // 對照模式：刻度尺移到中央、軸線分左右。單軸或單欄合流時沒有對照對象，維持一般排法
     const useCenter = centerAxis && mode === 'columns' && visibleBands.length >= 2
-    const center = useCenter ? centerColumnRects(width, visibleBands.length, RULER_W) : null
+    const center = useCenter ? centerColumnRects(colAreaW, visibleBands.length, RULER_W) : null
     const rulerX = center ? center.rulerX : 0
     const rects = center
       ? center.columns
       : mode === 'merged'
-        ? [{ x: RULER_W, w: Math.max(0, width - RULER_W), mirrored: false }]
-        : columnRects(width, visibleBands.length, RULER_W)
+        ? [{ x: RULER_W, w: Math.max(0, colAreaW - RULER_W), mirrored: false }]
+        : columnRects(colAreaW, visibleBands.length, RULER_W)
 
     const layoutColumns =
       mode === 'merged'
@@ -578,7 +601,7 @@ export function VerticalTimelineView({
     // 欄太窄，中文標題幾乎只剩省略號——同樣提醒使用者
     const narrowColumns =
       layoutColumns.length > 0 &&
-      (width - RULER_W) / layoutColumns.length < MIN_COL_W
+      (colAreaW - RULER_W) / layoutColumns.length < MIN_COL_W
 
     // 刻度：扣掉被摺疊的空白，每段密集區依自己佔的高度各自產生刻度
     const tView: [number, number] = [warp.toT(d0), warp.toT(d1)]
@@ -614,8 +637,9 @@ export function VerticalTimelineView({
       tView,
       hiddenTotal,
       narrowColumns,
+      anchors,
     }
-  }, [bands, sources, mode, width, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T])
+  }, [bands, sources, mode, width, colAreaW, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -774,6 +798,43 @@ export function VerticalTimelineView({
     node.textContent = formatRangeLabel([warp.toT(u0), warp.toT(u1)])
   }
 
+  // 標註框（只在匯出時）：靠畫布右緣堆疊，找不到事件位置的算放不下
+  const calloutLayout =
+    exportMode && callouts && callouts.length > 0
+      ? (() => {
+          const top = layout.axisTop
+          const bottom = layout.axisTop + layout.contentH
+          const withAnchor = callouts.flatMap((c) => {
+            const a = layout.anchors.get(c.key)
+            return a && a.y >= top && a.y <= bottom ? [{ ...c, anchorX: a.x, anchorY: a.y }] : []
+          })
+          // 每個事件的圖形與標題佔的範圍：標註框盡量不蓋到
+          const obstacles = layout.columns.flatMap((c) =>
+            c.items.flatMap((it) => {
+              const shape = { x: it.x, y: it.yTop - DOT_R, w: it.shapeW, h: Math.max(it.yBot - it.yTop, DOT_R * 2) }
+              if (it.labelY === null) return [shape]
+              const textW = estimateTextWidth(`${it.dateLabel} ${it.title}`, FONT)
+              const label = {
+                x: it.mirrored ? it.labelX - textW : it.labelX,
+                y: it.labelY - LABEL_H * 0.8,
+                w: textW,
+                h: LABEL_H,
+              }
+              return [shape, label]
+            }),
+          )
+          const result = placeCallouts(
+            withAnchor,
+            { left: 4 * S, top, right: width - 6 * S, bottom },
+            'vertical',
+            calloutMetrics(T, width, CALLOUT_BOX_W),
+            obstacles,
+          )
+          const missing = callouts.filter((c) => !withAnchor.some((w) => w.key === c.key)).map((c) => c.key)
+          return { placed: result.placed, dropped: [...result.dropped, ...missing] }
+        })()
+      : null
+
   const svgEl = (
     <svg
       ref={svgRef}
@@ -784,6 +845,7 @@ export function VerticalTimelineView({
       style={{ background: C.bg }}
       data-hidden={layout.hiddenTotal}
       data-narrow-columns={layout.narrowColumns ? '1' : '0'}
+      data-callouts-dropped={calloutLayout ? calloutLayout.dropped.join('|') : undefined}
       // 不擠、舒服讀完整條軸需要的高度（出圖工作室「自動長度」用）
       data-content-height={
         exportMode ? Math.ceil(layout.axisTop + layout.baseH + FOOTER_H + BOTTOM_PAD) : undefined
@@ -1228,6 +1290,9 @@ export function VerticalTimelineView({
             </g>
           )}
 
+          {/* 標註框：畫在事件之上、欄標題列之下 */}
+          {calloutLayout && <CalloutLayer placed={calloutLayout.placed} theme={T} />}
+
           {/* 欄標題列：捲動時固定在畫面上緣，讀到一半也知道自己在看哪一欄 */}
           <g ref={headerRef}>
             {/* 匯出圖片的頂部標題：輸出的圖自帶脈絡，不必靠貼文說明 */}
@@ -1314,6 +1379,12 @@ export function VerticalTimelineView({
             )}
             </g>
           </g>
+          {/* 匯出圖片底部左側的註記（例如只列了關鍵事件），誠實告訴讀者這是精選 */}
+          {exportMode?.note && (
+            <text x={12 * S} y={exportMode.height - 24 * S} fontSize={F.footer} fill={C.inkFaint}>
+              {exportMode.note}
+            </text>
+          )}
           {/* 匯出圖片底部的出處小字 */}
           {exportMode && (
             <text

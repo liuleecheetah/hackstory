@@ -17,7 +17,10 @@ import {
 } from '../adapters/export'
 import { embeddedFontCssForText, missingGlyphNote, svgToPngWithFonts } from '../adapters/fonts'
 import type { Layer } from '../compose/useLayers'
+import { featuredOnly } from '../compose/sourceFilters'
 import { sourcesFor } from '../compose/useLayers'
+import { isFeatured } from '../core'
+import type { CalloutSpec } from '../render/callouts'
 import {
   renderChronicleExportSvg,
   renderHorizontalExportSvg,
@@ -26,7 +29,7 @@ import {
 } from '../render/exportSvg'
 import type { ThemeId } from '../render/theme'
 import { deriveTheme, THEMES } from '../render/theme'
-import { buildTimelineBase } from '../render/timelineData'
+import { buildBands, buildTimelineBase } from '../render/timelineData'
 import type { RatioId } from './ratios'
 import { RATIO_PRESETS } from './ratios'
 import { StudioPreview } from './StudioPreview'
@@ -48,6 +51,17 @@ const THEME_OPTIONS: Array<{ id: ThemeId; label: string }> = [
 ]
 
 type RangeKind = 'view' | 'all' | 'years'
+/** 呈現哪些事件：全部，或只放關鍵事件（★ featured） */
+type EventScope = 'all' | 'featured'
+
+/** 標註框最多幾個（計畫書：6–8 個，再多圖就亂了） */
+const MAX_CALLOUTS = 8
+
+/** 摘要的預設值：事件描述的前 40 字 */
+function defaultSummary(description: string | undefined): string {
+  const text = (description ?? '').replace(/\s+/g, ' ').trim()
+  return text.length > 40 ? text.slice(0, 40) + '…' : text
+}
 
 /** 比例：十種固定比例，或「自動長度」（寬度固定、高度拉長到全部放得下） */
 type RatioChoice = RatioId | 'auto'
@@ -83,7 +97,8 @@ export function ExportStudio(props: Props) {
 
   // ---- 設定 ----
   const [layout, setLayout] = useState<LayoutId>(orientation === 'vertical' ? 'D' : 'A')
-  const [ratioId, setRatioId] = useState<RatioChoice>(orientation === 'vertical' ? 'a4' : '16-9')
+  // 預設「自動長度」：全部軸線與事件都放得下，不會一打開就被裁掉
+  const [ratioId, setRatioId] = useState<RatioChoice>('auto')
   const [themeId, setThemeId] = useState<ThemeId>('presentation')
   const [fontScale, setFontScale] = useState(1)
   const [title, setTitle] = useState('')
@@ -94,9 +109,12 @@ export function ExportStudio(props: Props) {
   const [rangeKind, setRangeKind] = useState<RangeKind>('view')
   const [fromYear, setFromYear] = useState('')
   const [toYear, setToYear] = useState('')
-  const [showDates, setShowDates] = useState(props.showDates)
-  const [showYears, setShowYears] = useState(props.showYears)
-  const [showRelations, setShowRelations] = useState(props.showRelations)
+  // 日期顯示：年、月、日分別勾選（預設跟主畫面的「顯示事件日期／含年份」一致）
+  const [dateYear, setDateYear] = useState(props.showDates && props.showYears)
+  const [dateMonth, setDateMonth] = useState(props.showDates)
+  const [dateDay, setDateDay] = useState(props.showDates)
+  // 出圖預設不畫關係線：簡報圖要乾淨，需要時再勾
+  const [showRelations, setShowRelations] = useState(false)
   const [collapseGaps, setCollapseGaps] = useState(props.collapseGaps)
   const [compact, setCompact] = useState(props.compact)
   const [reversed, setReversed] = useState(props.reversed)
@@ -105,9 +123,16 @@ export function ExportStudio(props: Props) {
   // 版型 D：卡片大事記（依先後排列）或照時間比例的直式長圖
   const [cardMode, setCardMode] = useState(true)
   // 卡片上要寫哪些小字，以及圖上要不要註明「另有 N 件未列出」
-  const [showConfidence, setShowConfidence] = useState(true)
-  const [showSources, setShowSources] = useState(true)
-  const [showHiddenNote, setShowHiddenNote] = useState(true)
+  // 卡片上的小字預設都不顯示，要時再勾
+  const [showConfidence, setShowConfidence] = useState(false)
+  const [showSources, setShowSources] = useState(false)
+  const [showHiddenNote, setShowHiddenNote] = useState(false)
+  // 標註框：勾了哪些事件（依勾選順序），以及每個框的一句摘要（使用者可改）
+  const [calloutKeys, setCalloutKeys] = useState<string[]>([])
+  const [calloutText, setCalloutText] = useState<Record<string, string>>({})
+  // 呈現哪些事件；只放關鍵事件時，圖上預設註明「僅列關鍵事件（N 件中的 M 件）」（可關）
+  const [eventScope, setEventScope] = useState<EventScope>('all')
+  const [showScopeNote, setShowScopeNote] = useState(true)
 
   // 每次打開工作室：預設值跟「目前畫面」一樣，標題、出處從文件資料帶入
   useEffect(() => {
@@ -125,14 +150,19 @@ export function ExportStudio(props: Props) {
     )
     setSubtitle(first?.subtitle ?? '')
     setFooter(defaultFooter(visible))
-    setShowDates(props.showDates)
-    setShowYears(props.showYears)
-    setShowRelations(props.showRelations)
+    setDateYear(props.showDates && props.showYears)
+    setDateMonth(props.showDates)
+    setDateDay(props.showDates)
+    setShowRelations(false)
     setCollapseGaps(props.collapseGaps)
     setCompact(props.compact)
     setReversed(props.reversed)
     setCenterAxis(props.centerAxis)
     setRangeKind(viewDomain ? 'view' : 'all')
+    // 標註預設一個都不勾，由使用者自己挑
+    setCalloutKeys([])
+    setCalloutText({})
+    setEventScope('all')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -154,10 +184,40 @@ export function ExportStudio(props: Props) {
     () => deriveTheme(THEMES[themeId], { scale: THEMES[themeId].scale * fontScale }),
     [themeId, fontScale],
   )
-  const sources = useMemo(
+  // 勾選的圖層與軸線 → 再依「呈現哪些事件」篩選，才是要畫的資料
+  const baseSources = useMemo(
     () => sourcesFor(layers, (l) => layerOn.has(l.id), trackOff),
     [layers, layerOn, trackOff],
   )
+  const sources = useMemo(
+    () => (eventScope === 'featured' ? featuredOnly(baseSources) : baseSources),
+    [baseSources, eventScope],
+  )
+
+  // 標註框的候選事件，依軸線分組（跟圖上同一套軸線名與顏色）；
+  // 每組裡關鍵事件排前面，其餘依時間先後
+  const calloutGroups = useMemo(() => {
+    const base = buildTimelineBase(sources, collapseGaps)
+    return buildBands(sources, base, { showDates: false, showYears: false }, theme.palette).map((band) => ({
+      key: band.key,
+      label: band.label,
+      color: band.color,
+      items: band.events
+        .map((pe) => ({
+          key: `${band.sourceId}/${pe.ev.id}`,
+          title: pe.ev.title,
+          featured: isFeatured(pe.ev),
+          description: pe.ev.description,
+          t: pe.tStart,
+        }))
+        .sort((a, b) => Number(b.featured) - Number(a.featured) || a.t - b.t),
+    }))
+  }, [sources, collapseGaps, theme.palette])
+  const calloutCandidates = useMemo(() => calloutGroups.flatMap((g) => g.items), [calloutGroups])
+  const calloutSpecs: CalloutSpec[] = calloutKeys.flatMap((key) => {
+    const c = calloutCandidates.find((x) => x.key === key)
+    return c ? [{ key, title: c.title, summary: calloutText[key] ?? defaultSummary(c.description) }] : []
+  })
 
   // 「全部」的起訖年份，拿來當自訂年份的預設值
   const fullYears = useMemo(() => {
@@ -174,6 +234,62 @@ export function ExportStudio(props: Props) {
     return [new Date(Math.min(a, b), 0, 1).getTime(), new Date(Math.max(a, b) + 1, 0, 1).getTime()]
   }, [rangeKind, fromYear, toYear])
 
+  // 「目前畫面看到的那一段」換算成真實時間。
+  // 主畫面回報的範圍是它自己的座標（含空白摺疊）；工作室篩掉軸線或事件後摺疊方式會不同，
+  // 直接沿用座標會對到別的年份——所以先用主畫面的資料換回真實的年月日
+  const screenTimeRange = useMemo((): [number, number] | undefined => {
+    if (!viewDomain) return undefined
+    const main = sourcesFor(layers, (l) => l.visible, hiddenTracks)
+    if (main.length === 0) return undefined
+    const { warp } = buildTimelineBase(main, props.collapseGaps)
+    return [warp.toT(viewDomain[0]), warp.toT(viewDomain[1])]
+  }, [viewDomain, layers, hiddenTracks, props.collapseGaps])
+  // 實際要畫的時間範圍（真實時間）；undefined = 全部
+  const effectiveRange = useMemo(
+    () => (rangeKind === 'view' ? screenTimeRange : rangeKind === 'years' ? timeRange : undefined),
+    [rangeKind, screenTimeRange, timeRange],
+  )
+
+  // 這段時間範圍裡一共幾件、其中幾件是關鍵事件（「僅列關鍵事件」的註記與提醒用）
+  const scopeCounts = useMemo(() => {
+    if (baseSources.length === 0) return { total: 0, featured: 0 }
+    const base = buildTimelineBase(baseSources, collapseGaps)
+    const [d0, d1] = effectiveRange
+      ? [base.warp.toU(effectiveRange[0]), base.warp.toU(effectiveRange[1])]
+      : base.initialDomain
+    let total = 0
+    let featured = 0
+    for (const band of buildBands(baseSources, base, { showDates: false, showYears: false })) {
+      for (const pe of band.events) {
+        const uEnd = pe.kind === 'bar' ? base.warp.toU(pe.tEnd) : pe.u
+        if (uEnd < d0 || pe.u > d1) continue
+        total++
+        if (pe.isKey) featured++
+      }
+    }
+    return { total, featured }
+  }, [baseSources, collapseGaps, effectiveRange])
+  const scopeNote =
+    eventScope === 'featured' && showScopeNote
+      ? `僅列關鍵事件（${scopeCounts.total} 件中的 ${scopeCounts.featured} 件）`
+      : undefined
+
+  // 標註的事件被篩掉了（例如改成只放關鍵事件），就自動取消它的勾選
+  useEffect(() => {
+    setCalloutKeys((prev) => {
+      const next = prev.filter((k) => calloutCandidates.some((c) => c.key === k))
+      return next.length === prev.length ? prev : next
+    })
+  }, [calloutCandidates])
+
+  /** 「跟主畫面一樣」：圖層、軸線、時間範圍、呈現的事件都回到主畫面的樣子 */
+  const matchScreen = () => {
+    setLayerOn(new Set(layers.filter((l) => l.visible).map((l) => l.id)))
+    setTrackOff(new Set(hiddenTracks))
+    setRangeKind(viewDomain ? 'view' : 'all')
+    setEventScope('all')
+  }
+
   // 出處行不可關閉（誠實與可信原則）：清空了就退回預設
   const footerText = footer.trim() || defaultFooter(layers.filter((l) => layerOn.has(l.id)))
 
@@ -183,17 +299,18 @@ export function ExportStudio(props: Props) {
     if (sources.length === 0) throw new Error('沒有勾選任何圖層或軸線')
     const common = {
       sources,
-      domain: rangeKind === 'view' && viewDomain ? viewDomain : undefined,
-      timeRange,
+      timeRange: effectiveRange,
       width: drawW,
       height: preset.h,
-      showDates,
-      showYears,
+      showDates: true,
+      showYears: true,
+      dateParts: { year: dateYear, month: dateMonth, day: dateDay },
       showRelations,
       collapseGaps,
       title: title.trim() || 'HackStory',
       subtitle: subtitle.trim() || undefined,
       footer: footerText,
+      note: scopeNote,
       theme,
     }
     // 固定比例：照比例的高度畫一次；自動長度：先試算需要多高，再用那個高度畫
@@ -205,12 +322,17 @@ export function ExportStudio(props: Props) {
       auto ? renderWithAutoHeight(render, req, probeHeight) : { ...(await render(req)), height: preset.h }
     const warnings: string[] = []
     if (rangeKind === 'years' && !timeRange) warnings.push('自訂年份還沒填完整，暫時畫出全部時間')
+    if (eventScope === 'featured' && scopeCounts.featured === 0) {
+      warnings.push('這段時間、這些軸線沒有標示為關鍵事件（★）的事件，所以圖上沒有事件——請改選「所有事件」，或先在事件詳情卡把重點事件設為關鍵事件')
+    }
     if (layout === 'A') {
-      const { svg, overflow, height } = await run(
+      const { svg, overflow, height, calloutsDropped } = await run(
         renderHorizontalExportSvg,
-        { ...common, compact, swimlane: true },
-        600,
+        { ...common, compact, swimlane: true, callouts: calloutSpecs },
+        // 試算畫布要夠長：標註框放不進軸線之間的空白時，才有地方往下放
+        calloutSpecs.length > 0 ? 200_000 : 600,
       )
+      warnDroppedCallouts(calloutsDropped, warnings)
       if (overflow) {
         warnings.push(
           '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、取消勾選部分圖層／軸線，或改用「自動長度」',
@@ -231,11 +353,12 @@ export function ExportStudio(props: Props) {
       }
       return { svg, warnings, w: drawW, h: height }
     }
-    const { svg, hidden, narrowColumns, height } = await run(
+    const { svg, hidden, narrowColumns, height, calloutsDropped } = await run(
       renderVerticalExportSvg,
-      { ...common, reversed, centerAxis },
+      { ...common, reversed, centerAxis, callouts: calloutSpecs },
       600,
     )
+    warnDroppedCallouts(calloutsDropped, warnings)
     if (narrowColumns) warnings.push('欄寬過窄，建議選更寬的比例，或取消勾選部分圖層／軸線')
     if (hidden > 0) {
       warnings.push(
@@ -245,6 +368,15 @@ export function ExportStudio(props: Props) {
     return { svg, warnings, w: drawW, h: height }
   }
 
+  /** 放不下而省略的標註：列出是哪幾個，不靜默拿掉 */
+  function warnDroppedCallouts(dropped: string[], warnings: string[]) {
+    if (dropped.length === 0) return
+    const names = dropped.map((k) => calloutCandidates.find((c) => c.key === k)?.title ?? k)
+    warnings.push(
+      `有 ${dropped.length} 個標註放不下，已省略（${names.slice(0, 3).join('、')}${names.length > 3 ? '…' : ''}）——標註框不會蓋到事件文字，找不到空白處就省略；可以減少標註、縮短摘要、選較寬的比例或「自動長度」、改用版型 A，或該事件不在目前的時間範圍內`,
+    )
+  }
+
   // ---- 預覽：任何設定改變後 300 毫秒重畫 ----
   const [preview, setPreview] = useState<Rendered | null>(null)
   const [busy, setBusy] = useState(false)
@@ -252,8 +384,10 @@ export function ExportStudio(props: Props) {
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
     layout, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
-    rangeKind, timeRange, viewDomain, showDates, showYears, showRelations, collapseGaps, compact,
-    reversed, centerAxis, cardMode, showConfidence, showSources, showHiddenNote,
+    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
+    reversed, centerAxis, cardMode, showConfidence, showSources, showHiddenNote, calloutKeys,
+    eventScope, showScopeNote,
+    calloutText,
   ])
   useEffect(() => {
     if (!open) return
@@ -524,6 +658,41 @@ export function ExportStudio(props: Props) {
             </Section>
 
             <Section title="內容">
+              <button type="button" onClick={matchScreen} className="btn mb-3 w-full text-sm">
+                跟主畫面一樣（圖層、軸線、時間範圍、事件）
+              </button>
+
+              <p className="mb-1 text-sm text-ink-faint">呈現哪些事件</p>
+              <div className="mb-3 space-y-1.5">
+                {(
+                  [
+                    ['all', '所有事件'],
+                    ['featured', '只放關鍵事件（★）'],
+                  ] as const
+                ).map(([scope, label]) => (
+                  <label key={scope} className="flex items-center gap-2 text-base text-ink-muted">
+                    <input
+                      type="radio"
+                      name="studio-scope"
+                      checked={eventScope === scope}
+                      onChange={() => setEventScope(scope)}
+                      className="accent-accent"
+                    />
+                    {label}
+                    {scope === 'featured' && (
+                      <span className="text-sm text-ink-faint">
+                        （{scopeCounts.total} 件中的 {scopeCounts.featured} 件）
+                      </span>
+                    )}
+                  </label>
+                ))}
+                {eventScope === 'featured' && (
+                  <div className="ml-6">
+                    {checkbox('圖上註明「僅列關鍵事件（N 件中的 M 件）」', showScopeNote, setShowScopeNote)}
+                  </div>
+                )}
+              </div>
+
               <p className="mb-1 text-sm text-ink-faint">要放哪些圖層與軸線</p>
               <div className="mb-3 space-y-1.5">
                 {layers.map((l) => (
@@ -600,6 +769,16 @@ export function ExportStudio(props: Props) {
                     </p>
                   </>
                 )}
+                {/* 日期：年、月、日各自勾選；勾「日」時一併帶入「月」 */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-ink-muted">
+                  <span>日期</span>
+                  {checkbox('年', dateYear, setDateYear)}
+                  {checkbox('月', dateMonth, setDateMonth)}
+                  {checkbox('日', dateDay, (v) => {
+                    setDateDay(v)
+                    if (v) setDateMonth(true)
+                  })}
+                </div>
                 {layout === 'D' && cardMode ? (
                   <>
                     {checkbox('顯示查證程度（已查證／據報導／有爭議）', showConfidence, setShowConfidence)}
@@ -609,8 +788,6 @@ export function ExportStudio(props: Props) {
                   </>
                 ) : (
                   <>
-                    {checkbox('事件日期', showDates, setShowDates)}
-                    {checkbox('日期含年份', showYears, setShowYears, !showDates)}
                     {checkbox('關係線', showRelations, setShowRelations)}
                     {checkbox('摺疊空白', collapseGaps, setCollapseGaps)}
                     {layout === 'A' && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
@@ -618,6 +795,87 @@ export function ExportStudio(props: Props) {
                     {layout === 'D' && checkbox('刻度置中對照', centerAxis, setCenterAxis)}
                   </>
                 )}
+              </div>
+              {/* 標註事件：放在「內容」的最後 */}
+              <div className="mt-4 border-t border-line pt-3">
+              <p className="mb-1 text-base font-bold text-ink">
+                標註事件（{calloutKeys.length}／{MAX_CALLOUTS}）
+              </p>
+              <p className="mb-2 text-sm text-ink-faint">
+                勾選的事件會加上「標題＋一句摘要」的說明框，用引線連回事件。關鍵事件（★）排在前面
+              </p>
+              {!(layout === 'D' && cardMode) && (
+                <button
+                  type="button"
+                  disabled={calloutKeys.length === 0}
+                  onClick={() => setCalloutKeys([])}
+                  className="btn mb-2 w-full text-sm"
+                >
+                  全部取消勾選
+                </button>
+              )}
+              {layout === 'D' && cardMode ? (
+                <p className="text-sm text-ink-faint">
+                  卡片模式每張卡片已有標題與摘要，不另加標註框。取消「卡片模式」即可使用。
+                </p>
+              ) : (
+                <div className="max-h-80 space-y-3 overflow-y-auto rounded border border-line p-2">
+                  {calloutCandidates.length === 0 && (
+                    <p className="text-sm text-ink-faint">沒有可標註的事件</p>
+                  )}
+                  {calloutGroups.map((g) => {
+                    const picked = g.items.filter((c) => calloutKeys.includes(c.key)).length
+                    return (
+                      <div key={g.key} className="space-y-1.5">
+                        {/* 軸線小標題：與圖上同一個顏色 */}
+                        <div className="sticky top-0 -mx-2 flex items-center gap-2 bg-surface px-2 py-1 text-sm font-bold text-ink">
+                          <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: g.color }} />
+                          <span className="min-w-0 flex-1 truncate">{g.label}</span>
+                          <span className="shrink-0 font-normal text-ink-faint">
+                            {picked > 0 ? `已選 ${picked}` : `${g.items.length} 件`}
+                          </span>
+                        </div>
+                        {g.items.map((c) => {
+                          const on = calloutKeys.includes(c.key)
+                          const full = !on && calloutKeys.length >= MAX_CALLOUTS
+                          return (
+                            <div key={c.key}>
+                              <label
+                                className={'flex items-start gap-2 text-base ' + (full ? 'text-ink-faint' : 'text-ink-muted')}
+                                title={full ? `最多 ${MAX_CALLOUTS} 個，請先取消其他標註` : undefined}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={on}
+                                  disabled={full}
+                                  onChange={(e) =>
+                                    setCalloutKeys((prev) =>
+                                      e.target.checked ? [...prev, c.key] : prev.filter((k) => k !== c.key),
+                                    )
+                                  }
+                                  className="mt-1 accent-accent"
+                                />
+                                <span>
+                                  {c.featured && <span className="mr-1 text-warn">★</span>}
+                                  {c.title}
+                                </span>
+                              </label>
+                              {on && (
+                                <input
+                                  value={calloutText[c.key] ?? defaultSummary(c.description)}
+                                  onChange={(e) => setCalloutText((prev) => ({ ...prev, [c.key]: e.target.value }))}
+                                  placeholder="一句摘要（可留空，只顯示標題）"
+                                  className="field ml-6 mt-1 w-[calc(100%-1.5rem)]"
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
               </div>
             </Section>
           </div>

@@ -70,6 +70,41 @@ export function formatPointShort(point: AbsoluteTimePoint, withYear = true): str
   }
 }
 
+/** 日期要顯示哪幾個部分（出圖工作室可分別勾選年、月、日） */
+export interface DateParts {
+  year: boolean
+  month: boolean
+  day: boolean
+}
+
+/**
+ * 依勾選的部分組出日期文字，並依精度誠實呈現（只知道到月的事件不會冒出「日」）。
+ * 例：2019/5/24 → 年月日「2019/5/24」、月日「5/24」、只有月「5月」、只有日「24日」。
+ */
+export function formatPointParts(point: AbsoluteTimePoint, parts: DateParts): string {
+  const [datePart, timePart] = point.value.split('T')
+  const [y, mRaw, dRaw] = datePart.split('-')
+  const m = mRaw ? String(Number(mRaw)) : ''
+  const d = dRaw ? String(Number(dRaw)) : ''
+  if (point.precision === 'decade') return parts.year ? `${y}年代` : ''
+  const hasMonth = point.precision !== 'year'
+  const hasDay = point.precision === 'day' || point.precision === 'minute'
+  const useY = parts.year
+  const useM = parts.month && hasMonth
+  const useD = parts.day && hasDay
+  let text: string
+  if (useY && useM && useD) text = `${y}/${m}/${d}`
+  else if (useM && useD) text = `${m}/${d}`
+  else if (useY && useM) text = `${y}/${m}`
+  else if (useY && useD) text = `${y}年${d}日`
+  else if (useY) text = y
+  else if (useM) text = `${m}月`
+  else if (useD) text = `${d}日`
+  else text = ''
+  // 分鐘精度：勾了「日」才連時間一起顯示
+  return point.precision === 'minute' && useD && timePart ? `${text} ${timePart}` : text
+}
+
 /** 詳情卡用的完整日期：中文長格式，依精度誠實呈現，circa 加「約」 */
 export function formatPointLong(point: AbsoluteTimePoint): string {
   const [datePart, timePart] = point.value.split('T')

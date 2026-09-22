@@ -8,6 +8,8 @@
 
 import type { ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { CalloutSpec } from './callouts'
+import type { DateParts } from './timeScale'
 import { ChronicleView } from './ChronicleView'
 import type { RenderTheme } from './theme'
 import { buildTimelineBase } from './timelineData'
@@ -27,12 +29,16 @@ export interface ExportRequestBase {
   height: number
   showDates: boolean
   showYears: boolean
+  /** 年、月、日分別控制（出圖工作室）；有給就取代上面兩個 */
+  dateParts?: DateParts
   showRelations: boolean
   collapseGaps: boolean
   /** 圖片頂部的標題 */
   title: string
   /** 標題下方的副標（選填） */
   subtitle?: string
+  /** 圖片底部左側的註記（選填），例如「僅列關鍵事件（25 件中的 9 件）」 */
+  note?: string
   /** 圖片底部的出處小字 */
   footer: string
   /** 主題（字級、尺寸、配色），預設螢幕主題 */
@@ -56,6 +62,8 @@ function resolveDomain(req: ExportRequestBase): [number, number] {
 export interface VerticalExportRequest extends ExportRequestBase {
   reversed: boolean
   centerAxis: boolean
+  /** 標註框（選填） */
+  callouts?: CalloutSpec[]
 }
 
 /** 橫式另外吃「精簡模式」——那是使用者調整「一張圖塞得下幾條軸線」的主要手段 */
@@ -63,6 +71,8 @@ export interface HorizontalExportRequest extends ExportRequestBase {
   compact: boolean
   /** 版型 A「多軸泳道」外觀：左側軸線名色塊、頂部刻度帶、方頭長條 */
   swimlane?: boolean
+  /** 標註框（選填） */
+  callouts?: CalloutSpec[]
 }
 
 /** 每種匯出結果都會回報：全部內容放得下需要多高（「自動長度」用） */
@@ -70,7 +80,12 @@ interface ContentHeight {
   contentHeight: number
 }
 
-export interface VerticalExportResult extends ContentHeight {
+/** 放不下而省略的標註（事件 key） */
+interface CalloutsDropped {
+  calloutsDropped: string[]
+}
+
+export interface VerticalExportResult extends ContentHeight, CalloutsDropped {
   svg: SVGSVGElement
   /** 事件太多、標題排不下（只畫得出圓點）的件數 */
   hidden: number
@@ -78,7 +93,7 @@ export interface VerticalExportResult extends ContentHeight {
   narrowColumns: boolean
 }
 
-export interface HorizontalExportResult extends ContentHeight {
+export interface HorizontalExportResult extends ContentHeight, CalloutsDropped {
   svg: SVGSVGElement
   /** 軸線太多，超出這個比例的高度被裁掉 */
   overflow: boolean
@@ -129,6 +144,12 @@ function renderOffscreen<T>(element: ReactElement, read: (svg: SVGSVGElement) =>
   })
 }
 
+/** 讀出繪製端回報的「放不下而省略的標註」 */
+function calloutsDroppedOf(svg: SVGSVGElement): string[] {
+  const raw = svg.dataset.calloutsDropped
+  return raw ? raw.split('|') : []
+}
+
 /** 讀出繪製端回報的「全部放得下需要的高度」 */
 function contentHeightOf(svg: SVGSVGElement): number {
   return Number(svg.dataset.contentHeight ?? 0)
@@ -155,22 +176,26 @@ export function renderVerticalExportSvg(
       theme={req.theme}
       showDates={req.showDates}
       showYears={req.showYears}
+      dateParts={req.dateParts}
       showRelations={req.showRelations}
       reversed={req.reversed}
       centerAxis={req.centerAxis}
       collapseGaps={req.collapseGaps}
+      callouts={req.callouts}
       exportMode={{
         width: req.width,
         height: req.height,
         svgId: OFFSCREEN_ID,
         title: req.title,
         subtitle: req.subtitle,
+        note: req.note,
         footer: req.footer,
       }}
     />,
     (svg) => ({
       svg: detach(svg),
       contentHeight: contentHeightOf(svg),
+      calloutsDropped: calloutsDroppedOf(svg),
       hidden: Number(svg.dataset.hidden ?? 0),
       narrowColumns: svg.dataset.narrowColumns === '1',
     }),
@@ -199,6 +224,7 @@ export function renderChronicleExportSvg(
       domain={resolveDomain(req)}
       collapseGaps={req.collapseGaps}
       reversed={req.reversed}
+      dateParts={req.dateParts}
       showConfidence={req.showConfidence}
       showSources={req.showSources}
       showHiddenNote={req.showHiddenNote}
@@ -209,6 +235,7 @@ export function renderChronicleExportSvg(
         svgId: OFFSCREEN_ID,
         title: req.title,
         subtitle: req.subtitle,
+        note: req.note,
         footer: req.footer,
       }}
     />,
@@ -231,16 +258,19 @@ export function renderHorizontalExportSvg(
       theme={req.theme}
       showDates={req.showDates}
       showYears={req.showYears}
+      dateParts={req.dateParts}
       showRelations={req.showRelations}
       collapseGaps={req.collapseGaps}
       compact={req.compact}
       swimlane={req.swimlane}
+      callouts={req.callouts}
       exportMode={{
         width: req.width,
         height: req.height,
         svgId: OFFSCREEN_ID,
         title: req.title,
         subtitle: req.subtitle,
+        note: req.note,
         footer: req.footer,
       }}
     />,
@@ -248,6 +278,7 @@ export function renderHorizontalExportSvg(
       svg: detach(svg),
       overflow: svg.dataset.overflow === '1',
       contentHeight: contentHeightOf(svg),
+      calloutsDropped: calloutsDroppedOf(svg),
     }),
   )
 }

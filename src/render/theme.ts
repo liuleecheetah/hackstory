@@ -38,6 +38,8 @@ export interface ThemeColors {
   /** 放在軸線色塊上的字：深色塊用亮字、淺色塊用暗字（依對比度自動挑） */
   onColorLight: string
   onColorDark: string
+  /** 標註框的底色（淺色主題白底、深色主題深灰底） */
+  calloutBg: string
 }
 
 /** 六級字（px） */
@@ -115,6 +117,7 @@ const LIGHT_COLORS: ThemeColors = {
   warnLine: '#f59e0b',
   onColorLight: '#ffffff',
   onColorDark: '#111827',
+  calloutBg: '#ffffff',
 }
 
 /** 依倍率與密度算出字級與幾何 */
@@ -179,6 +182,7 @@ export const THEMES: Record<ThemeId, RenderTheme> = {
       warnLine: '#f59e0b',
       onColorLight: '#ffffff',
       onColorDark: '#111827',
+      calloutBg: '#252c37',
     },
     DARK_PALETTE,
   ),
