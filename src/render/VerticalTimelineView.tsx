@@ -784,6 +784,10 @@ export function VerticalTimelineView({
       style={{ background: C.bg }}
       data-hidden={layout.hiddenTotal}
       data-narrow-columns={layout.narrowColumns ? '1' : '0'}
+      // 不擠、舒服讀完整條軸需要的高度（出圖工作室「自動長度」用）
+      data-content-height={
+        exportMode ? Math.ceil(layout.axisTop + layout.baseH + FOOTER_H + BOTTOM_PAD) : undefined
+      }
       onClick={exportMode ? undefined : () => onEventSelect?.(null)}
       onDoubleClick={
         exportMode

@@ -8,11 +8,22 @@
 
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { copyPngToClipboard, downloadBlob, downloadText, serializeSvg } from '../adapters/export'
+import {
+  copyPngToClipboard,
+  downloadBlob,
+  downloadText,
+  safePngScale,
+  serializeSvg,
+} from '../adapters/export'
 import { embeddedFontCssForText, missingGlyphNote, svgToPngWithFonts } from '../adapters/fonts'
 import type { Layer } from '../compose/useLayers'
 import { sourcesFor } from '../compose/useLayers'
-import { renderHorizontalExportSvg, renderVerticalExportSvg } from '../render/exportSvg'
+import {
+  renderChronicleExportSvg,
+  renderHorizontalExportSvg,
+  renderVerticalExportSvg,
+  renderWithAutoHeight,
+} from '../render/exportSvg'
 import type { ThemeId } from '../render/theme'
 import { deriveTheme, THEMES } from '../render/theme'
 import { buildTimelineBase } from '../render/timelineData'
@@ -37,6 +48,11 @@ const THEME_OPTIONS: Array<{ id: ThemeId; label: string }> = [
 ]
 
 type RangeKind = 'view' | 'all' | 'years'
+
+/** 比例：十種固定比例，或「自動長度」（寬度固定、高度拉長到全部放得下） */
+type RatioChoice = RatioId | 'auto'
+/** 自動長度的寬度：泳道沿用 16:9 的寬、直式沿用 A4 的寬 */
+const AUTO_WIDTH = { horizontal: 960, vertical: 620 }
 
 interface Props {
   open: boolean
@@ -67,7 +83,7 @@ export function ExportStudio(props: Props) {
 
   // ---- 設定 ----
   const [layout, setLayout] = useState<LayoutId>(orientation === 'vertical' ? 'D' : 'A')
-  const [ratioId, setRatioId] = useState<RatioId>(orientation === 'vertical' ? 'a4' : '16-9')
+  const [ratioId, setRatioId] = useState<RatioChoice>(orientation === 'vertical' ? 'a4' : '16-9')
   const [themeId, setThemeId] = useState<ThemeId>('presentation')
   const [fontScale, setFontScale] = useState(1)
   const [title, setTitle] = useState('')
@@ -86,6 +102,12 @@ export function ExportStudio(props: Props) {
   const [reversed, setReversed] = useState(props.reversed)
   const [centerAxis, setCenterAxis] = useState(props.centerAxis)
   const [embedFontsInSvg, setEmbedFontsInSvg] = useState(false)
+  // 版型 D：卡片大事記（依先後排列）或照時間比例的直式長圖
+  const [cardMode, setCardMode] = useState(true)
+  // 卡片上要寫哪些小字，以及圖上要不要註明「另有 N 件未列出」
+  const [showConfidence, setShowConfidence] = useState(true)
+  const [showSources, setShowSources] = useState(true)
+  const [showHiddenNote, setShowHiddenNote] = useState(true)
 
   // 每次打開工作室：預設值跟「目前畫面」一樣，標題、出處從文件資料帶入
   useEffect(() => {
@@ -124,7 +146,10 @@ export function ExportStudio(props: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const auto = ratioId === 'auto'
   const preset = RATIO_PRESETS.find((r) => r.id === ratioId) ?? RATIO_PRESETS[5]
+  // 目前要畫的寬度（自動長度時高度要畫了才知道）
+  const drawW = auto ? (layout === 'A' ? AUTO_WIDTH.horizontal : AUTO_WIDTH.vertical) : preset.w
   const theme = useMemo(
     () => deriveTheme(THEMES[themeId], { scale: THEMES[themeId].scale * fontScale }),
     [themeId, fontScale],
@@ -153,13 +178,14 @@ export function ExportStudio(props: Props) {
   const footerText = footer.trim() || defaultFooter(layers.filter((l) => layerOn.has(l.id)))
 
   // ---- 產生圖片（預覽與下載共用同一份設定） ----
-  const renderCurrent = async (): Promise<{ svg: SVGSVGElement; warnings: string[] }> => {
+  type Rendered = { svg: SVGSVGElement; warnings: string[]; w: number; h: number }
+  const renderCurrent = async (): Promise<Rendered> => {
     if (sources.length === 0) throw new Error('沒有勾選任何圖層或軸線')
     const common = {
       sources,
       domain: rangeKind === 'view' && viewDomain ? viewDomain : undefined,
       timeRange,
-      width: preset.w,
+      width: drawW,
       height: preset.h,
       showDates,
       showYears,
@@ -170,40 +196,64 @@ export function ExportStudio(props: Props) {
       footer: footerText,
       theme,
     }
+    // 固定比例：照比例的高度畫一次；自動長度：先試算需要多高，再用那個高度畫
+    const run = async <Req extends typeof common, Res extends { contentHeight: number }>(
+      render: (req: Req) => Promise<Res>,
+      req: Req,
+      probeHeight: number,
+    ): Promise<Res & { height: number }> =>
+      auto ? renderWithAutoHeight(render, req, probeHeight) : { ...(await render(req)), height: preset.h }
     const warnings: string[] = []
     if (rangeKind === 'years' && !timeRange) warnings.push('自訂年份還沒填完整，暫時畫出全部時間')
     if (layout === 'A') {
-      const { svg, overflow } = await renderHorizontalExportSvg({ ...common, compact, swimlane: true })
+      const { svg, overflow, height } = await run(
+        renderHorizontalExportSvg,
+        { ...common, compact, swimlane: true },
+        600,
+      )
       if (overflow) {
         warnings.push(
-          '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、取消勾選部分圖層／軸線，或改用直式',
+          '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、取消勾選部分圖層／軸線，或改用「自動長度」',
         )
       }
-      return { svg, warnings }
+      return { svg, warnings, w: drawW, h: height }
     }
-    const { svg, hidden, narrowColumns } = await renderVerticalExportSvg({
-      ...common,
-      reversed,
-      centerAxis,
-    })
+    if (cardMode) {
+      const { svg, hidden, height } = await run(
+        renderChronicleExportSvg,
+        { ...common, reversed, showConfidence, showSources, showHiddenNote },
+        200_000,
+      )
+      if (hidden > 0) {
+        warnings.push(
+          `還有 ${hidden} 件事件放不下${showHiddenNote ? `（圖上會註明「另有 ${hidden} 件未列出」）` : '（圖上不會註明，看圖的人不會知道有省略）'}——請縮短時間範圍、取消勾選部分軸線，或選「自動長度」`,
+        )
+      }
+      return { svg, warnings, w: drawW, h: height }
+    }
+    const { svg, hidden, narrowColumns, height } = await run(
+      renderVerticalExportSvg,
+      { ...common, reversed, centerAxis },
+      600,
+    )
     if (narrowColumns) warnings.push('欄寬過窄，建議選更寬的比例，或取消勾選部分圖層／軸線')
     if (hidden > 0) {
       warnings.push(
-        `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請縮短時間範圍，或選更長的比例`,
+        `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請縮短時間範圍，或選「自動長度」`,
       )
     }
-    return { svg, warnings }
+    return { svg, warnings, w: drawW, h: height }
   }
 
   // ---- 預覽：任何設定改變後 300 毫秒重畫 ----
-  const [preview, setPreview] = useState<{ svg: SVGSVGElement; warnings: string[] } | null>(null)
+  const [preview, setPreview] = useState<Rendered | null>(null)
   const [busy, setBusy] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
     layout, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, showDates, showYears, showRelations, collapseGaps, compact,
-    reversed, centerAxis,
+    reversed, centerAxis, cardMode, showConfidence, showSources, showHiddenNote,
   ])
   useEffect(() => {
     if (!open) return
@@ -235,20 +285,26 @@ export function ExportStudio(props: Props) {
     window.clearTimeout(msgTimer.current)
     msgTimer.current = window.setTimeout(() => setMessage(null), ms)
   }
-  const fileBase = `hackstory-${preset.id}`
+  const fileBase = `hackstory-${auto ? 'auto' : preset.id}`
 
-  const makePng = async (scale: number) => {
-    const { svg } = await renderCurrent()
-    return svgToPngWithFonts(svg, preset.w, preset.h, { scale, background: theme.colors.bg })
+  const makePng = async (wanted: number) => {
+    const { svg, w, h } = await renderCurrent()
+    // 長圖超過瀏覽器畫布上限時降低倍率，寧可解析度低一點也要整張完整
+    const scale = safePngScale(w, h, wanted)
+    const png = await svgToPngWithFonts(svg, w, h, { scale, background: theme.colors.bg })
+    const notes = [
+      scale < wanted ? `圖太長，PNG 解析度自動降為 ${scale} 倍（要完整高解析度請下載 SVG）` : '',
+      missingGlyphNote(png.missing),
+    ].filter(Boolean)
+    return { blob: png.blob, pixels: `${Math.round(w * scale)}×${Math.round(h * scale)}`, notes }
   }
 
   const downloadPng = (scale: number) => {
     say('正在嵌入字型、產生 PNG…', 20_000)
     makePng(scale)
-      .then(({ blob, missing }) => {
+      .then(({ blob, pixels, notes }) => {
         downloadBlob(`${fileBase}@${scale}x.png`, blob)
-        const note = missingGlyphNote(missing)
-        say(`已下載 PNG（${preset.w * scale}×${preset.h * scale}）${note ? '；' + note : ''}`, note ? 8000 : 3500)
+        say(`已下載 PNG（${pixels}）${notes.map((n) => '；' + n).join('')}`, notes.length ? 8000 : 3500)
       })
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }
@@ -275,8 +331,8 @@ export function ExportStudio(props: Props) {
     say('正在產生圖片並複製…', 20_000)
     void copyPngToClipboard(png.then((r) => r.blob)).then(async (ok) => {
       if (ok) {
-        const note = missingGlyphNote((await png).missing)
-        say(`已複製圖片，可以直接貼進簡報${note ? '；' + note : ''}`, note ? 8000 : 3500)
+        const { notes } = await png
+        say(`已複製圖片，可以直接貼進簡報${notes.map((n) => '；' + n).join('')}`, notes.length ? 8000 : 3500)
         return
       }
       // 瀏覽器不讓複製圖片：退回下載，並說清楚
@@ -292,8 +348,9 @@ export function ExportStudio(props: Props) {
 
   if (!open) return null
 
-  const pickRatio = (id: RatioId) => {
+  const pickRatio = (id: RatioChoice) => {
     setRatioId(id)
+    // 自動長度不限方向，沿用目前的版型
     // 比例決定方向（原則 2）：長比例建議直式大事記、寬比例建議泳道；之後可以自己改
     const p = RATIO_PRESETS.find((r) => r.id === id)
     if (p) setLayout(p.dir === 'v' ? 'D' : 'A')
@@ -342,8 +399,8 @@ export function ExportStudio(props: Props) {
         <div className="min-w-0 flex-[7] bg-surface-alt p-4">
           <StudioPreview
             svg={preview?.svg ?? null}
-            width={preset.w}
-            height={preset.h}
+            width={preview?.w ?? drawW}
+            height={preview?.h ?? preset.h}
             background={theme.colors.bg}
             busy={busy}
             warnings={preview?.warnings ?? []}
@@ -381,6 +438,19 @@ export function ExportStudio(props: Props) {
             </Section>
 
             <Section title="比例" note="選比例會自動建議版型：長的用直式大事記、寬的用泳道，可以再改">
+              <button
+                type="button"
+                onClick={() => pickRatio('auto')}
+                className={
+                  'mb-2 w-full rounded border px-2.5 py-1.5 text-left transition-colors ' +
+                  (auto ? 'border-accent bg-accent text-white' : 'border-line text-ink hover:bg-surface-alt')
+                }
+              >
+                <span className="text-base font-medium">自動長度</span>
+                <span className={'ml-1.5 text-sm ' + (auto ? 'text-white/80' : 'text-ink-faint')}>
+                  寬度固定、高度拉長到所有軸線與事件都放得下
+                </span>
+              </button>
               {(['h', 'v'] as const).map((dir) => (
                 <div key={dir} className="mb-2">
                   <p className="mb-1 text-sm text-ink-faint">{dir === 'h' ? '橫式（簡報）' : '直式（手機／社群／列印）'}</p>
@@ -520,13 +590,34 @@ export function ExportStudio(props: Props) {
 
               <p className="mb-1 text-sm text-ink-faint">顯示</p>
               <div className="space-y-1.5">
-                {checkbox('事件日期', showDates, setShowDates)}
-                {checkbox('日期含年份', showYears, setShowYears, !showDates)}
-                {checkbox('關係線', showRelations, setShowRelations)}
-                {checkbox('摺疊空白', collapseGaps, setCollapseGaps)}
-                {layout === 'A' && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
-                {layout === 'D' && checkbox('最新的在上面', reversed, setReversed)}
-                {layout === 'D' && checkbox('刻度置中對照', centerAxis, setCenterAxis)}
+                {layout === 'D' && (
+                  <>
+                    {checkbox('卡片模式（標題＋摘要＋來源）', cardMode, setCardMode)}
+                    <p className="ml-6 text-sm text-ink-faint">
+                      {cardMode
+                        ? '卡片依先後排列，間距不代表時間長短（圖上會註明）；不畫關係線'
+                        : '照時間比例排的直式長圖'}
+                    </p>
+                  </>
+                )}
+                {layout === 'D' && cardMode ? (
+                  <>
+                    {checkbox('顯示查證程度（已查證／據報導／有爭議）', showConfidence, setShowConfidence)}
+                    {checkbox('列出來源', showSources, setShowSources)}
+                    {checkbox('放不下時在圖上註明「另有 N 件未列出」', showHiddenNote, setShowHiddenNote)}
+                    {checkbox('最新的在上面', reversed, setReversed)}
+                  </>
+                ) : (
+                  <>
+                    {checkbox('事件日期', showDates, setShowDates)}
+                    {checkbox('日期含年份', showYears, setShowYears, !showDates)}
+                    {checkbox('關係線', showRelations, setShowRelations)}
+                    {checkbox('摺疊空白', collapseGaps, setCollapseGaps)}
+                    {layout === 'A' && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
+                    {layout === 'D' && checkbox('最新的在上面', reversed, setReversed)}
+                    {layout === 'D' && checkbox('刻度置中對照', centerAxis, setCenterAxis)}
+                  </>
+                )}
               </div>
             </Section>
           </div>

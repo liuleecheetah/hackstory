@@ -50,8 +50,12 @@ export function StudioPreview({ svg, width, height, background, busy, warnings, 
     )
   }, [svg, width, height, background])
 
-  // 等比例塞進可用空間
-  const scale = area.w > 0 && area.h > 0 ? Math.min(area.w / width, area.h / height) : 0
+  // 等比例塞進可用空間。很長的圖（自動長度）整張塞進來會小到看不清，
+  // 那種情況改成「寬度填滿、上下捲動」
+  const fitAll = area.w > 0 && area.h > 0 ? Math.min(area.w / width, area.h / height) : 0
+  const fitWidth = area.w > 0 ? Math.min(area.w / width, 1) : 0
+  const scrolling = fitAll > 0 && fitAll < fitWidth * 0.5
+  const scale = scrolling ? fitWidth : fitAll
   const boxW = width * scale
   const boxH = height * scale
 
@@ -66,10 +70,15 @@ export function StudioPreview({ svg, width, height, background, busy, warnings, 
           ))}
         </div>
       )}
-      <div ref={areaRef} className="relative min-h-0 flex-1">
+      <div ref={areaRef} className={'relative min-h-0 flex-1 ' + (scrolling ? 'overflow-y-auto' : '')}>
         {markup && scale > 0 && (
           <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg ring-1 ring-line"
+            className={
+              'shadow-lg ring-1 ring-line ' +
+              (scrolling
+                ? 'mx-auto'
+                : 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2')
+            }
             style={{ width: boxW, height: boxH, background }}
             dangerouslySetInnerHTML={{ __html: markup }}
           />
@@ -81,7 +90,8 @@ export function StudioPreview({ svg, width, height, background, busy, warnings, 
         )}
       </div>
       <p className="text-center text-sm text-ink-faint">
-        實際尺寸 {width}×{height}（PNG 2 倍為 {width * 2}×{height * 2}）· 預覽縮放 {Math.round(scale * 100)}%
+        實際尺寸 {width}×{height} · 預覽縮放 {Math.round(scale * 100)}%
+        {scrolling && ' · 長圖：上下捲動看全部'}
       </p>
     </div>
   )

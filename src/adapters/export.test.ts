@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { TimelineDocument } from '../core'
-import { documentToJson, embedCode } from './export'
+import { documentToJson, embedCode, safePngScale } from './export'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -36,5 +36,20 @@ describe('embedCode', () => {
     expect(code).toContain('<iframe')
     expect(code).toContain('https://example.com/hackstory/?embed=1')
     expect(code).toContain('title="HackStory 時間軸"')
+  })
+})
+
+describe('safePngScale：長圖不超過瀏覽器畫布上限', () => {
+  it('一般比例照要求的倍率', () => {
+    expect(safePngScale(960, 540, 2)).toBe(2)
+    expect(safePngScale(960, 540, 3)).toBe(3)
+  })
+
+  it('很長的圖自動降倍率，輸出的像素不超過 1600 萬、單邊不超過 3.2 萬', () => {
+    const [w, h] = [620, 12_000]
+    const s = safePngScale(w, h, 2)
+    expect(s).toBeLessThan(2)
+    expect(w * s * h * s).toBeLessThanOrEqual(16_000_000)
+    expect(h * s).toBeLessThanOrEqual(32_000)
   })
 })

@@ -489,6 +489,8 @@ export function TimelineView({
         className={exportMode ? 'block' : 'block cursor-grab active:cursor-grabbing'}
         style={exportMode ? { background: C.bg } : { background: C.bg, touchAction: 'none' }}
         data-overflow={exportOverflow ? '1' : '0'}
+        // 全部軸線都放得下需要的高度（出圖工作室「自動長度」用）
+        data-content-height={exportMode ? Math.ceil(exportTop + layout.height + FOOTER_H) : undefined}
         onPointerDown={exportMode ? undefined : (e) => {
           dragState.current = {
             startX: e.clientX,

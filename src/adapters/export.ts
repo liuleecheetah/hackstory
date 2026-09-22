@@ -46,6 +46,15 @@ export function serializeSvg(
   return new XMLSerializer().serializeToString(clone)
 }
 
+/**
+ * PNG 能用的最大放大倍率。瀏覽器的畫布有尺寸上限（Safari 約 1600 萬像素、單邊約 3.2 萬像素），
+ * 很長的圖用 2 倍、3 倍會超過而畫不出來——超過時降低倍率，保證整張完整（寧可解析度低一點）。
+ */
+export function safePngScale(width: number, height: number, wanted: number): number {
+  const limit = Math.min(Math.sqrt(16_000_000 / (width * height)), 32_000 / Math.max(width, height))
+  return Math.min(wanted, Math.floor(limit * 100) / 100)
+}
+
 /** SVG 文字 → PNG 圖檔（scale 預設 2 倍，輸出比較清晰） */
 export async function svgToPngBlob(
   svgText: string,

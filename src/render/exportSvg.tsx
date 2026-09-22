@@ -8,6 +8,7 @@
 
 import type { ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ChronicleView } from './ChronicleView'
 import type { RenderTheme } from './theme'
 import { buildTimelineBase } from './timelineData'
 import { TimelineView } from './TimelineView'
@@ -64,7 +65,12 @@ export interface HorizontalExportRequest extends ExportRequestBase {
   swimlane?: boolean
 }
 
-export interface VerticalExportResult {
+/** 每種匯出結果都會回報：全部內容放得下需要多高（「自動長度」用） */
+interface ContentHeight {
+  contentHeight: number
+}
+
+export interface VerticalExportResult extends ContentHeight {
   svg: SVGSVGElement
   /** 事件太多、標題排不下（只畫得出圓點）的件數 */
   hidden: number
@@ -72,7 +78,7 @@ export interface VerticalExportResult {
   narrowColumns: boolean
 }
 
-export interface HorizontalExportResult {
+export interface HorizontalExportResult extends ContentHeight {
   svg: SVGSVGElement
   /** 軸線太多，超出這個比例的高度被裁掉 */
   overflow: boolean
@@ -123,6 +129,11 @@ function renderOffscreen<T>(element: ReactElement, read: (svg: SVGSVGElement) =>
   })
 }
 
+/** 讀出繪製端回報的「全部放得下需要的高度」 */
+function contentHeightOf(svg: SVGSVGElement): number {
+  return Number(svg.dataset.contentHeight ?? 0)
+}
+
 /** 取出可序列化的副本（離屏用的 id 要拿掉，免得跟畫面上的撞名） */
 function detach(svg: SVGSVGElement): SVGSVGElement {
   const clone = svg.cloneNode(true) as SVGSVGElement
@@ -159,8 +170,52 @@ export function renderVerticalExportSvg(
     />,
     (svg) => ({
       svg: detach(svg),
+      contentHeight: contentHeightOf(svg),
       hidden: Number(svg.dataset.hidden ?? 0),
       narrowColumns: svg.dataset.narrowColumns === '1',
+    }),
+  )
+}
+
+/** 版型 D 卡片大事記的結果 */
+export interface ChronicleExportResult extends ContentHeight {
+  svg: SVGSVGElement
+  /** 畫布放不下、沒列出來的事件數 */
+  hidden: number
+}
+
+/** 以指定尺寸渲染一張**卡片式大事記**（版型 D） */
+export function renderChronicleExportSvg(
+  req: ExportRequestBase & {
+    reversed: boolean
+    showConfidence: boolean
+    showSources: boolean
+    showHiddenNote: boolean
+  },
+): Promise<ChronicleExportResult> {
+  return renderOffscreen(
+    <ChronicleView
+      sources={req.sources}
+      domain={resolveDomain(req)}
+      collapseGaps={req.collapseGaps}
+      reversed={req.reversed}
+      showConfidence={req.showConfidence}
+      showSources={req.showSources}
+      showHiddenNote={req.showHiddenNote}
+      theme={req.theme}
+      exportMode={{
+        width: req.width,
+        height: req.height,
+        svgId: OFFSCREEN_ID,
+        title: req.title,
+        subtitle: req.subtitle,
+        footer: req.footer,
+      }}
+    />,
+    (svg) => ({
+      svg: detach(svg),
+      hidden: Number(svg.dataset.hidden ?? 0),
+      contentHeight: contentHeightOf(svg),
     }),
   )
 }
@@ -189,6 +244,30 @@ export function renderHorizontalExportSvg(
         footer: req.footer,
       }}
     />,
-    (svg) => ({ svg: detach(svg), overflow: svg.dataset.overflow === '1' }),
+    (svg) => ({
+      svg: detach(svg),
+      overflow: svg.dataset.overflow === '1',
+      contentHeight: contentHeightOf(svg),
+    }),
   )
+}
+
+/** 自動長度的最矮高度：內容很少時也不要擠成一條細長條 */
+const MIN_AUTO_HEIGHT = 360
+
+/**
+ * 「自動長度」：寬度固定，高度拉長到全部內容都放得下。
+ *
+ * 先用一個試算高度畫一次，讀出繪製端回報的「需要多高」，再用那個高度正式畫。
+ * 試算高度要夠大，卡片大事記才會把所有卡片都排進去、算出真正的總高度。
+ */
+export async function renderWithAutoHeight<Req extends ExportRequestBase, Res extends ContentHeight>(
+  render: (req: Req) => Promise<Res>,
+  req: Req,
+  probeHeight = 200_000,
+): Promise<Res & { height: number }> {
+  const probe = await render({ ...req, height: probeHeight })
+  const height = Math.max(MIN_AUTO_HEIGHT, Math.ceil(probe.contentHeight))
+  const final = await render({ ...req, height })
+  return { ...final, height }
 }
