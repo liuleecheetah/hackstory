@@ -6,6 +6,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { HstEvent, Relation, TimelineDocument, Track } from '../core'
 import { nextRelationId, removeEventFromDocument, removeRelationFrom } from '../core'
+import { DEFAULT_PALETTE } from '../render/theme'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -16,8 +17,8 @@ export interface Layer {
   visible: boolean
 }
 
-/** 圖層預設輪流使用的顏色 */
-const LAYER_PALETTE = ['#3b6ea5', '#d97706', '#0f766e', '#9333ea', '#be123c', '#4d7c0f']
+/** 圖層預設輪流使用的顏色：跟時間軸共用同一組色盲安全色盤 */
+const LAYER_PALETTE = DEFAULT_PALETTE
 
 export function useLayers(initialDocs: TimelineDocument[]) {
   // 遞增序號：產生圖層 id 與輪流配色

@@ -24,6 +24,8 @@ import type {
 } from '../render/TimelineView'
 import { TimelineView } from '../render/TimelineView'
 import { VerticalTimelineView } from '../render/VerticalTimelineView'
+import type { ThemeId } from '../render/theme'
+import { THEMES } from '../render/theme'
 import type { RelationInfo } from './EventDetailCard'
 import { EventDetailCard } from './EventDetailCard'
 import { ExportDialog } from './ExportDialog'
@@ -205,6 +207,8 @@ export default function App() {
   // 直式專屬：時間方向反轉、刻度尺置中對照
   const [reversed, setReversed] = useState(false)
   const [centerAxis, setCenterAxis] = useState(false)
+  // 時間軸主題（字級、尺寸、配色）。暫時由「顯示選項」切換，U3 會議模式上線後改由模式決定
+  const [themeId, setThemeId] = useState<ThemeId>('screen')
   // render 層回報的可視時間範圍：比例匯出照這個範圍出圖（所見即所得）
   const [viewDomain, setViewDomain] = useState<[number, number] | null>(null)
   const handleDomainChange = useCallback((d: [number, number]) => setViewDomain(d), [])
@@ -755,6 +759,8 @@ export default function App() {
           setReversed,
           centerAxis,
           setCenterAxis,
+          themeId,
+          setThemeId,
         }}
         readOnly={readOnly}
         onMakeEditableCopy={() => {
@@ -805,6 +811,7 @@ export default function App() {
               reversed={reversed}
               centerAxis={centerAxis}
               collapseGaps={collapseGaps}
+              theme={THEMES[themeId]}
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
               onEventCreate={readOnly ? undefined : handleEventCreate}
@@ -820,6 +827,7 @@ export default function App() {
               showRelations={showRelations}
               collapseGaps={collapseGaps}
               compact={compact}
+              theme={THEMES[themeId]}
               selectedKey={selection?.key ?? null}
               onEventSelect={handleEventSelect}
               onEventCreate={readOnly ? undefined : handleEventCreate}

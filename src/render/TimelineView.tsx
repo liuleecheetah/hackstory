@@ -8,6 +8,8 @@ import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
 import { assignLanes, estimateTextWidth, truncate } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
+import type { RenderTheme } from './theme'
+import { deriveTheme, THEMES } from './theme'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
   EventSelection,
@@ -42,6 +44,8 @@ interface Props {
   collapseGaps?: boolean
   /** 精簡模式：把事件列高、圓點、文字縮小，同樣高度塞更多事件、其他軸線比較看得到 */
   compact?: boolean
+  /** 主題：字級、尺寸、顏色（預設「螢幕」主題） */
+  theme?: RenderTheme
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -73,11 +77,8 @@ export interface HorizontalExportOptions {
 }
 
 const DAY = 86_400_000
-const AXIS_H = 46 // 頂部刻度列高度（上排放「可視範圍」文字，下排放刻度數字，避免兩者疊在一起）
-const TRACK_LABEL_H = 26 // 軸線標題列高度
-const LANE_H = 26 // 每條車道高度
-const BAND_GAP = 12 // 軸線之間的間距
-const DOT_R = 5
+// 以下是主題倍率 1 時的高度，實際使用時乘上主題倍率（字放大，格子也要跟著放大）
+const BASE_AXIS_H = 46 // 頂部刻度列高度（上排放「可視範圍」文字，下排放刻度數字，避免兩者疊在一起）
 
 /** 各尺度按鈕對應的可視時間跨度 */
 const SCALE_SPANS: Record<Exclude<ScaleMode, 'year'>, number> = {
@@ -87,8 +88,8 @@ const SCALE_SPANS: Record<Exclude<ScaleMode, 'year'>, number> = {
 }
 const MIN_SPAN = DAY / 4 // 最多放大到 6 小時
 const MAX_SPAN = 400 * 365 * DAY // 最多縮小到 400 年
-const TITLE_H = 42 // 匯出圖片頂部的標題列
-const FOOTER_H = 22 // 匯出圖片底部的出處小字
+const BASE_TITLE_H = 42 // 匯出圖片頂部的標題列
+const BASE_FOOTER_H = 22 // 匯出圖片底部的出處小字
 
 export function TimelineView({
   sources,
@@ -99,6 +100,7 @@ export function TimelineView({
   showRelations = true,
   collapseGaps = false,
   compact = false,
+  theme = THEMES.screen,
   selectedKey,
   onEventSelect,
   onEventCreate,
@@ -112,23 +114,30 @@ export function TimelineView({
   const [measuredWidth, setMeasuredWidth] = useState(0)
   const width = exportMode?.width ?? measuredWidth
 
-  // 尺寸度量：精簡模式用縮小的一組，一般模式沿用上方的模組常數。
+  // 尺寸度量全部來自主題；精簡模式＝同一個主題換成 compact 密度。
   // 事件的圓點、長條、文字、車道高度、軸線間距都跟著這組數字走。
+  const T = useMemo(
+    () => deriveTheme(theme, compact ? { density: 'compact' } : {}),
+    [theme, compact],
+  )
+  const C = T.colors
+  const F = T.font
+  const S = T.scale
+  const AXIS_H = BASE_AXIS_H * S
+  const TITLE_H = BASE_TITLE_H * S
+  const FOOTER_H = BASE_FOOTER_H * S
   const M = useMemo(
-    () =>
-      compact
-        ? { laneH: 17, trackLabelH: 20, bandGap: 7, dotR: 4, keyDotR: 6, barH: 9, keyBarH: 12, font: 11 }
-        : {
-            laneH: LANE_H,
-            trackLabelH: TRACK_LABEL_H,
-            bandGap: BAND_GAP,
-            dotR: DOT_R,
-            keyDotR: DOT_R + 2.5,
-            barH: 12,
-            keyBarH: 16,
-            font: 12,
-          },
-    [compact],
+    () => ({
+      laneH: T.laneH,
+      trackLabelH: T.trackLabelH,
+      bandGap: T.bandGap,
+      dotR: T.dotR,
+      keyDotR: T.keyDotR,
+      barH: T.barH,
+      keyBarH: T.keyBarH,
+      font: T.font.event,
+    }),
+    [T],
   )
 
   // 與方向無關的資料準備都交給資料層（timelineData）：相對時間求解、空白摺疊
@@ -139,8 +148,8 @@ export function TimelineView({
 
   // 每條軸線要畫哪些事件、它們的時間範圍與標題文字（同樣與方向無關）
   const preparedBands = useMemo(
-    () => buildBands(sources, base, { showDates, showYears }),
-    [sources, base, showDates, showYears],
+    () => buildBands(sources, base, { showDates, showYears }, T.palette),
+    [sources, base, showDates, showYears, T.palette],
   )
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
@@ -268,7 +277,7 @@ export function TimelineView({
     // 先把真實時間換算到壓縮座標，再投影到像素
     const x = (t: number) => ((warp.toU(t) - a) / (b - a)) * width
 
-    let y = AXIS_H + 8
+    let y = AXIS_H + 8 * S
 
     const bands = preparedBands.map((band) => {
       const items = band.events
@@ -294,9 +303,9 @@ export function TimelineView({
           )
           // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
           const labelSide: 'right' | 'left' =
-            shapeR + 6 + labelW > width && shapeL - 6 - labelW > 0 ? 'left' : 'right'
-          const occL = labelSide === 'left' ? shapeL - 6 - labelW : shapeL
-          const occR = labelSide === 'right' ? shapeR + 6 + labelW : shapeR
+            shapeR + 6 * S + labelW > width && shapeL - 6 * S - labelW > 0 ? 'left' : 'right'
+          const occL = labelSide === 'left' ? shapeL - 6 * S - labelW : shapeL
+          const occR = labelSide === 'right' ? shapeR + 6 * S + labelW : shapeR
           return { ...pe, label: pe.title, shapeL, shapeR, labelSide, occL, occR }
         })
         .sort((p, q) => p.occL - q.occL)
@@ -304,7 +313,7 @@ export function TimelineView({
       const lanes = assignLanes(items.map((it) => ({ left: it.occL, right: it.occR })))
       const laneCount = items.length > 0 ? Math.max(...lanes) + 1 : 1
       const bandTop = y
-      const bandH = M.trackLabelH + laneCount * M.laneH + 6
+      const bandH = M.trackLabelH + laneCount * M.laneH + 6 * S
       y += bandH + M.bandGap
 
       // 這條軸線最早／最新事件的位置（u 座標），供 hover 浮現的跳轉按鈕使用
@@ -363,7 +372,7 @@ export function TimelineView({
 
         const label = rel.label ?? RELATION_LABELS[rel.type] ?? rel.type
         // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
-        const labelW = estimateTextWidth(label, 11) + 18
+        const labelW = estimateTextWidth(label, F.date) + 18 * S
         const labelX = Math.min(
           Math.max((from.x + to.x) / 2, labelW / 2 + 4),
           width - labelW / 2 - 4,
@@ -385,7 +394,7 @@ export function TimelineView({
     )
 
     return { bands, relationLines, height: Math.max(y + 8, 320), x }
-  }, [sources, preparedBands, domain, width, warp, M])
+  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -443,8 +452,8 @@ export function TimelineView({
         id={exportMode?.svgId ?? 'hackstory-timeline-svg'}
         width={width}
         height={exportMode ? exportMode.height : layout.height}
-        className={exportMode ? 'block bg-white' : 'block cursor-grab bg-white active:cursor-grabbing'}
-        style={exportMode ? undefined : { touchAction: 'none' }}
+        className={exportMode ? 'block' : 'block cursor-grab active:cursor-grabbing'}
+        style={exportMode ? { background: C.bg } : { background: C.bg, touchAction: 'none' }}
         data-overflow={exportOverflow ? '1' : '0'}
         onPointerDown={exportMode ? undefined : (e) => {
           dragState.current = {
@@ -513,7 +522,7 @@ export function TimelineView({
         {/* 匯出圖片的頂部標題：輸出的圖自帶脈絡，不必靠貼文說明 */}
         {exportMode && (
           <>
-            <text x={14} y={27} fontSize={16} fontWeight={700} fill="#1e293b">
+            <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
               {truncate(exportMode.title, 40)}
             </text>
             <clipPath id="hst-export-clip">
@@ -528,8 +537,8 @@ export function TimelineView({
         {/* 進行中事件右端的淡出漸層 */}
         <defs>
           <linearGradient id="hst-ongoing-fade" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="1" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="0" stopColor={C.halo} stopOpacity="0" />
+            <stop offset="1" stopColor={C.halo} stopOpacity="1" />
           </linearGradient>
         </defs>
         {/* 直式格線 */}
@@ -540,27 +549,27 @@ export function TimelineView({
             x2={layout.x(d.getTime())}
             y1={AXIS_H}
             y2={layout.height}
-            stroke="#e2e8f0"
+            stroke={C.grid}
             strokeWidth={1}
           />
         ))}
 
         {/* 頂部刻度列 */}
-        <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke="#cbd5e1" />
+        <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke={C.axis} />
         {ticks.map((d, i) => (
           <text
             key={i}
             x={layout.x(d.getTime())}
-            y={AXIS_H - 10}
+            y={AXIS_H - 10 * S}
             textAnchor="middle"
-            fontSize={12}
-            fill="#64748b"
+            fontSize={F.event}
+            fill={C.inkMuted}
           >
             {formatTick(d)}
           </text>
         ))}
         {/* 左上角：目前可視範圍 */}
-        <text x={8} y={14} fontSize={11} fill="#94a3b8">
+        <text x={8 * S} y={14 * S} fontSize={F.date} fill={C.inkFaint}>
           {formatRangeLabel(tView)}
         </text>
 
@@ -570,19 +579,19 @@ export function TimelineView({
           if (xg < -30 || xg > width + 30) return null
           return (
             <g key={`gap-${i}`}>
-              <line x1={xg - 6} y1={AXIS_H - 5} x2={xg - 1} y2={AXIS_H + 5} stroke="#94a3b8" strokeWidth={1.5} />
-              <line x1={xg + 1} y1={AXIS_H - 5} x2={xg + 6} y2={AXIS_H + 5} stroke="#94a3b8" strokeWidth={1.5} />
+              <line x1={xg - 6 * S} y1={AXIS_H - 5 * S} x2={xg - 1 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
+              <line x1={xg + 1 * S} y1={AXIS_H - 5 * S} x2={xg + 6 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
               <line
                 x1={xg}
-                y1={AXIS_H + 5}
+                y1={AXIS_H + 5 * S}
                 x2={xg}
                 y2={layout.height}
-                stroke="#cbd5e1"
+                stroke={C.axis}
                 strokeDasharray="2 6"
               />
               {/* 「略過多久」放在頂部上排（與可視範圍文字同排），
                   避開下排的刻度數字，兩者不再擦到 */}
-              <text x={xg} y={14} textAnchor="middle" fontSize={10} fill="#94a3b8">
+              <text x={xg} y={14 * S} textAnchor="middle" fontSize={F.footer} fill={C.inkFaint}>
                 {formatSkipped(g.skippedMs)}
               </text>
             </g>
@@ -594,7 +603,7 @@ export function TimelineView({
           <g key={`${key}-bg`}>
             <rect x={0} y={bandTop} width={width} height={bandH} fill={color} opacity={0.05} />
             <rect x={0} y={bandTop} width={3} height={bandH} fill={color} />
-            <text x={12} y={bandTop + 18} fontSize={13} fontWeight={700} fill={color}>
+            <text x={12 * S} y={bandTop + 18 * S} fontSize={F.track} fontWeight={700} fill={color}>
               {label}
             </text>
           </g>
@@ -628,8 +637,8 @@ export function TimelineView({
                   key={id}
                   d={d}
                   fill="none"
-                  stroke={active ? '#d97706' : '#94a3b8'}
-                  strokeWidth={active ? 2.5 : 1.25}
+                  stroke={active ? C.highlight : C.inkFaint}
+                  strokeWidth={(active ? 2.5 : 1.25) * S}
                   strokeDasharray={type === 'same_event' ? '4 3' : undefined}
                   opacity={active ? 0.95 : 0.4}
                   markerEnd="url(#hst-rel-arrow)"
@@ -767,7 +776,7 @@ export function TimelineView({
                       cx={(shapeL + shapeR) / 2}
                       cy={cy}
                       r={dotR}
-                      fill="#ffffff"
+                      fill={C.halo}
                       stroke={fill}
                       strokeWidth={2}
                       strokeDasharray="3 2.5"
@@ -776,14 +785,14 @@ export function TimelineView({
                     <circle cx={(shapeL + shapeR) / 2} cy={cy} r={dotR} fill={fill} />
                   )}
                   <text
-                    x={labelSide === 'right' ? shapeR + 6 : shapeL - 6}
-                    y={cy + 4}
+                    x={labelSide === 'right' ? shapeR + 6 * S : shapeL - 6 * S}
+                    y={cy + 4 * S}
                     textAnchor={labelSide === 'right' ? 'start' : 'end'}
                     fontSize={M.font}
                     fontWeight={isKey ? 700 : 400}
-                    fill={isKey ? '#1e293b' : '#334155'}
+                    fill={isKey ? C.ink : C.inkEvent}
                   >
-                    {dateLabel && <tspan fill="#94a3b8" fontWeight={400}>{dateLabel} </tspan>}
+                    {dateLabel && <tspan fill={C.inkFaint} fontWeight={400}>{dateLabel} </tspan>}
                     {text}
                   </text>
                 </g>
@@ -807,21 +816,21 @@ export function TimelineView({
                 <g key={`${id}-label`}>
                   <rect
                     x={labelX - labelW / 2}
-                    y={labelY - 10}
+                    y={labelY - 10 * S}
                     width={labelW}
-                    height={20}
-                    rx={10}
-                    fill="#fffbeb"
-                    stroke="#f59e0b"
+                    height={20 * S}
+                    rx={10 * S}
+                    fill={C.warnBg}
+                    stroke={C.warnLine}
                     strokeWidth={1}
                   />
                   <text
                     x={labelX}
-                    y={labelY + 4}
+                    y={labelY + 4 * S}
                     textAnchor="middle"
-                    fontSize={11}
+                    fontSize={F.date}
                     fontWeight={600}
-                    fill="#b45309"
+                    fill={C.warn}
                   >
                     {label}
                   </text>
@@ -846,16 +855,16 @@ export function TimelineView({
                 }}
               >
                 <title>{tip}</title>
-                <rect x={bx} y={by} width={26} height={20} rx={5} fill="#ffffff" stroke="#cbd5e1" />
-                <text x={bx + 13} y={by + 14} textAnchor="middle" fontSize={13} fill="#475569">
+                <rect x={bx} y={by} width={26 * S} height={20 * S} rx={5 * S} fill={C.bg} stroke={C.axis} />
+                <text x={bx + 13 * S} y={by + 14 * S} textAnchor="middle" fontSize={F.track} fill={C.inkSoft}>
                   {glyph}
                 </text>
               </g>
             )
             return (
               <g key={`${bd.key}-nav`}>
-                {btn(width - 62, '⇤', bd.firstU!, '跳到這條軸線最早的事件')}
-                {btn(width - 32, '⇥', bd.lastU!, '跳到這條軸線最新的事件')}
+                {btn(width - 62 * S, '⇤', bd.firstU!, '跳到這條軸線最早的事件')}
+                {btn(width - 32 * S, '⇥', bd.lastU!, '跳到這條軸線最新的事件')}
               </g>
             )
           })}
@@ -863,11 +872,11 @@ export function TimelineView({
         {/* 匯出圖片底部的出處小字 */}
         {exportMode && (
           <text
-            x={width - 12}
-            y={exportMode.height - 8}
+            x={width - 12 * S}
+            y={exportMode.height - 8 * S}
             textAnchor="end"
-            fontSize={10}
-            fill="#94a3b8"
+            fontSize={F.footer}
+            fill={C.inkFaint}
           >
             {exportMode.footer}
           </text>
@@ -878,7 +887,7 @@ export function TimelineView({
   // 匯出模式：固定尺寸、不捲動、不互動
   if (exportMode) {
     return (
-      <div style={{ width, height: exportMode.height, overflow: 'hidden', background: '#fff' }}>
+      <div style={{ width, height: exportMode.height, overflow: 'hidden', background: C.bg }}>
         {svgEl}
       </div>
     )

@@ -16,13 +16,12 @@ import { dateFromParts, isAbsolute, isFeatured, resolveRelativeEvents } from '..
 import type { TimeWarp } from './gaps'
 import { buildWarp } from './gaps'
 import { truncate } from './layout'
+import { DEFAULT_PALETTE } from './theme'
 import { formatPointShort, spanMidpoint, timePointToSpan } from './timeScale'
 import type { TimelineSource } from './types'
 
 const DAY = 86_400_000
 
-/** 軸線沒指定顏色時輪流使用的預設色 */
-export const PALETTE = ['#3b6ea5', '#d97706', '#0f766e', '#9333ea', '#be123c', '#4d7c0f']
 
 /** 關係類型的中文名稱（沒有自訂 label 時顯示） */
 export const RELATION_LABELS: Record<string, string> = {
@@ -211,6 +210,8 @@ export function buildBands(
   sources: TimelineSource[],
   base: TimelineBase,
   { showDates, showYears }: BandTextOptions,
+  /** 軸線沒指定顏色時輪流使用的色盤（由主題提供） */
+  palette: string[] = DEFAULT_PALETTE,
 ): PreparedBand[] {
   const { resolvedBySource, warp } = base
   let bandIndex = 0
@@ -225,8 +226,8 @@ export function buildBands(
       // 顏色優先序：多軸文件以文件內的軸線配色區分（圖層色只當後備）；
       // 單軸文件以圖層色為主（面板改色才會生效）
       const color = multiTrack
-        ? track.color ?? source.color ?? PALETTE[bandIndex % PALETTE.length]
-        : source.color ?? track.color ?? PALETTE[bandIndex % PALETTE.length]
+        ? track.color ?? source.color ?? palette[bandIndex % palette.length]
+        : source.color ?? track.color ?? palette[bandIndex % palette.length]
       // 單軸文件直接用文件標題；多軸文件標成「文件｜軸線」。
       // 無法推估的相對時間事件不靜默——在軸線標題上註記
       const unresolvedCount = (resolvedForSource?.unresolved ?? []).filter((u) =>

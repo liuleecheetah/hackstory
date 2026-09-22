@@ -10,9 +10,9 @@
 
 import { assignLanes, estimateTextWidth } from './layout'
 
-/** 左側刻度尺的寬度 */
+/** 左側刻度尺的寬度（主題倍率 1 時；放大的主題由呼叫端傳入放大後的值） */
 export const RULER_W = 64
-/** 一欄至少要有這麼寬，中文標題才讀得下去（約 12 個全形字） */
+/** 一欄至少要有這麼寬，中文標題才讀得下去（約 12 個全形字；同上，倍率 1 時） */
 export const MIN_COL_W = 180
 
 /** 直式的兩種排法 */
@@ -22,9 +22,14 @@ export type VerticalMode = 'columns' | 'merged'
  * 依容器寬度決定排法：欄夠寬 → 多欄並排；不夠 → 單欄合流（事件按時間混排）。
  * 手機直握時通常會落在 merged。
  */
-export function pickVerticalMode(containerWidth: number, bandCount: number): VerticalMode {
+export function pickVerticalMode(
+  containerWidth: number,
+  bandCount: number,
+  rulerW = RULER_W,
+  minColW = MIN_COL_W,
+): VerticalMode {
   if (bandCount <= 0) return 'columns'
-  return (containerWidth - RULER_W) / bandCount >= MIN_COL_W ? 'columns' : 'merged'
+  return (containerWidth - rulerW) / bandCount >= minColW ? 'columns' : 'merged'
 }
 
 /** 一欄的位置。mirrored = 這一欄貼著中央刻度尺、圖形靠右、文字往左長 */
@@ -35,12 +40,16 @@ export interface VerticalColumn {
 }
 
 /** columns 模式：刻度尺在最左邊，每欄依序往右排 */
-export function columnRects(containerWidth: number, bandCount: number): VerticalColumn[] {
+export function columnRects(
+  containerWidth: number,
+  bandCount: number,
+  rulerW = RULER_W,
+): VerticalColumn[] {
   if (bandCount <= 0) return []
-  const available = Math.max(0, containerWidth - RULER_W)
+  const available = Math.max(0, containerWidth - rulerW)
   const w = available / bandCount
   return Array.from({ length: bandCount }, (_, i) => ({
-    x: RULER_W + i * w,
+    x: rulerW + i * w,
     w,
     mirrored: false,
   }))
@@ -55,9 +64,10 @@ export function columnRects(containerWidth: number, bandCount: number): Vertical
 export function centerColumnRects(
   containerWidth: number,
   bandCount: number,
+  rulerW = RULER_W,
 ): { rulerX: number; columns: VerticalColumn[] } {
   if (bandCount <= 0) return { rulerX: 0, columns: [] }
-  const side = Math.max(0, (containerWidth - RULER_W) / 2)
+  const side = Math.max(0, (containerWidth - rulerW) / 2)
   const leftCount = Math.floor(bandCount / 2)
   const rightCount = bandCount - leftCount
   const columns: VerticalColumn[] = []
@@ -70,7 +80,7 @@ export function centerColumnRects(
   if (rightCount > 0) {
     const w = side / rightCount
     for (let i = 0; i < rightCount; i++) {
-      columns.push({ x: side + RULER_W + i * w, w, mirrored: false })
+      columns.push({ x: side + rulerW + i * w, w, mirrored: false })
     }
   }
   return { rulerX: side, columns }

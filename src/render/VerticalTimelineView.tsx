@@ -16,6 +16,8 @@ import { formatSkipped } from './gaps'
 import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
+import type { RenderTheme } from './theme'
+import { THEMES } from './theme'
 import { formatRangeLabel, formatTick, getTicks } from './timeScale'
 import type {
   EventSelection,
@@ -30,9 +32,9 @@ import {
   columnRects,
   fitContentHeight,
   fitText,
-  MIN_COL_W,
+  MIN_COL_W as BASE_MIN_COL_W,
   pickVerticalMode,
-  RULER_W,
+  RULER_W as BASE_RULER_W,
   shapeGutter,
   stackLabels,
   verticalLanes,
@@ -70,6 +72,8 @@ interface Props {
   reversed?: boolean
   /** 刻度尺移到畫面中央，軸線分左右兩側對照（需要兩條以上軸線） */
   centerAxis?: boolean
+  /** 主題：字級、尺寸、顏色（預設「螢幕」主題）。直式沒有精簡模式 */
+  theme?: RenderTheme
   /** ui 層下的指令：「切到某個尺度」 */
   scaleRequest?: ScaleRequest | null
   /** 縮放後回報目前落在哪個尺度，讓 ui 層的按鈕高亮 */
@@ -92,28 +96,41 @@ interface Props {
   // 之後會補上 onEventCreate（直式編輯）——現在不留半成品的程式碼，屆時再加。
 }
 
-const HEADER_H = 34 // 頂部欄標題列高度（捲動時固定在上緣）
-const TOP_PAD = 18
-const BOTTOM_PAD = 32
-const COL_PAD = 10 // 欄內左右留白
-// 副車道每往右錯開多少。要比最大的圓點（重點事件直徑 15）再寬一點，
-// 錯開後的圓點才不會擠成一團
-const LANE_STEP = 16
 const LANE_COUNT = 4 // 副車道最多幾層，再多就會把標題的寬度吃光
-const LABEL_H = 18 // 一行標題佔的高度
-const FONT = 12
-const DOT_R = 5
-const KEY_DOT_R = 7.5
-const BAR_W = 12
-const KEY_BAR_W = 16
-const MIN_BAR_H = 10 // 很短的區間事件至少畫這麼長，才看得見
-const TITLE_H = 42 // 匯出圖片頂部的標題列
-const FOOTER_H = 22 // 匯出圖片底部的出處小字
-const ROW_H = 96 // 一個事件「舒服讀」大概需要的高度（決定整條軸最長拉到多長）
-// 標題最多可以離自己的時間位置多遠。超過就不畫標題，只留圓點——
-// 否則讀者會對不上左邊的年份刻度，以為那件事發生在別的年代
-const MAX_DRIFT = 26
-const LABEL_GAP = 8 // 圖形右緣到標題的距離
+
+/**
+ * 直式的各種尺寸，全部由主題衍生：字級與圓點直接取主題的值，
+ * 其餘間距是「主題倍率 1 時的像素 × 倍率」——字放大，格子也跟著放大。
+ * 螢幕主題（倍率 1）算出來的數字與改版前寫死的常數完全相同。
+ */
+function verticalSizes(T: RenderTheme) {
+  const S = T.scale
+  return {
+    HEADER_H: 34 * S, // 頂部欄標題列高度（捲動時固定在上緣）
+    TOP_PAD: 18 * S,
+    BOTTOM_PAD: 32 * S,
+    COL_PAD: 10 * S, // 欄內左右留白
+    // 副車道每往右錯開多少。要比最大的圓點（重點事件直徑 15）再寬一點，
+    // 錯開後的圓點才不會擠成一團
+    LANE_STEP: 16 * S,
+    LABEL_H: 18 * S, // 一行標題佔的高度
+    FONT: T.font.event,
+    DOT_R: T.dotR,
+    KEY_DOT_R: T.keyDotR,
+    BAR_W: T.barH,
+    KEY_BAR_W: T.keyBarH,
+    MIN_BAR_H: 10 * S, // 很短的區間事件至少畫這麼長，才看得見
+    TITLE_H: 42 * S, // 匯出圖片頂部的標題列
+    FOOTER_H: 22 * S, // 匯出圖片底部的出處小字
+    ROW_H: 96 * S, // 一個事件「舒服讀」大概需要的高度（決定整條軸最長拉到多長）
+    // 標題最多可以離自己的時間位置多遠。超過就不畫標題，只留圓點——
+    // 否則讀者會對不上左邊的年份刻度，以為那件事發生在別的年代
+    MAX_DRIFT: 26 * S,
+    LABEL_GAP: 8 * S, // 圖形右緣到標題的距離
+    RULER_W: BASE_RULER_W * S, // 刻度尺寬度：年份字放大，尺也要跟著變寬
+    MIN_COL_W: BASE_MIN_COL_W * S,
+  }
+}
 
 const DAY = 86_400_000
 /** 各尺度按鈕對應的可視時間跨度（與橫式共用同一組數字，切換方向時感受一致） */
@@ -162,6 +179,7 @@ export function VerticalTimelineView({
   showRelations = true,
   reversed = false,
   centerAxis = false,
+  theme = THEMES.screen,
   scaleRequest,
   onScaleModeChange,
   selectedKey,
@@ -173,6 +191,32 @@ export function VerticalTimelineView({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+  // 尺寸與顏色全部來自主題
+  const T = theme
+  const C = T.colors
+  const F = T.font
+  const S = T.scale
+  const {
+    HEADER_H,
+    TOP_PAD,
+    BOTTOM_PAD,
+    COL_PAD,
+    LANE_STEP,
+    LABEL_H,
+    FONT,
+    DOT_R,
+    KEY_DOT_R,
+    BAR_W,
+    KEY_BAR_W,
+    MIN_BAR_H,
+    TITLE_H,
+    FOOTER_H,
+    ROW_H,
+    MAX_DRIFT,
+    LABEL_GAP,
+    RULER_W,
+    MIN_COL_W,
+  } = useMemo(() => verticalSizes(T), [T])
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
   // 0 = 還沒量到容器寬度。量到之前不畫，否則手機上會先用預設值畫成多欄再跳成單欄
@@ -186,8 +230,8 @@ export function VerticalTimelineView({
   // 資料準備與橫式共用同一份（timelineData），所以兩種方向不可能畫出不同的事件
   const base = useMemo(() => buildTimelineBase(sources, collapseGaps), [sources, collapseGaps])
   const bands = useMemo(
-    () => buildBands(sources, base, { showDates, showYears }),
-    [sources, base, showDates, showYears],
+    () => buildBands(sources, base, { showDates, showYears }, T.palette),
+    [sources, base, showDates, showYears, T.palette],
   )
   const { warp, initialDomain, anchorTimes } = base
 
@@ -223,7 +267,7 @@ export function VerticalTimelineView({
   }, [])
 
   // 匯出時一律多欄並排（寬度是使用者指定的，不做單欄合流的退場）
-  const mode = exportMode ? 'columns' : pickVerticalMode(width, bands.length)
+  const mode = exportMode ? 'columns' : pickVerticalMode(width, bands.length, RULER_W, MIN_COL_W)
 
   // 單欄合流時每列開頭的軸線縮寫：同一份文件有多條軸就用軸線名，否則用文件名
   const abbrOf = useMemo(() => {
@@ -314,7 +358,7 @@ export function VerticalTimelineView({
         })),
       )
       // 標題堆疊：圓點留在真實時間位置，標題往下擠開，兩者用細線連起來
-      const naturalLabelYs = raw.map((r) => (r.isBar ? r.yTop + 12 : r.yTop + 4))
+      const naturalLabelYs = raw.map((r) => (r.isBar ? r.yTop + 12 * S : r.yTop + 4 * S))
       const labelYs = stackLabels(naturalLabelYs, LABEL_H, MAX_DRIFT)
       const right = rect.x + rect.w - COL_PAD
 
@@ -337,9 +381,9 @@ export function VerticalTimelineView({
       // 單欄合流的軸線縮寫也取一致寬度，整欄的標題才對得齊
       const abbrW = withAbbr
         ? raw.reduce(
-            (m, r) => Math.max(m, estimateTextWidth(abbrOf.get(r.band.key) ?? '', 10)),
+            (m, r) => Math.max(m, estimateTextWidth(abbrOf.get(r.band.key) ?? '', F.footer)),
             0,
-          ) + 6
+          ) + 6 * S
         : 0
       // 鏡像欄：圖形貼著欄的右緣（也就是中央刻度尺），標題往左邊長
       const mirrored = rect.mirrored
@@ -427,13 +471,13 @@ export function VerticalTimelineView({
 
     // 對照模式：刻度尺移到中央、軸線分左右。單軸或單欄合流時沒有對照對象，維持一般排法
     const useCenter = centerAxis && mode === 'columns' && visibleBands.length >= 2
-    const center = useCenter ? centerColumnRects(width, visibleBands.length) : null
+    const center = useCenter ? centerColumnRects(width, visibleBands.length, RULER_W) : null
     const rulerX = center ? center.rulerX : 0
     const rects = center
       ? center.columns
       : mode === 'merged'
         ? [{ x: RULER_W, w: Math.max(0, width - RULER_W), mirrored: false }]
-        : columnRects(width, visibleBands.length)
+        : columnRects(width, visibleBands.length, RULER_W)
 
     const layoutColumns =
       mode === 'merged'
@@ -497,7 +541,7 @@ export function VerticalTimelineView({
 
         const label = rel.label ?? RELATION_LABELS[rel.type] ?? rel.type
         // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
-        const labelW = estimateTextWidth(label, 11) + 18
+        const labelW = estimateTextWidth(label, F.date) + 18 * S
         const labelX = Math.min(Math.max(midX, labelW / 2 + 4), width - labelW / 2 - 4)
         return [
           {
@@ -566,7 +610,7 @@ export function VerticalTimelineView({
       hiddenTotal,
       narrowColumns,
     }
-  }, [bands, sources, mode, width, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis])
+  }, [bands, sources, mode, width, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -731,7 +775,8 @@ export function VerticalTimelineView({
       id={exportMode?.svgId ?? 'hackstory-timeline-svg'}
       width={width}
       height={layout.totalH}
-      className="block bg-white"
+      className="block"
+      style={{ background: C.bg }}
       data-hidden={layout.hiddenTotal}
       data-narrow-columns={layout.narrowColumns ? '1' : '0'}
       onClick={exportMode ? undefined : () => onEventSelect?.(null)}
@@ -778,8 +823,8 @@ export function VerticalTimelineView({
               x2="0"
               y2={reversed ? '0' : '1'}
             >
-              <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-              <stop offset="1" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="0" stopColor={C.halo} stopOpacity="0" />
+              <stop offset="1" stopColor={C.halo} stopOpacity="1" />
             </linearGradient>
           </defs>
 
@@ -813,15 +858,15 @@ export function VerticalTimelineView({
                   x2={width}
                   y1={yv}
                   y2={yv}
-                  stroke="#e2e8f0"
+                  stroke={C.grid}
                   strokeWidth={1}
                 />
                 <text
                   x={layout.rulerX + RULER_W / 2}
-                  y={yv + 4}
+                  y={yv + 4 * S}
                   textAnchor="middle"
-                  fontSize={11}
-                  fill="#64748b"
+                  fontSize={F.date}
+                  fill={C.inkMuted}
                 >
                   {formatTick(d)}
                 </text>
@@ -834,7 +879,7 @@ export function VerticalTimelineView({
             x2={layout.rulerX}
             y1={HEADER_H}
             y2={layout.totalH}
-            stroke="#e2e8f0"
+            stroke={C.grid}
           />
           {layout.rulerX > 0 && (
             <line
@@ -842,17 +887,17 @@ export function VerticalTimelineView({
               x2={layout.rulerX + RULER_W}
               y1={HEADER_H}
               y2={layout.totalH}
-              stroke="#e2e8f0"
+              stroke={C.grid}
             />
           )}
 
         {/* 單欄合流時關係線要點了才畫，所以得先讓讀者知道「有關係可以看」 */}
         {showRelations && mode === 'merged' && layout.relationLines.length > 0 && (
-          <text x={RULER_W + COL_PAD} y={layout.axisTop - 6} fontSize={11} fill="#b45309">
+          <text x={RULER_W + COL_PAD} y={layout.axisTop - 6 * S} fontSize={F.date} fill={C.warn}>
             {fitText(
               `⇄ ${layout.relationLines.length} 組事件關係：點事件查看`,
               Math.max(0, width - RULER_W - COL_PAD * 2),
-              11,
+              F.date,
             )}
           </text>
         )}
@@ -869,31 +914,31 @@ export function VerticalTimelineView({
                 y1={yg - 6}
                 x2={layout.rulerX + RULER_W / 2 + 5}
                 y2={yg - 1}
-                stroke="#94a3b8"
-                strokeWidth={1.5}
+                stroke={C.inkFaint}
+                strokeWidth={1.5 * S}
               />
               <line
                 x1={layout.rulerX + RULER_W / 2 - 5}
                 y1={yg + 1}
                 x2={layout.rulerX + RULER_W / 2 + 5}
                 y2={yg + 6}
-                stroke="#94a3b8"
-                strokeWidth={1.5}
+                stroke={C.inkFaint}
+                strokeWidth={1.5 * S}
               />
               <line
                 x1={layout.rulerX > 0 ? 0 : RULER_W + 5}
                 y1={yg}
                 x2={width}
                 y2={yg}
-                stroke="#cbd5e1"
+                stroke={C.axis}
                 strokeDasharray="2 6"
               />
               <text
                 x={layout.rulerX + RULER_W / 2}
-                y={yg - 8}
+                y={yg - 8 * S}
                 textAnchor="middle"
-                fontSize={10}
-                fill="#94a3b8"
+                fontSize={F.footer}
+                fill={C.inkFaint}
               >
                 略過 {formatSkipped(g.skippedMs)}
               </text>
@@ -931,8 +976,8 @@ export function VerticalTimelineView({
                     key={id}
                     d={d}
                     fill="none"
-                    stroke={active ? '#d97706' : '#94a3b8'}
-                    strokeWidth={active ? 2.5 : 1.25}
+                    stroke={active ? C.highlight : C.inkFaint}
+                    strokeWidth={(active ? 2.5 : 1.25) * S}
                     strokeDasharray={type === 'same_event' ? '4 3' : undefined}
                     opacity={active ? 0.95 : 0.35}
                     markerEnd="url(#hst-rel-arrow-v)"
@@ -1091,7 +1136,7 @@ export function VerticalTimelineView({
                         cx={cx}
                         cy={it.yTop}
                         r={dotR}
-                        fill="#ffffff"
+                        fill={C.halo}
                         stroke={fill}
                         strokeWidth={2}
                         strokeDasharray="3 2.5"
@@ -1106,7 +1151,7 @@ export function VerticalTimelineView({
                         x={it.abbrX}
                         y={it.labelY}
                         textAnchor={it.mirrored ? 'end' : 'start'}
-                        fontSize={10}
+                        fontSize={F.footer}
                         fill={it.band.color}
                       >
                         {it.abbr}
@@ -1120,10 +1165,10 @@ export function VerticalTimelineView({
                         textAnchor={it.mirrored ? 'end' : 'start'}
                         fontSize={FONT}
                         fontWeight={pe.isKey ? 700 : 400}
-                        fill={pe.isKey ? '#1e293b' : '#334155'}
+                        fill={pe.isKey ? C.ink : C.inkEvent}
                       >
                         {it.dateLabel && (
-                          <tspan fill="#94a3b8" fontWeight={400}>
+                          <tspan fill={C.inkFaint} fontWeight={400}>
                             {it.dateLabel}{' '}
                           </tspan>
                         )}
@@ -1151,21 +1196,21 @@ export function VerticalTimelineView({
                   <g key={`${id}-label`}>
                     <rect
                       x={labelX - labelW / 2}
-                      y={labelY - 10}
+                      y={labelY - 10 * S}
                       width={labelW}
-                      height={20}
-                      rx={10}
-                      fill="#fffbeb"
-                      stroke="#f59e0b"
+                      height={20 * S}
+                      rx={10 * S}
+                      fill={C.warnBg}
+                      stroke={C.warnLine}
                       strokeWidth={1}
                     />
                     <text
                       x={labelX}
-                      y={labelY + 4}
+                      y={labelY + 4 * S}
                       textAnchor="middle"
-                      fontSize={11}
+                      fontSize={F.date}
                       fontWeight={600}
-                      fill="#b45309"
+                      fill={C.warn}
                     >
                       {label}
                     </text>
@@ -1179,21 +1224,21 @@ export function VerticalTimelineView({
             {/* 匯出圖片的頂部標題：輸出的圖自帶脈絡，不必靠貼文說明 */}
             {exportMode && (
               <>
-                <rect x={0} y={0} width={width} height={TITLE_H} fill="#ffffff" />
-                <text x={14} y={27} fontSize={16} fontWeight={700} fill="#1e293b">
-                  {fitText(exportMode.title, width - 28, 16)}
+                <rect x={0} y={0} width={width} height={TITLE_H} fill={C.bg} />
+                <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
+                  {fitText(exportMode.title, width - 28 * S, F.title)}
                 </text>
               </>
             )}
             <g transform={`translate(0 ${layout.headerTop})`}>
-            <rect x={0} y={0} width={width} height={HEADER_H} fill="#ffffff" />
-            <line x1={0} x2={width} y1={HEADER_H} y2={HEADER_H} stroke="#cbd5e1" />
-            <text ref={rangeLabelRef} x={6} y={21} fontSize={10} fill="#94a3b8">
+            <rect x={0} y={0} width={width} height={HEADER_H} fill={C.bg} />
+            <line x1={0} x2={width} y1={HEADER_H} y2={HEADER_H} stroke={C.axis} />
+            <text ref={rangeLabelRef} x={6 * S} y={21 * S} fontSize={F.footer} fill={C.inkFaint}>
               {formatRangeLabel(layout.tView)}
             </text>
             {/* 軸被拉長之後，畫面上只看得到一小段——順手告訴讀者整條軸有多長 */}
             {!exportMode && layout.contentH > layout.baseH * 1.2 && (
-              <text x={width - 10} y={21} textAnchor="end" fontSize={10} fill="#cbd5e1">
+              <text x={width - 10 * S} y={21 * S} textAnchor="end" fontSize={F.footer} fill={C.axis}>
                 {`全 ${formatRangeLabel([warp.toT(layout.axisDomain[0]), warp.toT(layout.axisDomain[1])])}`}
               </text>
             )}
@@ -1203,33 +1248,33 @@ export function VerticalTimelineView({
                     <g key={`${band.key}-head`}>
                       <rect
                         x={rect.x + 2}
-                        y={4}
+                        y={4 * S}
                         width={Math.max(0, rect.w - 4)}
-                        height={HEADER_H - 9}
+                        height={HEADER_H - 9 * S}
                         rx={4}
                         fill={band.color}
                         opacity={0.1}
                       />
-                      <rect x={rect.x + 2} y={4} width={3} height={HEADER_H - 9} fill={band.color} />
+                      <rect x={rect.x + 2} y={4 * S} width={3} height={HEADER_H - 9 * S} fill={band.color} />
                       {/* 有事件擠到畫不下標題時，在欄標題右側註記件數——
                           不能默默藏起來，也不能被標題截斷吃掉 */}
                       {hidden > 0 && (
                         <text
-                          x={rect.x + rect.w - 6}
-                          y={22}
+                          x={rect.x + rect.w - 6 * S}
+                          y={22 * S}
                           textAnchor="end"
-                          fontSize={10}
+                          fontSize={F.footer}
                           fontWeight={400}
-                          fill="#b45309"
+                          fill={C.warn}
                         >
                           ＋{hidden} 件
                         </text>
                       )}
-                      <text x={rect.x + 12} y={22} fontSize={12} fontWeight={700} fill={band.color}>
+                      <text x={rect.x + 12 * S} y={22 * S} fontSize={F.event} fontWeight={700} fill={band.color}>
                         {fitText(
                           band.label,
-                          Math.max(0, rect.w - 18 - (hidden > 0 ? 46 : 0)),
-                          12,
+                          Math.max(0, rect.w - 18 * S - (hidden > 0 ? 46 * S : 0)),
+                          F.event,
                         )}
                       </text>
                     </g>
@@ -1237,19 +1282,19 @@ export function VerticalTimelineView({
                 )
               : /* 單欄合流：把各軸線的顏色與縮寫列成一排小標籤 */
                 bands.map((band, i) => {
-                  const chipX = RULER_W + 8 + i * 68
+                  const chipX = RULER_W + 8 * S + i * 68 * S
                   if (chipX > width - 20) return null
                   return (
                     <g key={`${band.key}-chip`}>
-                      <circle cx={chipX} cy={18} r={4} fill={band.color} />
-                      <text x={chipX + 8} y={22} fontSize={11} fill="#475569">
-                        {fitText(abbrOf.get(band.key) ?? '', 52, 11)}
+                      <circle cx={chipX} cy={18 * S} r={4 * S} fill={band.color} />
+                      <text x={chipX + 8 * S} y={22 * S} fontSize={F.date} fill={C.inkSoft}>
+                        {fitText(abbrOf.get(band.key) ?? '', 52 * S, F.date)}
                       </text>
                     </g>
                   )
                 })}
             {mode === 'merged' && layout.columns[0]?.hidden > 0 && (
-              <text x={width - 10} y={22} textAnchor="end" fontSize={10} fill="#94a3b8">
+              <text x={width - 10 * S} y={22 * S} textAnchor="end" fontSize={F.footer} fill={C.inkFaint}>
                 另有 {layout.columns[0].hidden} 件，放大可見
               </text>
             )}
@@ -1258,11 +1303,11 @@ export function VerticalTimelineView({
           {/* 匯出圖片底部的出處小字 */}
           {exportMode && (
             <text
-              x={width - 12}
-              y={exportMode.height - 8}
+              x={width - 12 * S}
+              y={exportMode.height - 8 * S}
               textAnchor="end"
-              fontSize={10}
-              fill="#94a3b8"
+              fontSize={F.footer}
+              fill={C.inkFaint}
             >
               {exportMode.footer}
             </text>
@@ -1273,7 +1318,7 @@ export function VerticalTimelineView({
   // 匯出模式：固定尺寸、不捲動、不互動
   if (exportMode) {
     return (
-      <div style={{ width, height: exportMode.height, overflow: 'hidden', background: '#fff' }}>
+      <div style={{ width, height: exportMode.height, overflow: 'hidden', background: C.bg }}>
         {svgEl}
       </div>
     )

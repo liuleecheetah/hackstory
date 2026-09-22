@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { ScaleMode } from '../render/TimelineView'
+import type { ThemeId } from '../render/theme'
 
 type Orientation = 'horizontal' | 'vertical'
 
@@ -10,6 +11,14 @@ type Orientation = 'horizontal' | 'vertical'
 const ORIENTATION_LABELS: Record<Orientation, string> = {
   horizontal: '橫式',
   vertical: '直式',
+}
+
+/** 暫時的主題選單（U1 驗收用；U3 會議模式上線後移除） */
+const THEME_LABELS: Record<ThemeId, string> = {
+  screen: '螢幕',
+  presentation: '簡報（淺底）',
+  'presentation-dark': '簡報（深底）',
+  print: '列印',
 }
 
 const SCALE_LABELS: Record<ScaleMode, string> = {
@@ -35,6 +44,8 @@ export interface DisplayOptionsState {
   setReversed: (v: boolean) => void
   centerAxis: boolean
   setCenterAxis: (v: boolean) => void
+  themeId: ThemeId
+  setThemeId: (v: ThemeId) => void
 }
 
 export interface ToolbarProps {
@@ -107,6 +118,20 @@ export function Toolbar(props: ToolbarProps) {
   // 顯示選項：一律收在下拉裡，不依螢幕寬度攤開
   const displayOptions = (
     <>
+      <label className="flex items-center justify-between gap-2 text-base text-ink-muted">
+        主題
+        <select
+          value={display.themeId}
+          onChange={(e) => display.setThemeId(e.target.value as ThemeId)}
+          className="rounded border border-line bg-surface px-1.5 py-0.5 text-base text-ink"
+        >
+          {(Object.keys(THEME_LABELS) as ThemeId[]).map((id) => (
+            <option key={id} value={id}>
+              {THEME_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="flex items-center gap-1.5 text-base text-ink-muted">
         <input
           type="checkbox"

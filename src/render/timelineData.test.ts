@@ -3,7 +3,8 @@
 // 橫式與直式共用同一份結果，所以這裡測壞了，兩種方向會一起壞。
 import { describe, expect, it } from 'vitest'
 import type { HstEvent, TimelineDocument } from '../core'
-import { buildBands, buildTimelineBase, buildTimelineData, PALETTE } from './timelineData'
+import { DEFAULT_PALETTE } from './theme'
+import { buildBands, buildTimelineBase, buildTimelineData } from './timelineData'
 import type { TimelineSource } from './types'
 
 const DAY = 86_400_000
@@ -148,7 +149,7 @@ describe('buildTimelineData：軸線標題與配色', () => {
       ],
     })
     const bands = buildTimelineData([src(plain, { multiTrack: true })], opts).bands
-    expect(bands.map((b) => b.color)).toEqual([PALETTE[0], PALETTE[1]])
+    expect(bands.map((b) => b.color)).toEqual([DEFAULT_PALETTE[0], DEFAULT_PALETTE[1]])
   })
 })
 
