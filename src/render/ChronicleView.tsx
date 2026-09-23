@@ -33,6 +33,8 @@ interface Props {
   showConfidence?: boolean
   /** 卡片上是否列出來源清單 */
   showSources?: boolean
+  /** 只列起點落在範圍內的事件（切成多張圖時用：跨過分界的長期事件只列在它開始的那張，不重複） */
+  onlyStartingInRange?: boolean
   theme?: RenderTheme
   exportMode: VerticalExportOptions
 }
@@ -47,6 +49,7 @@ export function ChronicleView({
   dateParts = ALL_PARTS,
   showConfidence = true,
   showSources = true,
+  onlyStartingInRange = false,
   theme = THEMES.screen,
   exportMode,
 }: Props) {
@@ -74,7 +77,7 @@ export function ChronicleView({
     const list: Array<ChronicleEntry & { t: number }> = []
     for (const band of bands) {
       for (const pe of band.events) {
-        const uEnd = pe.kind === 'bar' ? base.warp.toU(pe.tEnd) : pe.u
+        const uEnd = pe.kind === 'bar' && !onlyStartingInRange ? base.warp.toU(pe.tEnd) : pe.u
         if (uEnd < d0 || pe.u > d1) continue
         const ev = pe.ev
         let date: string
@@ -118,7 +121,7 @@ export function ChronicleView({
     list.sort((a, b) => a.t - b.t)
     if (reversed) list.reverse()
     return { entries: list, tView: [base.warp.toT(d0), base.warp.toT(d1)] as [number, number] }
-  }, [sources, collapseGaps, domain, reversed, dateParts, showConfidence, showSources, theme.palette, F.date, dateColW, S])
+  }, [sources, collapseGaps, domain, reversed, dateParts, showConfidence, showSources, onlyStartingInRange, theme.palette, F.date, dateColW, S])
 
   const top = TITLE_H + NOTE_H
   const layout = useMemo(

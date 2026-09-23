@@ -32,6 +32,7 @@ import { deriveTheme, THEMES } from '../render/theme'
 import { buildBands, buildTimelineBase } from '../render/timelineData'
 import type { RatioId } from './ratios'
 import { RATIO_PRESETS } from './ratios'
+import { eventGroups, MAX_PAGES, planPages } from './splitPages'
 import { StudioPreview } from './StudioPreview'
 
 /** 固定比例放不下時，文字最多自動縮到主題原本大小的多少（再小就讀不清楚） */
@@ -113,6 +114,10 @@ export function ExportStudio(props: Props) {
   const [ratioId, setRatioId] = useState<RatioChoice>('auto')
   const [themeId, setThemeId] = useState<ThemeId>('presentation')
   const [fontScale, setFontScale] = useState(1)
+  // 固定比例放不下全部事件時：自動縮小文字，或依時間切成好幾張同樣比例的圖
+  const [overflowMode, setOverflowMode] = useState<'shrink' | 'split'>('shrink')
+  // 切成多張時，預覽正在看第幾張（從 0 起算）
+  const [pageIdx, setPageIdx] = useState(0)
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
   const [footer, setFooter] = useState('')
@@ -284,6 +289,27 @@ export function ExportStudio(props: Props) {
       ? `僅列關鍵事件（${scopeCounts.total} 件中的 ${scopeCounts.featured} 件）`
       : undefined
 
+  // 切成多張圖用：要畫的整段範圍（時間軸座標）、每件事件的起點、標註事件的位置
+  const splitBasis = useMemo(() => {
+    if (sources.length === 0) return null
+    const base = buildTimelineBase(sources, collapseGaps)
+    const domain: [number, number] = effectiveRange
+      ? [base.warp.toU(effectiveRange[0]), base.warp.toU(effectiveRange[1])]
+      : base.initialDomain
+    const starts: number[] = []
+    const uOf = new Map<string, number>()
+    for (const band of buildBands(sources, base, { showDates: false, showYears: false })) {
+      for (const pe of band.events) {
+        uOf.set(`${band.sourceId}/${pe.ev.id}`, pe.u)
+        const uEnd = pe.kind === 'bar' ? base.warp.toU(pe.tEnd) : pe.u
+        if (uEnd < domain[0] || pe.u > domain[1]) continue
+        // 範圍開始前就開始的長期事件，算在第一張
+        starts.push(Math.max(pe.u, domain[0]))
+      }
+    }
+    return { domain, groups: eventGroups(starts), uOf }
+  }, [sources, collapseGaps, effectiveRange])
+
   // 標註的事件被篩掉了（例如改成只放關鍵事件），就自動取消它的勾選
   useEffect(() => {
     setCalloutKeys((prev) => {
@@ -304,48 +330,108 @@ export function ExportStudio(props: Props) {
   const footerText = footer.trim() || defaultFooter(layers.filter((l) => layerOn.has(l.id)))
 
   // ---- 產生圖片（預覽與下載共用同一份設定） ----
+  type Page = { svg: SVGSVGElement; w: number; h: number }
   type Rendered = {
-    svg: SVGSVGElement
+    /** 一張，或切成多張時依時間先後的每一張 */
+    pages: Page[]
     warnings: string[]
-    w: number
-    h: number
     /** 不是問題、但要讓人知道的事（例如文字自動縮小了） */
     info?: string
     /** 有事件放不下、不能下載的原因 */
     blocked?: string
   }
+  /** 畫一次的結果；lost = 有事件沒畫出來的原因 */
+  type Drawn = Page & { warnings: string[]; lost?: string }
+  /** 切成多張時，這一張要畫的範圍與頁碼 */
+  type PageSpec = { domain: [number, number]; label: string; first: boolean }
+
+  const single = (d: Drawn, extra: Partial<Rendered> = {}): Rendered => ({
+    pages: [{ svg: d.svg, w: d.w, h: d.h }],
+    warnings: d.warnings,
+    ...extra,
+  })
+  const otherWays = '改選「自動長度」、縮短時間範圍、取消勾選部分軸線，或只放關鍵事件'
+
   /**
    * 固定比例：選了要呈現的事件就一定要全部出現在圖上，否則是沒用的圖。
-   * 放不下時把文字一格一格縮小再畫，縮到最小可讀的大小還放不下，就不給下載。
+   * 放不下時看使用者選哪種做法：把文字一格一格縮小，或依時間切成好幾張；都不行就不給下載。
    */
   const renderCurrent = async (): Promise<Rendered> => {
     if (sources.length === 0) throw new Error('沒有勾選任何圖層或軸線')
     if (auto) {
-      const { lost, ...r } = await renderWith(theme)
-      return lost ? { ...r, warnings: [...r.warnings, lost] } : r
+      const d = await renderWith(theme)
+      return single(d, d.lost ? { warnings: [...d.warnings, d.lost] } : {})
     }
+    if (overflowMode === 'split') return renderSplit()
     const base = THEMES[themeId]
     let last: Rendered | null = null
     for (const s of fitScales(fontScale)) {
       const t = s === fontScale ? theme : deriveTheme(base, { scale: base.scale * s })
-      const { lost, ...r } = await renderWith(t)
-      if (!lost) {
-        return s < fontScale
-          ? { ...r, info: `為了放下全部事件，文字自動縮為 ${Math.round(s * 100)}%（你設定的是 ${Math.round(fontScale * 100)}%）` }
-          : r
+      const d = await renderWith(t)
+      if (!d.lost) {
+        return single(
+          d,
+          s < fontScale
+            ? { info: `為了放下全部事件，文字自動縮為 ${Math.round(s * 100)}%（你設定的是 ${Math.round(fontScale * 100)}%）` }
+            : {},
+        )
       }
-      last = {
-        ...r,
-        blocked: `文字自動縮到 ${Math.round(MIN_FIT_SCALE * 100)}% 還是放不下全部事件（${lost}），這個比例不能下載——請改選「自動長度」、縮短時間範圍、取消勾選部分軸線，或只放關鍵事件`,
-      }
+      last = single(d, {
+        blocked: `文字自動縮到 ${Math.round(MIN_FIT_SCALE * 100)}% 還是放不下全部事件（${d.lost}），這個比例不能下載——可以改成「切分成多張圖」，或${otherWays}`,
+      })
     }
     return last!
   }
+
+  /** 依時間前後切成好幾張同樣比例的圖，文字維持設定的大小，張數最少 */
+  const renderSplit = async (): Promise<Rendered> => {
+    const whole = await renderWith(theme)
+    if (!whole.lost || !splitBasis) return single(whole)
+    // 試畫時先放最長的頁碼佔位：定稿的頁碼不會更長，試的時候放得下，定稿就一定放得下
+    const probeLabel = `第 ${MAX_PAGES}／${MAX_PAGES} 張`
+    const plan = await planPages(splitBasis.groups, splitBasis.domain, async (domain) => {
+      const d = await renderWith(theme, { domain, label: probeLabel, first: domain[0] === splitBasis.domain[0] })
+      return !d.lost
+    })
+    if (!plan.ok) {
+      return single(whole, {
+        blocked:
+          plan.reason === 'too-many-pages'
+            ? `要切成超過 ${MAX_PAGES} 張才放得下全部事件，這個比例不能下載——可以改成「自動縮小文字」，或${otherWays}`
+            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以改成「自動縮小文字」、調小文字大小${layout === 'A' ? '、勾選「精簡模式」' : ''}，或${otherWays}`,
+      })
+    }
+    const n = plan.pages.length
+    const drawn: Drawn[] = []
+    for (const [i, domain] of plan.pages.entries()) {
+      drawn.push(await renderWith(theme, { domain, label: `第 ${i + 1}／${n} 張`, first: i === 0 }))
+    }
+    const lostAt = drawn.findIndex((d) => d.lost)
+    return {
+      pages: drawn.map(({ svg, w, h }) => ({ svg, w, h })),
+      warnings: [...new Set(drawn.flatMap((d) => d.warnings))],
+      info:
+        n > 1
+          ? `全部事件依時間先後分成 ${n} 張同樣比例的圖，每張的副標後面標有「第幾／共幾張」；下載時會一次下載 ${n} 個檔案`
+          : undefined,
+      blocked: lostAt >= 0 ? `第 ${lostAt + 1} 張還有事件放不下（${drawn[lostAt].lost}），不能下載` : undefined,
+    }
+  }
+
   /** 用指定的主題（字級）畫一次；lost = 有事件沒畫出來的原因 */
-  const renderWith = async (theme: RenderTheme): Promise<Omit<Rendered, 'info' | 'blocked'> & { lost?: string }> => {
+  const renderWith = async (theme: RenderTheme, page?: PageSpec): Promise<Drawn> => {
+    // 切成多張時：這張只畫自己那一段，副標後面加頁碼，標註只放落在這一段的事件
+    const pageCallouts = page
+      ? calloutSpecs.filter((c) => {
+          const u = splitBasis?.uOf.get(c.key)
+          return u !== undefined && (page.first || u >= page.domain[0]) && u <= page.domain[1]
+        })
+      : calloutSpecs
+    const sub = subtitle.trim()
     const common = {
       sources,
-      timeRange: effectiveRange,
+      timeRange: page ? undefined : effectiveRange,
+      domain: page?.domain,
       width: drawW,
       height: preset.h,
       showDates: true,
@@ -354,7 +440,7 @@ export function ExportStudio(props: Props) {
       showRelations,
       collapseGaps,
       title: title.trim() || 'HackStory',
-      subtitle: subtitle.trim() || undefined,
+      subtitle: page ? (sub ? `${sub} · ${page.label}` : page.label) : sub || undefined,
       footer: footerText,
       note: scopeNote,
       theme,
@@ -374,7 +460,7 @@ export function ExportStudio(props: Props) {
     if (layout === 'A') {
       const { svg, overflow, height, calloutsDropped } = await run(
         renderHorizontalExportSvg,
-        { ...common, compact, swimlane: true, callouts: calloutSpecs },
+        { ...common, compact, swimlane: true, callouts: pageCallouts },
         // 試算畫布要夠長：標註框放不進軸線之間的空白時，才有地方往下放
         calloutSpecs.length > 0 ? 200_000 : 600,
       )
@@ -385,7 +471,14 @@ export function ExportStudio(props: Props) {
     if (cardMode) {
       const { svg, hidden, height } = await run(
         renderChronicleExportSvg,
-        { ...common, reversed, showConfidence, showSources },
+        {
+          ...common,
+          reversed,
+          showConfidence,
+          showSources,
+          // 跨過分界的長期事件只列在它開始的那張，卡片不重複
+          onlyStartingInRange: page ? !page.first : false,
+        },
         200_000,
       )
       const lost = hidden > 0 ? `還差 ${hidden} 件` : undefined
@@ -393,7 +486,7 @@ export function ExportStudio(props: Props) {
     }
     const { svg, hidden, narrowColumns, height, calloutsDropped } = await run(
       renderVerticalExportSvg,
-      { ...common, reversed, centerAxis, callouts: calloutSpecs },
+      { ...common, reversed, centerAxis, callouts: pageCallouts },
       600,
     )
     warnDroppedCallouts(calloutsDropped, warnings)
@@ -420,9 +513,11 @@ export function ExportStudio(props: Props) {
     layout, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
-    eventScope, showScopeNote,
+    eventScope, showScopeNote, overflowMode,
     calloutText,
   ])
+  // 設定一改，切出來的張數與內容都可能不同：預覽回到第 1 張
+  useEffect(() => setPageIdx(0), [settingsKey])
   useEffect(() => {
     if (!open) return
     const seq = ++renderSeq.current
@@ -462,8 +557,13 @@ export function ExportStudio(props: Props) {
     return r
   }
 
-  const makePng = async (wanted: number) => {
-    const { svg, w, h } = await renderForExport()
+  /** 切成多張時檔名帶頁碼：hackstory-16x9-1of3@2x.png */
+  const pageFile = (i: number, n: number, ext: string) =>
+    n > 1 ? `${fileBase}-${i + 1}of${n}${ext}` : `${fileBase}${ext}`
+  /** 連續下載好幾個檔案時稍微隔一下，瀏覽器才不會吃掉 */
+  const pause = () => new Promise((r) => window.setTimeout(r, 400))
+
+  const makePng = async ({ svg, w, h }: Page, wanted: number) => {
     // 長圖超過瀏覽器畫布上限時降低倍率，寧可解析度低一點也要整張完整
     const scale = safePngScale(w, h, wanted)
     const png = await svgToPngWithFonts(svg, w, h, { scale, background: theme.colors.bg })
@@ -476,10 +576,19 @@ export function ExportStudio(props: Props) {
 
   const downloadPng = (scale: number) => {
     say('正在嵌入字型、產生 PNG…', 20_000)
-    makePng(scale)
-      .then(({ blob, pixels, notes }) => {
-        downloadBlob(`${fileBase}@${scale}x.png`, blob)
-        say(`已下載 PNG（${pixels}）${notes.map((n) => '；' + n).join('')}`, notes.length ? 8000 : 3500)
+    renderForExport()
+      .then(async ({ pages }) => {
+        const notes = new Set<string>()
+        let pixels = ''
+        for (const [i, page] of pages.entries()) {
+          if (i > 0) await pause()
+          const r = await makePng(page, scale)
+          downloadBlob(pageFile(i, pages.length, `@${scale}x.png`), r.blob)
+          r.notes.forEach((n) => notes.add(n))
+          pixels = r.pixels
+        }
+        const what = pages.length > 1 ? `${pages.length} 張 PNG（每張 ${pixels}）` : `PNG（${pixels}）`
+        say(`已下載 ${what}${[...notes].map((n) => '；' + n).join('')}`, notes.size ? 8000 : 3500)
       })
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }
@@ -487,33 +596,44 @@ export function ExportStudio(props: Props) {
   const downloadSvg = () => {
     say(embedFontsInSvg ? '正在嵌入字型…' : '正在產生 SVG…', 20_000)
     renderForExport()
-      .then(async ({ svg }) => {
-        const fonts = embedFontsInSvg ? await embeddedFontCssForText(svg.textContent ?? '') : null
-        const text = serializeSvg(svg, {
-          background: theme.colors.bg,
-          embeddedFontCss: fonts?.css,
-        })
-        downloadText(`${fileBase}.svg`, text, 'image/svg+xml')
-        const note = fonts ? missingGlyphNote(fonts.missing) : ''
-        say(`已下載 SVG${note ? '；' + note : ''}`, note ? 8000 : 3500)
+      .then(async ({ pages }) => {
+        const notes = new Set<string>()
+        for (const [i, { svg }] of pages.entries()) {
+          if (i > 0) await pause()
+          const fonts = embedFontsInSvg ? await embeddedFontCssForText(svg.textContent ?? '') : null
+          const text = serializeSvg(svg, {
+            background: theme.colors.bg,
+            embeddedFontCss: fonts?.css,
+          })
+          downloadText(pageFile(i, pages.length, '.svg'), text, 'image/svg+xml')
+          const note = fonts ? missingGlyphNote(fonts.missing) : ''
+          if (note) notes.add(note)
+        }
+        const what = pages.length > 1 ? `${pages.length} 個 SVG` : 'SVG'
+        say(`已下載 ${what}${[...notes].map((n) => '；' + n).join('')}`, notes.size ? 8000 : 3500)
       })
       .catch((e: Error) => say(`匯出失敗：${e.message}`))
   }
 
   const copyToClipboard = () => {
-    // 要在按下的當下就開始寫剪貼簿（Safari 的規定），圖片之後才做好也沒關係
-    const png = makePng(2)
+    // 要在按下的當下就開始寫剪貼簿（Safari 的規定），圖片之後才做好也沒關係。
+    // 切成多張時複製預覽正在看的那一張
+    const png = renderForExport().then(async ({ pages }) => {
+      const i = Math.min(pageIdx, pages.length - 1)
+      return { ...(await makePng(pages[i], 2)), i, n: pages.length }
+    })
     say('正在產生圖片並複製…', 20_000)
     void copyPngToClipboard(png.then((r) => r.blob)).then(async (ok) => {
       if (ok) {
-        const { notes } = await png
-        say(`已複製圖片，可以直接貼進簡報${notes.map((n) => '；' + n).join('')}`, notes.length ? 8000 : 3500)
+        const { notes, i, n } = await png
+        const which = n > 1 ? `第 ${i + 1}／${n} 張` : '圖片'
+        say(`已複製${which}，可以直接貼進簡報${notes.map((x) => '；' + x).join('')}`, notes.length ? 8000 : 3500)
         return
       }
       // 瀏覽器不讓複製圖片：退回下載，並說清楚
       try {
-        const { blob } = await png
-        downloadBlob(`${fileBase}@2x.png`, blob)
+        const { blob, i, n } = await png
+        downloadBlob(pageFile(i, n, '@2x.png'), blob)
         say('這個瀏覽器不讓網頁複製圖片，已改成下載 PNG', 6000)
       } catch (e) {
         say(`匯出失敗：${(e as Error).message}`)
@@ -523,6 +643,9 @@ export function ExportStudio(props: Props) {
 
   if (!open) return null
   const blocked = Boolean(preview?.blocked)
+  const pageCount = preview?.pages.length ?? 1
+  const shownIdx = Math.min(pageIdx, pageCount - 1)
+  const shown = preview?.pages[shownIdx]
 
   const pickRatio = (id: RatioChoice) => {
     setRatioId(id)
@@ -574,9 +697,13 @@ export function ExportStudio(props: Props) {
         {/* 左：即時預覽 */}
         <div className="min-w-0 flex-[7] bg-surface-alt p-4">
           <StudioPreview
-            svg={preview?.svg ?? null}
-            width={preview?.w ?? drawW}
-            height={preview?.h ?? preset.h}
+            svg={shown?.svg ?? null}
+            width={shown?.w ?? drawW}
+            height={shown?.h ?? preset.h}
+            pageIndex={shownIdx}
+            pageCount={pageCount}
+            onPage={setPageIdx}
+            onSplit={!auto && overflowMode === 'shrink' ? () => setOverflowMode('split') : undefined}
             background={theme.colors.bg}
             busy={busy}
             warnings={preview?.warnings ?? []}
@@ -655,6 +782,28 @@ export function ExportStudio(props: Props) {
                   </div>
                 </div>
               ))}
+              {!auto && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-sm text-ink-faint">放不下全部事件時</p>
+                  {(
+                    [
+                      ['shrink', `自動縮小文字（最小到 ${Math.round(MIN_FIT_SCALE * 100)}%）`],
+                      ['split', '切分成多張圖（同樣比例、文字不縮小）'],
+                    ] as const
+                  ).map(([mode, label]) => (
+                    <label key={mode} className="flex items-center gap-2 text-base text-ink-muted">
+                      <input
+                        type="radio"
+                        name="studio-overflow"
+                        checked={overflowMode === mode}
+                        onChange={() => setOverflowMode(mode)}
+                        className="accent-accent"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              )}
             </Section>
 
             <Section title="主題">

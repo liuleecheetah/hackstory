@@ -19,6 +19,12 @@ interface Props {
   info?: string
   /** 有事件放不下、不能下載的原因 */
   blocked?: string
+  /** 放不下時可以直接改成「切分成多張圖」（沒給就不顯示按鈕） */
+  onSplit?: () => void
+  /** 切成多張時：正在看第幾張（從 0 起算）、共幾張、換張 */
+  pageIndex?: number
+  pageCount?: number
+  onPage?: (i: number) => void
   error: string | null
 }
 
@@ -30,7 +36,16 @@ function isolateIds(svgText: string): string {
   return svgText.replace(/\bid="([^"]+)"/g, 'id="studio-$1"').replace(/url\(#/g, 'url(#studio-')
 }
 
-export function StudioPreview({ svg, width, height, background, busy, warnings, info, blocked, error }: Props) {
+export function StudioPreview({ svg, width, height, background, busy,
+  warnings,
+  info,
+  blocked,
+  onSplit,
+  pageIndex = 0,
+  pageCount = 1,
+  onPage,
+  error,
+}: Props) {
   const areaRef = useRef<HTMLDivElement>(null)
   const [area, setArea] = useState({ w: 0, h: 0 })
 
@@ -68,6 +83,11 @@ export function StudioPreview({ svg, width, height, background, busy, warnings, 
       {blocked && (
         <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
           <p>✕ {blocked}</p>
+          {onSplit && (
+            <button type="button" onClick={onSplit} className="btn mt-2">
+              改成切分成多張圖
+            </button>
+          )}
         </div>
       )}
       {info && (
@@ -103,6 +123,24 @@ export function StudioPreview({ svg, width, height, background, busy, warnings, 
           </div>
         )}
       </div>
+      {pageCount > 1 && onPage && (
+        <div className="flex items-center justify-center gap-3">
+          <button type="button" className="btn" disabled={pageIndex === 0} onClick={() => onPage(pageIndex - 1)}>
+            ‹ 上一張
+          </button>
+          <span className="text-base tabular-nums text-ink">
+            第 {pageIndex + 1}／{pageCount} 張
+          </span>
+          <button
+            type="button"
+            className="btn"
+            disabled={pageIndex >= pageCount - 1}
+            onClick={() => onPage(pageIndex + 1)}
+          >
+            下一張 ›
+          </button>
+        </div>
+      )}
       <p className="text-center text-sm text-ink-faint">
         實際尺寸 {width}×{height} · 預覽縮放 {Math.round(scale * 100)}%
         {scrolling && ' · 長圖：上下捲動看全部'}

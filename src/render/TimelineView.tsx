@@ -135,6 +135,7 @@ export function TimelineView({
   // 0 = 還沒量到容器寬度。量到之前不畫，避免先用預設值畫一次再跳版
   const [measuredWidth, setMeasuredWidth] = useState(0)
   const width = exportMode?.width ?? measuredWidth
+  const isExport = exportMode != null
 
   // 尺寸度量全部來自主題；精簡模式＝同一個主題換成 compact 密度。
   // 事件的圓點、長條、文字、車道高度、軸線間距都跟著這組數字走。
@@ -338,6 +339,15 @@ export function TimelineView({
           const occR = labelSide === 'right' ? shapeR + 6 * S + labelW : shapeR
           return { ...pe, label: pe.title, shapeL, shapeR, labelSide, occL, occR }
         })
+        // 出圖時，範圍外的事件不畫、也不佔列——否則看不見的事件會把軸線撐高，圖白白變長
+        // （螢幕上保留全部，平移時各事件的列才不會跳來跳去）
+        // 圓點看中心、長條看有沒有重疊：切成多張圖時，分界旁的圓點才不會兩張都露出半個
+        .filter((it) => {
+          if (!isExport) return true
+          if (it.kind === 'bar') return it.shapeR >= plotL && it.shapeL <= width
+          const cx = (it.shapeL + it.shapeR) / 2
+          return cx >= plotL && cx <= width
+        })
         .sort((p, q) => p.occL - q.occL)
 
       const lanes = assignLanes(items.map((it) => ({ left: it.occL, right: it.occR })))
@@ -441,7 +451,7 @@ export function TimelineView({
     )
 
     return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x }
-  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH])
+  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {

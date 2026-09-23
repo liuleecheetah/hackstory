@@ -215,6 +215,7 @@ export function renderChronicleExportSvg(
     reversed: boolean
     showConfidence: boolean
     showSources: boolean
+    onlyStartingInRange?: boolean
   },
 ): Promise<ChronicleExportResult> {
   return renderOffscreen(
@@ -226,6 +227,7 @@ export function renderChronicleExportSvg(
       dateParts={req.dateParts}
       showConfidence={req.showConfidence}
       showSources={req.showSources}
+      onlyStartingInRange={req.onlyStartingInRange}
       theme={req.theme}
       exportMode={{
         width: req.width,
