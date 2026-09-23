@@ -27,12 +27,24 @@ import {
   renderVerticalExportSvg,
   renderWithAutoHeight,
 } from '../render/exportSvg'
-import type { ThemeId } from '../render/theme'
+import type { RenderTheme, ThemeId } from '../render/theme'
 import { deriveTheme, THEMES } from '../render/theme'
 import { buildBands, buildTimelineBase } from '../render/timelineData'
 import type { RatioId } from './ratios'
 import { RATIO_PRESETS } from './ratios'
 import { StudioPreview } from './StudioPreview'
+
+/** 固定比例放不下時，文字最多自動縮到主題原本大小的多少（再小就讀不清楚） */
+const MIN_FIT_SCALE = 0.6
+
+/** 自動縮字要試的倍率：從使用者設定的大小開始，每次少 10%，到下限為止 */
+function fitScales(start: number): number[] {
+  const out = [start]
+  for (let s = Math.round(start * 10 - 1) / 10; s >= MIN_FIT_SCALE - 1e-9; s = Math.round(s * 10 - 1) / 10) {
+    if (s < start) out.push(s)
+  }
+  return out
+}
 
 /** 四種版型（見 docs/ui-upgrade-plan.md 第 0.7 節） */
 type LayoutId = 'A' | 'D' | 'B' | 'C'
@@ -294,9 +306,45 @@ export function ExportStudio(props: Props) {
   const footerText = footer.trim() || defaultFooter(layers.filter((l) => layerOn.has(l.id)))
 
   // ---- 產生圖片（預覽與下載共用同一份設定） ----
-  type Rendered = { svg: SVGSVGElement; warnings: string[]; w: number; h: number }
+  type Rendered = {
+    svg: SVGSVGElement
+    warnings: string[]
+    w: number
+    h: number
+    /** 不是問題、但要讓人知道的事（例如文字自動縮小了） */
+    info?: string
+    /** 有事件放不下、不能下載的原因 */
+    blocked?: string
+  }
+  /**
+   * 固定比例：選了要呈現的事件就一定要全部出現在圖上，否則是沒用的圖。
+   * 放不下時把文字一格一格縮小再畫，縮到最小可讀的大小還放不下，就不給下載。
+   */
   const renderCurrent = async (): Promise<Rendered> => {
     if (sources.length === 0) throw new Error('沒有勾選任何圖層或軸線')
+    if (auto) {
+      const { lost, ...r } = await renderWith(theme)
+      return lost ? { ...r, warnings: [...r.warnings, lost] } : r
+    }
+    const base = THEMES[themeId]
+    let last: Rendered | null = null
+    for (const s of fitScales(fontScale)) {
+      const t = s === fontScale ? theme : deriveTheme(base, { scale: base.scale * s })
+      const { lost, ...r } = await renderWith(t)
+      if (!lost) {
+        return s < fontScale
+          ? { ...r, info: `為了放下全部事件，文字自動縮為 ${Math.round(s * 100)}%（你設定的是 ${Math.round(fontScale * 100)}%）` }
+          : r
+      }
+      last = {
+        ...r,
+        blocked: `文字自動縮到 ${Math.round(MIN_FIT_SCALE * 100)}% 還是放不下全部事件（${lost}），這個比例不能下載——請改選「自動長度」、縮短時間範圍、取消勾選部分軸線，或只放關鍵事件`,
+      }
+    }
+    return last!
+  }
+  /** 用指定的主題（字級）畫一次；lost = 有事件沒畫出來的原因 */
+  const renderWith = async (theme: RenderTheme): Promise<Omit<Rendered, 'info' | 'blocked'> & { lost?: string }> => {
     const common = {
       sources,
       timeRange: effectiveRange,
@@ -333,12 +381,8 @@ export function ExportStudio(props: Props) {
         calloutSpecs.length > 0 ? 200_000 : 600,
       )
       warnDroppedCallouts(calloutsDropped, warnings)
-      if (overflow) {
-        warnings.push(
-          '軸線太多，超出這個比例的部分被裁掉了——可以勾選「精簡模式」、取消勾選部分圖層／軸線，或改用「自動長度」',
-        )
-      }
-      return { svg, warnings, w: drawW, h: height }
+      const lost = overflow ? '軸線與事件太多，超出畫面' : undefined
+      return { svg, warnings, w: drawW, h: height, lost }
     }
     if (cardMode) {
       const { svg, hidden, height } = await run(
@@ -346,12 +390,8 @@ export function ExportStudio(props: Props) {
         { ...common, reversed, showConfidence, showSources, showHiddenNote },
         200_000,
       )
-      if (hidden > 0) {
-        warnings.push(
-          `還有 ${hidden} 件事件放不下${showHiddenNote ? `（圖上會註明「另有 ${hidden} 件未列出」）` : '（圖上不會註明，看圖的人不會知道有省略）'}——請縮短時間範圍、取消勾選部分軸線，或選「自動長度」`,
-        )
-      }
-      return { svg, warnings, w: drawW, h: height }
+      const lost = hidden > 0 ? `還差 ${hidden} 件` : undefined
+      return { svg, warnings, w: drawW, h: height, lost }
     }
     const { svg, hidden, narrowColumns, height, calloutsDropped } = await run(
       renderVerticalExportSvg,
@@ -360,12 +400,8 @@ export function ExportStudio(props: Props) {
     )
     warnDroppedCallouts(calloutsDropped, warnings)
     if (narrowColumns) warnings.push('欄寬過窄，建議選更寬的比例，或取消勾選部分圖層／軸線')
-    if (hidden > 0) {
-      warnings.push(
-        `這段時間的事件太多，有 ${hidden} 件只畫得出圓點、放不下標題——請縮短時間範圍，或選「自動長度」`,
-      )
-    }
-    return { svg, warnings, w: drawW, h: height }
+    const lost = hidden > 0 ? `${hidden} 件只畫得出圓點、沒有標題` : undefined
+    return { svg, warnings, w: drawW, h: height, lost }
   }
 
   /** 放不下而省略的標註：列出是哪幾個，不靜默拿掉 */
@@ -421,8 +457,15 @@ export function ExportStudio(props: Props) {
   }
   const fileBase = `hackstory-${auto ? 'auto' : preset.id}`
 
+  /** 下載用：有事件放不下就不產生檔案 */
+  const renderForExport = async () => {
+    const r = await renderCurrent()
+    if (r.blocked) throw new Error(r.blocked)
+    return r
+  }
+
   const makePng = async (wanted: number) => {
-    const { svg, w, h } = await renderCurrent()
+    const { svg, w, h } = await renderForExport()
     // 長圖超過瀏覽器畫布上限時降低倍率，寧可解析度低一點也要整張完整
     const scale = safePngScale(w, h, wanted)
     const png = await svgToPngWithFonts(svg, w, h, { scale, background: theme.colors.bg })
@@ -445,7 +488,7 @@ export function ExportStudio(props: Props) {
 
   const downloadSvg = () => {
     say(embedFontsInSvg ? '正在嵌入字型…' : '正在產生 SVG…', 20_000)
-    renderCurrent()
+    renderForExport()
       .then(async ({ svg }) => {
         const fonts = embedFontsInSvg ? await embeddedFontCssForText(svg.textContent ?? '') : null
         const text = serializeSvg(svg, {
@@ -481,6 +524,7 @@ export function ExportStudio(props: Props) {
   }
 
   if (!open) return null
+  const blocked = Boolean(preview?.blocked)
 
   const pickRatio = (id: RatioChoice) => {
     setRatioId(id)
@@ -538,6 +582,8 @@ export function ExportStudio(props: Props) {
             background={theme.colors.bg}
             busy={busy}
             warnings={preview?.warnings ?? []}
+            info={preview?.info}
+            blocked={preview?.blocked}
             error={previewError}
           />
         </div>
@@ -883,17 +929,18 @@ export function ExportStudio(props: Props) {
           {/* 底部：下載與複製 */}
           <div className="space-y-2 border-t border-line bg-surface p-4">
             {message && <p className="text-sm text-ink-muted">{message}</p>}
+            {blocked && <p className="text-sm text-danger">有事件放不下，這個比例不能下載（原因見預覽上方）</p>}
             <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => downloadPng(2)} className="btn btn-primary">
+              <button type="button" onClick={() => downloadPng(2)} className="btn btn-primary" disabled={blocked}>
                 下載 PNG（2×）
               </button>
-              <button type="button" onClick={() => downloadPng(3)} className="btn">
+              <button type="button" onClick={() => downloadPng(3)} className="btn" disabled={blocked}>
                 下載 PNG（3×）
               </button>
-              <button type="button" onClick={downloadSvg} className="btn">
+              <button type="button" onClick={downloadSvg} className="btn" disabled={blocked}>
                 下載 SVG
               </button>
-              <button type="button" onClick={copyToClipboard} className="btn">
+              <button type="button" onClick={copyToClipboard} className="btn" disabled={blocked}>
                 複製到剪貼簿
               </button>
             </div>

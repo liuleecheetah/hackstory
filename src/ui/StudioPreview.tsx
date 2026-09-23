@@ -15,6 +15,10 @@ interface Props {
   background: string
   busy: boolean
   warnings: string[]
+  /** 不是問題、但要讓人知道的事（例如文字自動縮小了） */
+  info?: string
+  /** 有事件放不下、不能下載的原因 */
+  blocked?: string
   error: string | null
 }
 
@@ -26,7 +30,7 @@ function isolateIds(svgText: string): string {
   return svgText.replace(/\bid="([^"]+)"/g, 'id="studio-$1"').replace(/url\(#/g, 'url(#studio-')
 }
 
-export function StudioPreview({ svg, width, height, background, busy, warnings, error }: Props) {
+export function StudioPreview({ svg, width, height, background, busy, warnings, info, blocked, error }: Props) {
   const areaRef = useRef<HTMLDivElement>(null)
   const [area, setArea] = useState({ w: 0, h: 0 })
 
@@ -61,6 +65,16 @@ export function StudioPreview({ svg, width, height, background, busy, warnings, 
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
+      {blocked && (
+        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p>✕ {blocked}</p>
+        </div>
+      )}
+      {info && (
+        <div className="rounded border border-line bg-surface px-3 py-2 text-sm text-ink-muted">
+          <p>ⓘ {info}</p>
+        </div>
+      )}
       {/* 畫不好的地方直接講清楚（沿用匯出對話框的文案） */}
       {(warnings.length > 0 || error) && (
         <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
