@@ -16,6 +16,8 @@ import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { formatSkipped } from './gaps'
+import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
+import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
@@ -76,6 +78,11 @@ interface Props {
   dateParts?: DateParts
   /** 是否摺疊大段空白（SPEC display.collapseGaps），預設不摺疊 */
   collapseGaps?: boolean
+  /**
+   * 順序等距（只在出圖工作室）：事件依先後等距排列、不照時間比例。
+   * 刻度改成每格寫年份、刻度尺畫成一段一段，圖的右上角固定標「非等比」
+   */
+  ordinal?: boolean
   /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
   showRelations?: boolean
   /** 時間方向反過來：最新的在最上面（預設是最早的在上面） */
@@ -190,6 +197,7 @@ export function VerticalTimelineView({
   showYears = true,
   dateParts,
   collapseGaps = false,
+  ordinal = false,
   showRelations = true,
   reversed = false,
   centerAxis = false,
@@ -256,7 +264,10 @@ export function VerticalTimelineView({
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
 
   // 資料準備與橫式共用同一份（timelineData），所以兩種方向不可能畫出不同的事件
-  const base = useMemo(() => buildTimelineBase(sources, collapseGaps), [sources, collapseGaps])
+  const base = useMemo(
+    () => buildTimelineBase(sources, collapseGaps, ordinal),
+    [sources, collapseGaps, ordinal],
+  )
   const bands = useMemo(
     () => buildBands(sources, base, { showDates, showYears, dateParts }, T.palette),
     [sources, base, showDates, showYears, dateParts, T.palette],
@@ -613,11 +624,23 @@ export function VerticalTimelineView({
       cursor = Math.max(cursor, g.tEnd)
     }
     if (cursor < tView[1]) denseRanges.push([cursor, tView[1]])
-    const ticks = denseRanges.flatMap(([x, z]) => {
+    const regularTicks = denseRanges.flatMap(([x, z]) => {
       const px = ((warp.toU(z) - warp.toU(x)) / span) * contentH
       if (px < 50) return []
       return getTicks([x, z], px).filter((d) => d.getTime() >= x && d.getTime() <= z)
     })
+    // 順序等距：不畫規律刻度，每一格（事件的時間點）一條格線；年份寫在格子上，太擠就跳過
+    const slots = warp.ordinalSlots
+    const inAxis = (yv: number) => yv >= axisTop - 0.5 && yv <= axisTop + contentH + 0.5
+    const slotYs = slots ? slots.map((t) => yOfU(warp.toU(t))).filter(inAxis) : []
+    const slotPx = (ORDINAL_STEP / span) * contentH
+    const ticks: Array<{ y: number; label: string }> = slots
+      ? ordinalTicks(slots, (t) => yOfU(warp.toU(t)), F.date * 1.6)
+          .filter((m) => inAxis(m.pos))
+          .map((m) => ({ y: m.pos, label: m.label }))
+      : regularTicks.map((d) => ({ y: y(d.getTime()), label: formatTick(d) }))
+    // 沒寫年份的格子也要有格線
+    const extraGridYs = slots ? slotYs.filter((yv) => !ticks.some((m) => m.y === yv)) : []
 
     return {
       totalH,
@@ -631,6 +654,9 @@ export function VerticalTimelineView({
       relationLines,
       columns: layoutColumns.map((c) => ({ ...c, hidden: hiddenOf(c.items) })),
       ticks,
+      extraGridYs,
+      slotYs,
+      slotPx,
       y,
       yOfU,
       uOfY,
@@ -919,8 +945,7 @@ export function VerticalTimelineView({
           ))}
 
           {/* 橫線格線與刻度文字。刻度尺可能在最左邊，也可能在畫面正中央（對照模式） */}
-          {layout.ticks.map((d, i) => {
-            const yv = layout.y(d.getTime())
+          {layout.ticks.map(({ y: yv, label }, i) => {
             return (
               <g key={`tick-${i}`}>
                 {/* 格線貫穿全寬；中央刻度尺時左右兩側都要有 */}
@@ -939,11 +964,22 @@ export function VerticalTimelineView({
                   fontSize={F.date}
                   fill={C.inkMuted}
                 >
-                  {formatTick(d)}
+                  {label}
                 </text>
               </g>
             )
           })}
+          {layout.extraGridYs.map((yv, i) => (
+            <line
+              key={`grid-${i}`}
+              x1={layout.rulerX > 0 ? 0 : RULER_W}
+              x2={width}
+              y1={yv}
+              y2={yv}
+              stroke={C.grid}
+              strokeWidth={1}
+            />
+          ))}
           {/* 刻度尺的邊界線：置中時兩側都畫，才看得出這是一根共用的時間軸 */}
           <line
             x1={layout.rulerX}
@@ -952,6 +988,18 @@ export function VerticalTimelineView({
             y2={layout.totalH}
             stroke={C.grid}
           />
+          {/* 順序等距：刻度尺上畫一段一段的軸線（每格一段、格與格之間斷開），一看就知道不是連續的時間 */}
+          {layout.slotYs.map((yv, i) => (
+            <line
+              key={`seg-${i}`}
+              x1={layout.rulerX + RULER_W - 4 * S}
+              x2={layout.rulerX + RULER_W - 4 * S}
+              y1={Math.max(layout.axisTop, yv - layout.slotPx / 2 + 3 * S)}
+              y2={Math.min(layout.axisTop + layout.contentH, yv + layout.slotPx / 2 - 3 * S)}
+              stroke={C.axis}
+              strokeWidth={2 * S}
+            />
+          ))}
           {layout.rulerX > 0 && (
             <line
               x1={layout.rulerX + RULER_W}
@@ -1300,8 +1348,16 @@ export function VerticalTimelineView({
               <>
                 <rect x={0} y={0} width={width} height={TITLE_H} fill={C.bg} />
                 <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
-                  {fitText(exportMode.title, width - 28 * S, F.title)}
+                  {fitText(
+                    exportMode.title,
+                    width - 28 * S - (warp.ordinalSlots ? ordinalBadgeWidth(T, width / 2) + 12 * S : 0),
+                    F.title,
+                  )}
                 </text>
+                {/* 順序等距：右上角固定標「非等比」，不可關閉 */}
+                {warp.ordinalSlots && (
+                  <OrdinalBadge right={width - 12 * S} top={11 * S} theme={T} maxW={width / 2} />
+                )}
                 {exportMode.subtitle && (
                   <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
                     {fitText(exportMode.subtitle, width - 28 * S, F.subtitle)}

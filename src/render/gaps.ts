@@ -22,6 +22,11 @@ export interface TimeWarp {
   gaps: CollapsedGap[]
   /** 是否真的有壓縮（找不到大空白時等同直通） */
   active: boolean
+  /**
+   * 順序等距（ordinal.ts）才有：每一格的真實時間，依先後排列。
+   * 有這個欄位代表座標**不照時間比例**——刻度改成每格寫年份，圖上要標「非等比」
+   */
+  ordinalSlots?: number[]
 }
 
 /** 直通對應：不摺疊 */

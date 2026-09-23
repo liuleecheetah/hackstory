@@ -133,6 +133,8 @@ export function ExportStudio(props: Props) {
   // 出圖預設不畫關係線：簡報圖要乾淨，需要時再勾
   const [showRelations, setShowRelations] = useState(false)
   const [collapseGaps, setCollapseGaps] = useState(props.collapseGaps)
+  // 順序等距：事件依先後等距排列（圖上固定標「非等比」）；卡片大事記本來就依先後排，不適用
+  const [ordinal, setOrdinal] = useState(false)
   const [compact, setCompact] = useState(props.compact)
   const [reversed, setReversed] = useState(props.reversed)
   const [centerAxis, setCenterAxis] = useState(props.centerAxis)
@@ -289,10 +291,12 @@ export function ExportStudio(props: Props) {
       ? `僅列關鍵事件（${scopeCounts.total} 件中的 ${scopeCounts.featured} 件）`
       : undefined
 
+  const useOrdinal = ordinal && !(layout === 'D' && cardMode)
+
   // 切成多張圖用：要畫的整段範圍（時間軸座標）、每件事件的起點、標註事件的位置
   const splitBasis = useMemo(() => {
     if (sources.length === 0) return null
-    const base = buildTimelineBase(sources, collapseGaps)
+    const base = buildTimelineBase(sources, collapseGaps, useOrdinal)
     const domain: [number, number] = effectiveRange
       ? [base.warp.toU(effectiveRange[0]), base.warp.toU(effectiveRange[1])]
       : base.initialDomain
@@ -308,7 +312,7 @@ export function ExportStudio(props: Props) {
       }
     }
     return { domain, groups: eventGroups(starts), uOf }
-  }, [sources, collapseGaps, effectiveRange])
+  }, [sources, collapseGaps, effectiveRange, useOrdinal])
 
   // 標註的事件被篩掉了（例如改成只放關鍵事件），就自動取消它的勾選
   useEffect(() => {
@@ -439,6 +443,7 @@ export function ExportStudio(props: Props) {
       dateParts: { year: dateYear, month: dateMonth, day: dateDay },
       showRelations,
       collapseGaps,
+      ordinal: useOrdinal,
       title: title.trim() || 'HackStory',
       subtitle: page ? (sub ? `${sub} · ${page.label}` : page.label) : sub || undefined,
       footer: footerText,
@@ -513,7 +518,7 @@ export function ExportStudio(props: Props) {
     layout, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
-    eventScope, showScopeNote, overflowMode,
+    eventScope, showScopeNote, overflowMode, ordinal,
     calloutText,
   ])
   // 設定一改，切出來的張數與內容都可能不同：預覽回到第 1 張
@@ -981,7 +986,11 @@ export function ExportStudio(props: Props) {
                 ) : (
                   <>
                     {checkbox('關係線', showRelations, setShowRelations)}
-                    {checkbox('摺疊空白', collapseGaps, setCollapseGaps)}
+                    {checkbox('順序等距', ordinal, setOrdinal)}
+                    <p className="-mt-1 ml-6 text-sm text-ink-faint">
+                      事件之間不照時間比例、依先後平均排開，適合少量精選事件；圖上會固定標示「非等比」
+                    </p>
+                    {checkbox(ordinal ? '摺疊空白（順序等距時不需要）' : '摺疊空白', collapseGaps, setCollapseGaps, ordinal)}
                     {layout === 'A' && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
                     {layout === 'D' && checkbox('最新的在上面', reversed, setReversed)}
                     {layout === 'D' && checkbox('刻度置中對照', centerAxis, setCenterAxis)}

@@ -16,6 +16,7 @@ import { dateFromParts, isAbsolute, isFeatured, resolveRelativeEvents } from '..
 import type { TimeWarp } from './gaps'
 import { buildWarp } from './gaps'
 import { truncate } from './layout'
+import { buildOrdinalWarp, ordinalDomain } from './ordinal'
 import { DEFAULT_PALETTE } from './theme'
 import type { DateParts } from './timeScale'
 import { formatPointParts, formatPointShort, spanMidpoint, timePointToSpan } from './timeScale'
@@ -132,6 +133,31 @@ function collectSpans(docs: TimelineDocument[]): Array<[number, number]> {
 }
 
 /**
+ * 每個畫得出來的事件在軸上的位置（真實時間），跟 buildBands 的 tStart 一致：
+ * 點事件取精度範圍中點；區間與進行中事件取開始；相對時間取推估位置（推不出來的不算）。
+ * 順序等距用它來分格——事件的圓點才會剛好落在格子上。
+ */
+function plotTimes(
+  sources: TimelineSource[],
+  resolvedBySource: Map<string, RelativeResolution>,
+): number[] {
+  const out: number[] = []
+  for (const source of sources) {
+    for (const ev of source.doc.events) {
+      if (!isAbsolute(ev.start)) {
+        const t = resolvedBySource.get(source.id)?.positions.get(ev.id)
+        if (t != null) out.push(t)
+        continue
+      }
+      const span = timePointToSpan(ev.start)
+      const isBar = (ev.end && isAbsolute(ev.end)) || ev.ongoing === true
+      out.push(isBar ? span.start.getTime() : spanMidpoint(span))
+    }
+  }
+  return out
+}
+
+/**
  * 初始可視範圍（壓縮座標 u）：疊多個圖層時以最外層（第一份）的 display.range 建議為準
  * （SPEC 第 8 節），否則用所有事件的實際範圍，前後各留 3% 呼吸空間。
  */
@@ -163,6 +189,8 @@ function initialDomainOf(sources: TimelineSource[], warp: TimeWarp): [number, nu
 export function buildTimelineBase(
   sources: TimelineSource[],
   collapseGaps: boolean,
+  /** 順序等距（只在出圖工作室）：事件不照時間比例，依先後平均排開。開啟時不管 collapseGaps */
+  ordinal = false,
 ): TimelineBase {
   // 相對時間事件的推估位置（每份文件各自求解）。
   // 用 fullDoc 求解：隱藏軸線只影響「畫什麼」，不該改變事件推算出來的時間位置
@@ -180,9 +208,9 @@ export function buildTimelineBase(
       if (drawable.has(id)) spans.push([t, t + 3_600_000])
     })
   }
-  const warp = buildWarp(spans, collapseGaps)
+  const warp = ordinal ? buildOrdinalWarp(plotTimes(sources, resolvedBySource)) : buildWarp(spans, collapseGaps)
 
-  const initialDomain = initialDomainOf(sources, warp)
+  const initialDomain = ordinal ? ordinalDomain(warp) : initialDomainOf(sources, warp)
 
   // 每個事件的定位時間：絕對時間取精度範圍中點，相對時間取推估位置（推不出來就沒有這個鍵）
   const anchorTimes = new Map<string, number>()

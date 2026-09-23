@@ -6,10 +6,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
+import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
+import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { assignLanes, estimateTextWidth, truncate, wrapLines } from './layout'
+import { fitText } from './verticalLayout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { RenderTheme } from './theme'
 import { deriveTheme, textOnColor, THEMES } from './theme'
@@ -48,6 +51,11 @@ interface Props {
   showRelations?: boolean
   /** 是否摺疊大段空白（SPEC display.collapseGaps），預設不摺疊 */
   collapseGaps?: boolean
+  /**
+   * 順序等距（只在出圖工作室）：事件依先後等距排列、不照時間比例。
+   * 刻度改成每格寫年份、軸線畫成一段一段，圖的右上角固定標「非等比」
+   */
+  ordinal?: boolean
   /** 精簡模式：把事件列高、圓點、文字縮小，同樣高度塞更多事件、其他軸線比較看得到 */
   compact?: boolean
   /** 主題：字級、尺寸、顏色（預設「螢幕」主題） */
@@ -119,6 +127,7 @@ export function TimelineView({
   dateParts,
   showRelations = true,
   collapseGaps = false,
+  ordinal = false,
   compact = false,
   theme = THEMES.screen,
   swimlane = false,
@@ -174,7 +183,10 @@ export function TimelineView({
   // 與方向無關的資料準備都交給資料層（timelineData）：相對時間求解、空白摺疊
   // 對應、初始可視範圍、事件定位時間。分兩步呼叫是為了快取——切換「顯示日期」
   // 之類的文字選項時不必重算 warp，畫面才不會跳。
-  const base = useMemo(() => buildTimelineBase(sources, collapseGaps), [sources, collapseGaps])
+  const base = useMemo(
+    () => buildTimelineBase(sources, collapseGaps, ordinal),
+    [sources, collapseGaps, ordinal],
+  )
   const { warp, initialDomain, anchorTimes } = base
 
   // 每條軸線要畫哪些事件、它們的時間範圍與標題文字（同樣與方向無關）
@@ -482,6 +494,16 @@ export function TimelineView({
   })
   // 壓縮座標 → 像素（畫斷軸記號用）
   const xOfU = (u: number) => plotL + ((u - domain[0]) / (domain[1] - domain[0])) * plotW
+  // 順序等距：不畫規律刻度，改成每一格（事件的時間點）一條格線；年份寫在格子上，太擠就跳過
+  const slots = warp.ordinalSlots
+  const slotXs = slots ? slots.map((t) => xOfU(warp.toU(t))).filter((x) => x >= plotL && x <= width) : []
+  const slotPx = (ORDINAL_STEP / (domain[1] - domain[0])) * plotW
+  const tickMarks: Array<{ x: number; label: string }> = slots
+    ? ordinalTicks(slots, (t) => xOfU(warp.toU(t)), estimateTextWidth('0000', lane ? F.track : F.event) + 10 * S)
+        .filter((m) => m.pos >= plotL && m.pos <= width)
+        .map((m) => ({ x: m.pos, label: m.label }))
+    : ticks.map((d) => ({ x: layout.x(d.getTime()), label: formatTick(d) }))
+  const gridXs = slots ? slotXs : tickMarks.map((m) => m.x)
 
   // 「回到選取的事件」：選取的事件被平移／縮放到畫面外時，往它的方向浮現一顆小鈕拉它回來。
   // 事件在畫面內時鈕自動消失——平常完全不佔畫面。
@@ -626,13 +648,17 @@ export function TimelineView({
         {exportMode && (
           <>
             <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
-              {truncate(exportMode.title, 40)}
+              {slots
+                ? fitText(exportMode.title, width - 40 * S - ordinalBadgeWidth(T, width / 2), F.title)
+                : truncate(exportMode.title, 40)}
             </text>
             {exportMode.subtitle && (
               <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
                 {truncate(exportMode.subtitle, 60)}
               </text>
             )}
+            {/* 順序等距：右上角固定標「非等比」，不可關閉 */}
+            {slots && <OrdinalBadge right={width - 12 * S} top={11 * S} theme={T} maxW={width / 2} />}
             <clipPath id="hst-export-clip">
               <rect x={0} y={0} width={width} height={exportAvailH} />
             </clipPath>
@@ -652,31 +678,37 @@ export function TimelineView({
         {/* 泳道外觀：頂部整條刻度帶（淡底、粗年份） */}
         {lane && <rect x={0} y={0} width={width} height={AXIS_H} fill={C.grid} opacity={0.6} />}
         {/* 直式格線 */}
-        {ticks.map((d, i) => (
-          <line
-            key={i}
-            x1={layout.x(d.getTime())}
-            x2={layout.x(d.getTime())}
-            y1={AXIS_H}
-            y2={layout.height}
-            stroke={C.grid}
-            strokeWidth={1}
-          />
+        {gridXs.map((x, i) => (
+          <line key={i} x1={x} x2={x} y1={AXIS_H} y2={layout.height} stroke={C.grid} strokeWidth={1} />
         ))}
 
-        {/* 頂部刻度列 */}
-        <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke={C.axis} />
-        {ticks.map((d, i) => (
+        {/* 頂部刻度列。順序等距時軸線畫成一段一段（每格一段、格與格之間斷開），一看就知道不是連續的時間 */}
+        {slots ? (
+          slotXs.map((x, i) => (
+            <line
+              key={`seg-${i}`}
+              x1={Math.max(plotL, x - slotPx / 2 + 3 * S)}
+              x2={Math.min(width, x + slotPx / 2 - 3 * S)}
+              y1={AXIS_H}
+              y2={AXIS_H}
+              stroke={C.axis}
+              strokeWidth={1.5 * S}
+            />
+          ))
+        ) : (
+          <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke={C.axis} />
+        )}
+        {tickMarks.map((m, i) => (
           <text
             key={i}
-            x={layout.x(d.getTime())}
+            x={m.x}
             y={AXIS_H - 10 * S}
             textAnchor="middle"
             fontSize={lane ? F.track : F.event}
             fontWeight={lane ? 700 : undefined}
             fill={lane ? C.ink : C.inkMuted}
           >
-            {formatTick(d)}
+            {m.label}
           </text>
         ))}
         {/* 左上角：目前可視範圍 */}

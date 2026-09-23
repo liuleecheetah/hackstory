@@ -33,6 +33,8 @@ export interface ExportRequestBase {
   dateParts?: DateParts
   showRelations: boolean
   collapseGaps: boolean
+  /** 順序等距：事件依先後等距排列（圖上會固定標示「非等比」）。卡片大事記本來就依先後排，不吃這個 */
+  ordinal?: boolean
   /** 圖片頂部的標題 */
   title: string
   /** 標題下方的副標（選填） */
@@ -52,7 +54,7 @@ export interface ExportRequestBase {
  */
 function resolveDomain(req: ExportRequestBase): [number, number] {
   if (!req.timeRange && req.domain) return req.domain
-  const { warp, initialDomain } = buildTimelineBase(req.sources, req.collapseGaps)
+  const { warp, initialDomain } = buildTimelineBase(req.sources, req.collapseGaps, req.ordinal)
   if (!req.timeRange) return initialDomain
   const [a, b] = req.timeRange
   return [warp.toU(Math.min(a, b)), warp.toU(Math.max(a, b))]
@@ -181,6 +183,7 @@ export function renderVerticalExportSvg(
       reversed={req.reversed}
       centerAxis={req.centerAxis}
       collapseGaps={req.collapseGaps}
+      ordinal={req.ordinal}
       callouts={req.callouts}
       exportMode={{
         width: req.width,
@@ -261,6 +264,7 @@ export function renderHorizontalExportSvg(
       dateParts={req.dateParts}
       showRelations={req.showRelations}
       collapseGaps={req.collapseGaps}
+      ordinal={req.ordinal}
       compact={req.compact}
       swimlane={req.swimlane}
       callouts={req.callouts}
