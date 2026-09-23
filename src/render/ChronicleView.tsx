@@ -33,8 +33,6 @@ interface Props {
   showConfidence?: boolean
   /** 卡片上是否列出來源清單 */
   showSources?: boolean
-  /** 圖上是否註明「另有 N 件未列出」 */
-  showHiddenNote?: boolean
   theme?: RenderTheme
   exportMode: VerticalExportOptions
 }
@@ -49,7 +47,6 @@ export function ChronicleView({
   dateParts = ALL_PARTS,
   showConfidence = true,
   showSources = true,
-  showHiddenNote = true,
   theme = THEMES.screen,
   exportMode,
 }: Props) {
@@ -285,14 +282,11 @@ export function ChronicleView({
         <text x={width - 12 * S} y={height - 8 * S} textAnchor="end" fontSize={F.footer} fill={C.inkFaint}>
           {exportMode.footer}
         </text>
-        {/* 底部左側：只列關鍵事件等註記、還有事件放不下（兩者都可在工作室選擇不顯示） */}
-        {(exportMode.note || (showHiddenNote && layout.hidden > 0)) && (
-          <text x={padX} y={height - (exportMode.note ? 24 : 8) * S} fontSize={F.footer} fill={C.inkFaint}>
+        {/* 底部左側：只列關鍵事件等註記（可在工作室選擇不顯示）。
+            放不下的事件不在圖上註明：工作室在有事件放不下時根本不給下載 */}
+        {exportMode.note && (
+          <text x={padX} y={height - 24 * S} fontSize={F.footer} fill={C.inkFaint}>
             {exportMode.note}
-            {exportMode.note && showHiddenNote && layout.hidden > 0 ? ' · ' : ''}
-            {showHiddenNote && layout.hidden > 0 && (
-              <tspan fill={C.warn}>另有 {layout.hidden} 件未列出</tspan>
-            )}
           </text>
         )}
       </svg>

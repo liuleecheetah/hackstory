@@ -215,7 +215,6 @@ export function renderChronicleExportSvg(
     reversed: boolean
     showConfidence: boolean
     showSources: boolean
-    showHiddenNote: boolean
   },
 ): Promise<ChronicleExportResult> {
   return renderOffscreen(
@@ -227,7 +226,6 @@ export function renderChronicleExportSvg(
       dateParts={req.dateParts}
       showConfidence={req.showConfidence}
       showSources={req.showSources}
-      showHiddenNote={req.showHiddenNote}
       theme={req.theme}
       exportMode={{
         width: req.width,

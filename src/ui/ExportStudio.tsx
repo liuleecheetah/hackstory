@@ -134,11 +134,9 @@ export function ExportStudio(props: Props) {
   const [embedFontsInSvg, setEmbedFontsInSvg] = useState(false)
   // 版型 D：卡片大事記（依先後排列）或照時間比例的直式長圖
   const [cardMode, setCardMode] = useState(true)
-  // 卡片上要寫哪些小字，以及圖上要不要註明「另有 N 件未列出」
   // 卡片上的小字預設都不顯示，要時再勾
   const [showConfidence, setShowConfidence] = useState(false)
   const [showSources, setShowSources] = useState(false)
-  const [showHiddenNote, setShowHiddenNote] = useState(false)
   // 標註框：勾了哪些事件（依勾選順序），以及每個框的一句摘要（使用者可改）
   const [calloutKeys, setCalloutKeys] = useState<string[]>([])
   const [calloutText, setCalloutText] = useState<Record<string, string>>({})
@@ -387,7 +385,7 @@ export function ExportStudio(props: Props) {
     if (cardMode) {
       const { svg, hidden, height } = await run(
         renderChronicleExportSvg,
-        { ...common, reversed, showConfidence, showSources, showHiddenNote },
+        { ...common, reversed, showConfidence, showSources },
         200_000,
       )
       const lost = hidden > 0 ? `還差 ${hidden} 件` : undefined
@@ -421,7 +419,7 @@ export function ExportStudio(props: Props) {
   const settingsKey = JSON.stringify([
     layout, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
-    reversed, centerAxis, cardMode, showConfidence, showSources, showHiddenNote, calloutKeys,
+    reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
     eventScope, showScopeNote,
     calloutText,
   ])
@@ -829,7 +827,6 @@ export function ExportStudio(props: Props) {
                   <>
                     {checkbox('顯示查證程度（已查證／據報導／有爭議）', showConfidence, setShowConfidence)}
                     {checkbox('列出來源', showSources, setShowSources)}
-                    {checkbox('放不下時在圖上註明「另有 N 件未列出」', showHiddenNote, setShowHiddenNote)}
                     {checkbox('最新的在上面', reversed, setReversed)}
                   </>
                 ) : (
