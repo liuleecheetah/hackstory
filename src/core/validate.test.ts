@@ -380,3 +380,100 @@ describe('向前相容（SPEC 第 10 節）', () => {
     })
   })
 })
+
+describe('periods 時期（SPEC 0.5）', () => {
+  /** 在最小文件上加一組時期 */
+  function withPeriods(periods: unknown): Record<string, unknown> {
+    return { ...minimalDoc(), hackstory: '0.5', periods }
+  }
+  const martialLaw = {
+    id: 'martial-law',
+    title: '戒嚴時期',
+    start: { value: '1949-05-20', precision: 'day' },
+    end: { value: '1987-07-15', precision: 'day' },
+    color: '#e8e4dc',
+    description: '1949-05-20 至 1987-07-15',
+  }
+
+  it('合法的時期通過驗證，0.5 版不再出現「版本比程式新」的提醒', () => {
+    const result = validateDocument(withPeriods([martialLaw]))
+    expect(result.errors).toEqual([])
+    expect(result.warnings).toEqual([])
+    expect(result.doc?.periods?.[0].title).toBe('戒嚴時期')
+  })
+
+  it('沒有 periods 的舊檔照常通過（選填欄位）', () => {
+    expect(validateDocument(minimalDoc()).ok).toBe(true)
+  })
+
+  it('省略 end = 至今，通過', () => {
+    const { end: _end, ...ongoing } = martialLaw
+    void _end
+    expect(validateDocument(withPeriods([{ ...ongoing, title: '政黨輪替後' }])).errors).toEqual([])
+  })
+
+  it('periods 不是陣列 → 錯誤', () => {
+    const result = validateDocument(withPeriods({ title: '戒嚴時期' }))
+    expect(result.errors.some((e) => e.path === 'periods')).toBe(true)
+  })
+
+  it('缺少名稱 → 錯誤', () => {
+    const result = validateDocument(withPeriods([{ ...martialLaw, title: '  ' }]))
+    expect(result.errors.some((e) => e.path === 'periods[0].title')).toBe(true)
+  })
+
+  it('缺少開始時間 → 錯誤', () => {
+    const { start: _start, ...noStart } = martialLaw
+    void _start
+    const result = validateDocument(withPeriods([noStart]))
+    expect(result.errors.some((e) => e.path === 'periods[0].start')).toBe(true)
+  })
+
+  it('用相對時間（在某事件之後）→ 錯誤：時期只接受確切的時間', () => {
+    const result = validateDocument(
+      withPeriods([{ ...martialLaw, start: { relative: { after: 'evt-001' } } }]),
+    )
+    expect(result.errors.some((e) => e.path === 'periods[0].start')).toBe(true)
+  })
+
+  it('時間格式不對（例如精度寫年、值卻是日期）→ 錯誤', () => {
+    const result = validateDocument(
+      withPeriods([{ ...martialLaw, end: { value: '1987-07-15', precision: 'year' } }]),
+    )
+    expect(result.errors.some((e) => e.path === 'periods[0].end.value')).toBe(true)
+  })
+
+  it('結束早於開始 → 只警告', () => {
+    const result = validateDocument(
+      withPeriods([{ ...martialLaw, end: { value: '1940', precision: 'year' } }]),
+    )
+    expect(result.ok).toBe(true)
+    expect(result.warnings.some((w) => w.path === 'periods[0].end')).toBe(true)
+  })
+
+  it('id 重複 → 錯誤', () => {
+    const result = validateDocument(withPeriods([martialLaw, { ...martialLaw, title: '另一段' }]))
+    expect(result.errors.some((e) => e.path === 'periods[1].id')).toBe(true)
+  })
+
+  it('顏色不是色碼 → 只警告（改用自動配色）；#RGB 短寫法可以', () => {
+    const bad = validateDocument(withPeriods([{ ...martialLaw, color: '淡灰色' }]))
+    expect(bad.ok).toBe(true)
+    expect(bad.warnings.some((w) => w.path === 'periods[0].color')).toBe(true)
+    const short = validateDocument(withPeriods([{ ...martialLaw, color: '#eee' }]))
+    expect(short.warnings).toEqual([])
+  })
+
+  it('examples/taiwan-democracy.hst.json 有三個時期（真實資料）', () => {
+    const data = JSON.parse(
+      readFileSync(resolve(here, '../../examples/taiwan-democracy.hst.json'), 'utf-8'),
+    )
+    const result = validateDocument(data)
+    expect(result.errors).toEqual([])
+    expect(result.doc?.periods?.map((p) => p.title)).toEqual([
+      '戒嚴時期',
+      '解嚴至首次政黨輪替',
+      '首次政黨輪替後',
+    ])
+  })
+})

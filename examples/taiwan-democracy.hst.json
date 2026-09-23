@@ -1,5 +1,5 @@
 {
-  "hackstory": "0.3",
+  "hackstory": "0.5",
   "id": "tw-democracy-movement",
   "meta": {
     "title": "台灣民主運動史",
@@ -1644,6 +1644,28 @@
       "to": "el-01",
       "type": "causes",
       "label": "美麗島大審凝聚黨外 → 組成民主進步黨"
+    }
+  ],
+  "periods": [
+    {
+      "id": "martial-law",
+      "title": "戒嚴時期",
+      "start": { "value": "1949-05-20", "precision": "day" },
+      "end": { "value": "1987-07-15", "precision": "day" },
+      "description": "臺灣省警備總司令部宣告戒嚴，至 1987 年 7 月 15 日解除，前後 38 年"
+    },
+    {
+      "id": "post-martial-law",
+      "title": "解嚴至首次政黨輪替",
+      "start": { "value": "1987-07-15", "precision": "day" },
+      "end": { "value": "2000-05-20", "precision": "day" },
+      "description": "解嚴後開放黨禁、報禁，國會全面改選、總統直選，至陳水扁就任總統"
+    },
+    {
+      "id": "post-transfer",
+      "title": "首次政黨輪替後",
+      "start": { "value": "2000-05-20", "precision": "day" },
+      "description": "2000 年首次中央政府政黨輪替之後（本文件在此之後只收少數里程碑）"
     }
   ],
   "display": {

@@ -89,6 +89,8 @@ interface Props {
   reversed?: boolean
   /** 刻度尺移到畫面中央，軸線分左右兩側對照（需要兩條以上軸線） */
   centerAxis?: boolean
+  /** 刻度尺的年份用大字（版型 B 雙向對照，只在匯出時） */
+  bigYears?: boolean
   /** 主題：字級、尺寸、顏色（預設「螢幕」主題）。直式沒有精簡模式 */
   theme?: RenderTheme
   /** 標註框：挑出來加「標題＋摘要」說明的事件（只在匯出時畫） */
@@ -201,6 +203,7 @@ export function VerticalTimelineView({
   showRelations = true,
   reversed = false,
   centerAxis = false,
+  bigYears = false,
   theme = THEMES.screen,
   callouts,
   scaleRequest,
@@ -216,6 +219,7 @@ export function VerticalTimelineView({
   const svgRef = useRef<SVGSVGElement>(null)
   // 尺寸與顏色全部來自主題
   const T = theme
+  const big = bigYears && !!exportMode
   const C = T.colors
   const F = T.font
   const S = T.scale
@@ -403,7 +407,12 @@ export function VerticalTimelineView({
 
       // 超出可用層數時「繞回第 0 層」而不是全部壓在最後一層——
       // 壓在同一層會讓密集區的圓點疊成一坨，繞回去至少還是散開的
-      const laneOf = (i: number) => lanes[i] % LANE_COUNT
+      // 出圖時欄可能很窄（對照版型一欄只有半張圖）：副車道最多只佔欄寬的一小段，
+      // 否則錯開的圓點會把標題的寬度吃光，只剩一兩個字
+      const laneCap = exportMode
+        ? Math.max(1, Math.min(LANE_COUNT, Math.floor((rect.w * 0.15) / LANE_STEP) + 1))
+        : LANE_COUNT
+      const laneOf = (i: number) => lanes[i] % laneCap
       const widthOf = (r: (typeof raw)[number]) =>
         r.isBar
           ? r.pe.isKey
@@ -635,10 +644,17 @@ export function VerticalTimelineView({
     const slotYs = slots ? slots.map((t) => yOfU(warp.toU(t))).filter(inAxis) : []
     const slotPx = (ORDINAL_STEP / span) * contentH
     const ticks: Array<{ y: number; label: string }> = slots
-      ? ordinalTicks(slots, (t) => yOfU(warp.toU(t)), F.date * 1.6)
+      ? ordinalTicks(slots, (t) => yOfU(warp.toU(t)), (big ? F.title : F.date) * 1.6)
           .filter((m) => inAxis(m.pos))
           .map((m) => ({ y: m.pos, label: m.label }))
-      : regularTicks.map((d) => ({ y: y(d.getTime()), label: formatTick(d) }))
+      : regularTicks
+          .map((d) => ({ y: y(d.getTime()), label: formatTick(d) }))
+          // 大年份（版型 B）：字大，摺疊處兩側的刻度容易擠在一起——太擠的就不寫
+          .reduce<Array<{ y: number; label: string }>>((kept, m) => {
+            const prev = kept[kept.length - 1]
+            if (!big || !prev || Math.abs(m.y - prev.y) >= F.title * 1.5) kept.push(m)
+            return kept
+          }, [])
     // 沒寫年份的格子也要有格線
     const extraGridYs = slots ? slotYs.filter((yv) => !ticks.some((m) => m.y === yv)) : []
 
@@ -665,7 +681,7 @@ export function VerticalTimelineView({
       narrowColumns,
       anchors,
     }
-  }, [bands, sources, mode, width, colAreaW, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T])
+  }, [bands, sources, mode, width, colAreaW, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T, big])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -959,10 +975,11 @@ export function VerticalTimelineView({
                 />
                 <text
                   x={layout.rulerX + RULER_W / 2}
-                  y={yv + 4 * S}
+                  y={yv + (big ? F.title * 0.36 : 4 * S)}
                   textAnchor="middle"
-                  fontSize={F.date}
-                  fill={C.inkMuted}
+                  fontSize={big ? F.title : F.date}
+                  fontWeight={big ? 700 : undefined}
+                  fill={big ? C.ink : C.inkMuted}
                 >
                   {label}
                 </text>
@@ -1368,7 +1385,15 @@ export function VerticalTimelineView({
             <g transform={`translate(0 ${layout.headerTop})`}>
             <rect x={0} y={0} width={width} height={HEADER_H} fill={C.bg} />
             <line x1={0} x2={width} y1={HEADER_H} y2={HEADER_H} stroke={C.axis} />
-            <text ref={rangeLabelRef} x={6 * S} y={21 * S} fontSize={F.footer} fill={C.inkFaint}>
+            {/* 出圖的對照版型：刻度尺在中間，範圍文字放在刻度尺上方，才不會壓到左欄的欄標題 */}
+            <text
+              ref={rangeLabelRef}
+              x={exportMode && layout.rulerX > 0 ? layout.rulerX + RULER_W / 2 : 6 * S}
+              y={21 * S}
+              textAnchor={exportMode && layout.rulerX > 0 ? 'middle' : undefined}
+              fontSize={F.footer}
+              fill={C.inkFaint}
+            >
               {formatRangeLabel(layout.tView)}
             </text>
             {/* 軸被拉長之後，畫面上只看得到一小段——順手告訴讀者整條軸有多長 */}

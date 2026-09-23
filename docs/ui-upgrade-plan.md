@@ -287,7 +287,7 @@ export function placeCallouts(specs: Array<CalloutSpec & { anchorX: number; anch
 - **橫式上下對照**：`TimelineView` 加 `centerAxis?: boolean` prop。恰好兩條可見軸線時，第一條畫在共用刻度軸**上方**（車道往上疊），第二條畫在**下方**；多於兩條時前半上方、後半下方，並警告「對照版型最適合兩條軸線」。
 - **直式左右對照**：直接用現有的 `centerAxis`。
 - 兩者都套用：大年份（刻度數字用 `font.title` 級）、標註框、順序等距（可選）。
-- 對照版型的關係線只畫 `contradicts` 與 `responds_to` 兩類（原則 3：對照要的是張力），其他類型在此版型隱藏並註明。
+- ~~對照版型的關係線只畫 `contradicts` 與 `responds_to` 兩類~~ → 2026-09-23 使用者決定：**關係線預設開啟，所有類型都畫**。
 
 #### 2.3.7 `adapters/fonts.ts`——字型嵌入
 

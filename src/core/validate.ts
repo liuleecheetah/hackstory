@@ -28,7 +28,7 @@ export interface ValidationResult {
 
 // 本程式支援的規格版本
 const SUPPORTED_MAJOR = 0
-const SUPPORTED_MINOR = 4
+const SUPPORTED_MINOR = 5
 
 const PRECISIONS: Precision[] = ['decade', 'year', 'month', 'day', 'minute']
 const CONFIDENCES = ['verified', 'reported', 'disputed', 'unknown']
@@ -46,6 +46,9 @@ const VALUE_FORMAT: Record<Precision, RegExp> = {
   day: /^\d{4}-\d{2}-\d{2}$/,
   minute: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
 }
+
+// 色碼：#RGB 或 #RRGGBB
+const RE_HEX_COLOR = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/
 
 // id 用 slug：英數與連字號
 const RE_SLUG = /^[A-Za-z0-9][A-Za-z0-9-]*$/
@@ -394,6 +397,65 @@ export function validateDocument(data: unknown): ValidationResult {
         }
         if (r.label !== undefined && typeof r.label !== 'string') {
           err(`${path}.label`, '關係的 label 應為字串')
+        }
+      })
+    }
+  }
+
+  // ---- periods（時期，0.5 新增）----
+  if (data.periods !== undefined) {
+    if (!Array.isArray(data.periods)) {
+      err('periods', 'periods 應為陣列')
+    } else {
+      const periodIds = new Set<string>()
+      data.periods.forEach((p, i) => {
+        const path = `periods[${i}]`
+        if (!isObject(p)) {
+          err(path, '時期應為物件')
+          return
+        }
+        const label = isNonEmptyString(p.title) ? `「${p.title}」` : ''
+
+        if (p.id !== undefined) {
+          if (!isNonEmptyString(p.id)) {
+            err(`${path}.id`, '時期的 id 應為非空字串')
+          } else if (periodIds.has(p.id)) {
+            err(`${path}.id`, `時期 id「${p.id}」重複（同一份文件內必須唯一）`)
+          } else {
+            periodIds.add(p.id)
+          }
+        }
+        if (!isNonEmptyString(p.title)) {
+          err(`${path}.title`, '時期缺少名稱 title（畫在底色帶的角落）')
+        }
+
+        // start／end 只接受絕對時間：時期是「確知的一段時間」，不能用「在某事件之後」表示
+        for (const key of ['start', 'end'] as const) {
+          const point = p[key]
+          if (point === undefined) {
+            if (key === 'start') err(`${path}.start`, `時期${label}缺少開始時間 start`)
+            continue
+          }
+          if (isObject(point) && 'relative' in point) {
+            err(`${path}.${key}`, `時期${label}的時間不支援相對時間，請填確切的年、月或日`)
+          } else {
+            validateTimePoint(point, `${path}.${key}`, new Set(), err)
+          }
+        }
+        if (
+          isObject(p.start) && typeof p.start.value === 'string' &&
+          isObject(p.end) && typeof p.end.value === 'string' &&
+          comparePointValues(p.end.value, p.start.value) < 0
+        ) {
+          warn(`${path}.end`, `時期${label}的結束時間早於開始時間`)
+        }
+
+        // 顏色填錯不擋，改用主題自動配的淡色並提醒
+        if (p.color !== undefined && !(typeof p.color === 'string' && RE_HEX_COLOR.test(p.color))) {
+          warn(`${path}.color`, `時期${label}的顏色「${String(p.color)}」不是色碼（例如 #e8e4dc），會改用自動配色`)
+        }
+        if (p.description !== undefined && typeof p.description !== 'string') {
+          err(`${path}.description`, '時期的 description 應為字串')
         }
       })
     }

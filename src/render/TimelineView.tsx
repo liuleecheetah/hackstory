@@ -56,6 +56,11 @@ interface Props {
    * 刻度改成每格寫年份、軸線畫成一段一段，圖的右上角固定標「非等比」
    */
   ordinal?: boolean
+  /**
+   * 版型 B「雙向對照」（只在匯出時）：刻度軸放在正中間、寫大年份，
+   * 前半的軸線畫在軸的上方（車道往上疊），後半畫在下方。畫面上的檢視不受影響
+   */
+  centerAxis?: boolean
   /** 精簡模式：把事件列高、圓點、文字縮小，同樣高度塞更多事件、其他軸線比較看得到 */
   compact?: boolean
   /** 主題：字級、尺寸、顏色（預設「螢幕」主題） */
@@ -128,6 +133,7 @@ export function TimelineView({
   showRelations = true,
   collapseGaps = false,
   ordinal = false,
+  centerAxis = false,
   compact = false,
   theme = THEMES.screen,
   swimlane = false,
@@ -156,6 +162,9 @@ export function TimelineView({
   const F = T.font
   const S = T.scale
   const AXIS_H = BASE_AXIS_H * S
+  // 雙向對照：刻度軸在中間，軸帶加高放大年份
+  const center = centerAxis && !!exportMode
+  const CENTER_AXIS_H = F.title * 1.6 + 22 * S
   const TITLE_H = (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
   const FOOTER_H = (BASE_FOOTER_H + (exportMode?.note ? 16 : 0)) * S
@@ -320,9 +329,19 @@ export function TimelineView({
     // 先把真實時間換算到壓縮座標，再投影到像素
     const x = (t: number) => plotL + ((warp.toU(t) - a) / (b - a)) * plotW
 
-    let y = AXIS_H + 8 * S
+    let y = center ? 8 * S : AXIS_H + 8 * S
+    // 雙向對照：前半（無條件進位）在軸上方、後半在下方
+    const half = Math.ceil(preparedBands.length / 2)
+    let axisTop = 0
 
-    const bands = preparedBands.map((band) => {
+    const bands = preparedBands.map((band, bandIndex) => {
+      // 輪到下半的第一條時，先放中間的刻度軸
+      if (center && bandIndex === half) {
+        axisTop = y
+        y += CENTER_AXIS_H + M.bandGap
+      }
+      // 軸上方的軸線車道往上疊：第 0 列貼著刻度軸
+      const flipped = center && bandIndex < half
       const items = band.events
         .map((pe) => {
           const dotR = pe.isKey ? M.keyDotR : M.dotR
@@ -408,7 +427,9 @@ export function TimelineView({
         items: items.map((it, j) => ({
           ...it,
           lane: lanes[j],
-          cy: bandTop + labelRowH + lanes[j] * M.laneH + M.laneH / 2,
+          cy: flipped
+            ? bandTop + bandH - labelRowH - lanes[j] * M.laneH - M.laneH / 2
+            : bandTop + labelRowH + lanes[j] * M.laneH + M.laneH / 2,
         })),
       }
     })
@@ -462,8 +483,14 @@ export function TimelineView({
       }),
     )
 
-    return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x }
-  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport])
+    // 只有一條軸線時沒有「下半」，刻度軸放在最後
+    if (center && preparedBands.length <= half) {
+      axisTop = y
+      y += CENTER_AXIS_H + M.bandGap
+    }
+
+    return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x, axisTop }
+  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -504,6 +531,20 @@ export function TimelineView({
         .map((m) => ({ x: m.pos, label: m.label }))
     : ticks.map((d) => ({ x: layout.x(d.getTime()), label: formatTick(d) }))
   const gridXs = slots ? slotXs : tickMarks.map((m) => m.x)
+  // 雙向對照的大年份：字大，摺疊處兩側的刻度容易擠在一起、最右邊的會被切掉——太擠或出界的就不寫
+  const centerTicks = center
+    ? (() => {
+        const half = estimateTextWidth('0000', F.title) / 2
+        const out: typeof tickMarks = []
+        for (const m of tickMarks) {
+          if (m.x - half < plotL || m.x + half > width - 2 * S) continue
+          const prev = out[out.length - 1]
+          if (prev && m.x - prev.x < half * 2 + 12 * S) continue
+          out.push(m)
+        }
+        return out
+      })()
+    : tickMarks
 
   // 「回到選取的事件」：選取的事件被平移／縮放到畫面外時，往它的方向浮現一顆小鈕拉它回來。
   // 事件在畫面內時鈕自動消失——平常完全不佔畫面。
@@ -542,9 +583,11 @@ export function TimelineView({
           const obstacles = layout.bands.flatMap((b) =>
             b.items.map((it) => ({ x: it.occL, y: it.cy - M.laneH / 2, w: it.occR - it.occL, h: M.laneH })),
           )
+          // 雙向對照：中間的刻度軸帶也不能蓋
+          if (center) obstacles.push({ x: 0, y: layout.axisTop, w: width, h: CENTER_AXIS_H })
           const result = placeCallouts(
             withAnchor,
-            { left: plotL + 4 * S, top: AXIS_H + 4 * S, right: width - 4 * S, bottom },
+            { left: plotL + 4 * S, top: (center ? 0 : AXIS_H) + 4 * S, right: width - 4 * S, bottom },
             'horizontal',
             // 框可以放遠一點（引線拉長），只要不蓋到事件
             calloutMetrics(T, Math.max(width, exportAvailH)),
@@ -675,6 +718,8 @@ export function TimelineView({
             <stop offset="1" stopColor={C.halo} stopOpacity="1" />
           </linearGradient>
         </defs>
+        {!center && (
+          <>
         {/* 泳道外觀：頂部整條刻度帶（淡底、粗年份） */}
         {lane && <rect x={0} y={0} width={width} height={AXIS_H} fill={C.grid} opacity={0.6} />}
         {/* 直式格線 */}
@@ -741,6 +786,86 @@ export function TimelineView({
           )
         })}
 
+          </>
+        )}
+        {/* 雙向對照：刻度軸在正中間（淡底帶、大年份），上下兩側各放一半的軸線 */}
+        {center && (
+          <>
+            <rect x={0} y={layout.axisTop} width={width} height={CENTER_AXIS_H} fill={C.grid} opacity={0.6} />
+            {gridXs.map((x, i) => (
+              <line key={i} x1={x} x2={x} y1={0} y2={layout.height} stroke={C.grid} strokeWidth={1} />
+            ))}
+            {[layout.axisTop, layout.axisTop + CENTER_AXIS_H].map((ly) =>
+              slots ? (
+                slotXs.map((x, i) => (
+                  <line
+                    key={`seg-${ly}-${i}`}
+                    x1={Math.max(plotL, x - slotPx / 2 + 3 * S)}
+                    x2={Math.min(width, x + slotPx / 2 - 3 * S)}
+                    y1={ly}
+                    y2={ly}
+                    stroke={C.axis}
+                    strokeWidth={1.5 * S}
+                  />
+                ))
+              ) : (
+                <line key={`axis-${ly}`} x1={0} x2={width} y1={ly} y2={ly} stroke={C.axis} />
+              ),
+            )}
+            {centerTicks.map((m, i) => (
+              <text
+                key={i}
+                x={m.x}
+                y={layout.axisTop + CENTER_AXIS_H / 2 + F.title * 0.36}
+                textAnchor="middle"
+                fontSize={F.title}
+                fontWeight={700}
+                fill={C.ink}
+              >
+                {m.label}
+              </text>
+            ))}
+            {/* 可視範圍寫在軸帶左端（軸線名色塊那一欄） */}
+            <text
+              x={8 * S}
+              y={layout.axisTop + CENTER_AXIS_H / 2 + F.date * 0.36}
+              fontSize={F.date}
+              fill={C.inkMuted}
+            >
+              {fitText(formatRangeLabel(tView), Math.max(40 * S, plotL - 12 * S), F.date)}
+            </text>
+            {/* 斷軸記號：⫽ 畫在軸帶上，「略過多久」寫在記號下方，虛線上下貫穿 */}
+            {warp.gaps.map((g, i) => {
+              const xg = xOfU(g.uCenter)
+              if (xg < plotL - 30 || xg > width + 30) return null
+              const my = layout.axisTop + CENTER_AXIS_H / 2 - 4 * S
+              return (
+                <g key={`gap-${i}`}>
+                  <line x1={xg - 6 * S} y1={my - 5 * S} x2={xg - 1 * S} y2={my + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
+                  <line x1={xg + 1 * S} y1={my - 5 * S} x2={xg + 6 * S} y2={my + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
+                  <line x1={xg} y1={0} x2={xg} y2={layout.axisTop} stroke={C.axis} strokeDasharray="2 6" />
+                  <line
+                    x1={xg}
+                    y1={layout.axisTop + CENTER_AXIS_H}
+                    x2={xg}
+                    y2={layout.height}
+                    stroke={C.axis}
+                    strokeDasharray="2 6"
+                  />
+                  <text
+                    x={xg}
+                    y={layout.axisTop + CENTER_AXIS_H - 5 * S}
+                    textAnchor="middle"
+                    fontSize={F.footer}
+                    fill={C.inkFaint}
+                  >
+                    {formatSkipped(g.skippedMs)}
+                  </text>
+                </g>
+              )
+            })}
+          </>
+        )}
         {/* 軸線底色與標題 */}
         {layout.bands.map(({ key, label, color, bandTop, bandH }) => (
           <g key={`${key}-bg`}>

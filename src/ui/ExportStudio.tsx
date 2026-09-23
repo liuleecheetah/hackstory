@@ -52,7 +52,7 @@ type LayoutId = 'A' | 'D' | 'B' | 'C'
 const LAYOUTS: Array<{ id: LayoutId; label: string; hint: string; ready: boolean }> = [
   { id: 'A', label: 'A 多軸泳道', hint: '跨主體的橫向交互作用', ready: true },
   { id: 'D', label: 'D 直式大事記', hint: '深度證據鏈與脈絡錨定', ready: true },
-  { id: 'B', label: 'B 雙向對照', hint: '二元對抗與矛盾檢驗', ready: false },
+  { id: 'B', label: 'B 雙向對照', hint: '二元對抗與矛盾檢驗', ready: true },
   { id: 'C', label: 'C 因果魚骨', hint: '多重因果匯聚', ready: false },
 ]
 
@@ -79,7 +79,9 @@ function defaultSummary(description: string | undefined): string {
 /** 比例：十種固定比例，或「自動長度」（寬度固定、高度拉長到全部放得下） */
 type RatioChoice = RatioId | 'auto'
 /** 自動長度的寬度：泳道沿用 16:9 的寬、直式沿用 A4 的寬 */
-const AUTO_WIDTH = { horizontal: 960, vertical: 620 }
+const AUTO_WIDTH = { horizontal: 960, vertical: 620, contrast: 900 }
+/** 自動長度最多拉到多高（再長瀏覽器畫不出來，PNG 也會自動降解析度） */
+const AUTO_MAX_H = 40_000
 
 interface Props {
   open: boolean
@@ -110,6 +112,8 @@ export function ExportStudio(props: Props) {
 
   // ---- 設定 ----
   const [layout, setLayout] = useState<LayoutId>(orientation === 'vertical' ? 'D' : 'A')
+  // 版型 B 的方向：上下對照（橫式）或左右對照（直式）
+  const [bDir, setBDir] = useState<'h' | 'v'>(orientation === 'vertical' ? 'v' : 'h')
   // 預設「自動長度」：全部軸線與事件都放得下，不會一打開就被裁掉
   const [ratioId, setRatioId] = useState<RatioChoice>('auto')
   const [themeId, setThemeId] = useState<ThemeId>('presentation')
@@ -196,7 +200,16 @@ export function ExportStudio(props: Props) {
   const auto = ratioId === 'auto'
   const preset = RATIO_PRESETS.find((r) => r.id === ratioId) ?? RATIO_PRESETS[5]
   // 目前要畫的寬度（自動長度時高度要畫了才知道）
-  const drawW = auto ? (layout === 'A' ? AUTO_WIDTH.horizontal : AUTO_WIDTH.vertical) : preset.w
+  // 橫式：版型 A，或版型 B 的上下對照；其他都是直式
+  const horizontal = layout === 'A' || (layout === 'B' && bDir === 'h')
+  // 左右對照是兩欄並排，一欄只有半張寬，自動長度給寬一點標題才放得下
+  const drawW = auto
+    ? horizontal
+      ? AUTO_WIDTH.horizontal
+      : layout === 'B'
+        ? AUTO_WIDTH.contrast
+        : AUTO_WIDTH.vertical
+    : preset.w
   const theme = useMemo(
     () => deriveTheme(THEMES[themeId], { scale: THEMES[themeId].scale * fontScale }),
     [themeId, fontScale],
@@ -402,7 +415,7 @@ export function ExportStudio(props: Props) {
         blocked:
           plan.reason === 'too-many-pages'
             ? `要切成超過 ${MAX_PAGES} 張才放得下全部事件，這個比例不能下載——可以改成「自動縮小文字」，或${otherWays}`
-            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以改成「自動縮小文字」、調小文字大小${layout === 'A' ? '、勾選「精簡模式」' : ''}，或${otherWays}`,
+            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以改成「自動縮小文字」、調小文字大小${horizontal ? '、勾選「精簡模式」' : ''}，或${otherWays}`,
       })
     }
     const n = plan.pages.length
@@ -462,10 +475,20 @@ export function ExportStudio(props: Props) {
     if (eventScope === 'featured' && scopeCounts.featured === 0) {
       warnings.push('這段時間、這些軸線沒有標示為關鍵事件（★）的事件，所以圖上沒有事件——請改選「所有事件」，或先在事件詳情卡把重點事件設為關鍵事件')
     }
-    if (layout === 'A') {
+    if (layout === 'B') {
+      const n = sources.reduce((k, src) => k + src.doc.tracks.length, 0)
+      if (n < 2) warnings.push('只有一條軸線，沒有東西可以對照——雙向對照版型需要兩條軸線，請多勾選一條軸線')
+      else if (n > 2) {
+        const top = Math.ceil(n / 2)
+        warnings.push(
+          `對照版型最適合兩條軸線；目前有 ${n} 條，前 ${top} 條放在${bDir === 'h' ? '上方' : '左側'}、其餘放在${bDir === 'h' ? '下方' : '右側'}`,
+        )
+      }
+    }
+    if (horizontal) {
       const { svg, overflow, height, calloutsDropped } = await run(
         renderHorizontalExportSvg,
-        { ...common, compact, swimlane: true, callouts: pageCallouts },
+        { ...common, compact, swimlane: true, centerAxis: layout === 'B', callouts: pageCallouts },
         // 試算畫布要夠長：標註框放不進軸線之間的空白時，才有地方往下放
         calloutSpecs.length > 0 ? 200_000 : 600,
       )
@@ -473,7 +496,7 @@ export function ExportStudio(props: Props) {
       const lost = overflow ? '軸線與事件太多，超出畫面' : undefined
       return { svg, warnings, w: drawW, h: height, lost }
     }
-    if (cardMode) {
+    if (layout === 'D' && cardMode) {
       const { svg, hidden, height } = await run(
         renderChronicleExportSvg,
         {
@@ -489,11 +512,29 @@ export function ExportStudio(props: Props) {
       const lost = hidden > 0 ? `還差 ${hidden} 件` : undefined
       return { svg, warnings, w: drawW, h: height, lost }
     }
-    const { svg, hidden, narrowColumns, height, calloutsDropped } = await run(
-      renderVerticalExportSvg,
-      { ...common, reversed, centerAxis, callouts: pageCallouts },
-      600,
-    )
+    const vReq = {
+      ...common,
+      reversed,
+      // 版型 B 的左右對照：刻度尺一定在中間、年份放大
+      centerAxis: layout === 'B' || centerAxis,
+      bigYears: layout === 'B',
+      callouts: pageCallouts,
+    }
+    let v = await run(renderVerticalExportSvg, vReq, 600)
+    // 自動長度要放得下全部事件：照時間比例排時，事件擠在同一段就只剩圓點——
+    // 把圖再拉長重畫，直到每件都有標題（字放大的主題特別需要）
+    // 拉長也沒有變少（例如好幾件同一天的事件擠在同一格）就停，不做出一張無謂的超長圖
+    // （連續兩次拉長都沒有變少才停，保留最好的那次）
+    let tryH = v.height
+    for (let stale = 0; auto && v.hidden > 0 && stale < 2 && tryH < AUTO_MAX_H; ) {
+      tryH = Math.min(AUTO_MAX_H, Math.ceil(tryH * 1.35))
+      const next = { ...(await renderVerticalExportSvg({ ...vReq, height: tryH })), height: tryH }
+      if (next.hidden < v.hidden) {
+        v = next
+        stale = 0
+      } else stale++
+    }
+    const { svg, hidden, narrowColumns, height, calloutsDropped } = v
     warnDroppedCallouts(calloutsDropped, warnings)
     if (narrowColumns) warnings.push('欄寬過窄，建議選更寬的比例，或取消勾選部分圖層／軸線')
     const lost = hidden > 0 ? `${hidden} 件只畫得出圓點、沒有標題` : undefined
@@ -515,7 +556,7 @@ export function ExportStudio(props: Props) {
   const [previewError, setPreviewError] = useState<string | null>(null)
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
-    layout, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
+    layout, bDir, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
     eventScope, showScopeNote, overflowMode, ordinal,
@@ -656,8 +697,10 @@ export function ExportStudio(props: Props) {
     setRatioId(id)
     // 自動長度不限方向，沿用目前的版型
     // 比例決定方向（原則 2）：長比例建議直式大事記、寬比例建議泳道；之後可以自己改
+    // 版型 B 不換版型，改換方向（寬→上下對照、長→左右對照）
     const p = RATIO_PRESETS.find((r) => r.id === id)
-    if (p) setLayout(p.dir === 'v' ? 'D' : 'A')
+    if (p && layout === 'B') setBDir(p.dir)
+    else if (p) setLayout(p.dir === 'v' ? 'D' : 'A')
   }
 
   const toggle = (set: Set<string>, key: string, on: boolean) => {
@@ -729,7 +772,15 @@ export function ExportStudio(props: Props) {
                     type="button"
                     disabled={!l.ready}
                     title={l.hint}
-                    onClick={() => setLayout(l.id)}
+                    onClick={() => {
+                      setLayout(l.id)
+                      // 換成版型 B 時，方向跟著目前的比例（自動長度就沿用上次的方向）；
+                      // 對照看的是兩邊的互動，關係線預設打開
+                      if (l.id === 'B') {
+                        if (!auto) setBDir(preset.dir)
+                        setShowRelations(true)
+                      }
+                    }}
                     className={
                       'rounded border px-2 py-1.5 text-left transition-colors ' +
                       (layout === l.id
@@ -745,9 +796,31 @@ export function ExportStudio(props: Props) {
                   </button>
                 ))}
               </div>
+              {layout === 'B' && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-sm text-ink-faint">對照方向（事件依軸線分到兩側，中間是共用的時間軸）</p>
+                  {(
+                    [
+                      ['h', '上下對照（橫式）'],
+                      ['v', '左右對照（直式）'],
+                    ] as const
+                  ).map(([dir, label]) => (
+                    <label key={dir} className="flex items-center gap-2 text-base text-ink-muted">
+                      <input
+                        type="radio"
+                        name="studio-bdir"
+                        checked={bDir === dir}
+                        onChange={() => setBDir(dir)}
+                        className="accent-accent"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              )}
             </Section>
 
-            <Section title="比例" note="選比例會自動建議版型：長的用直式大事記、寬的用泳道，可以再改">
+            <Section title="比例" note="選比例會自動建議方向：長的用直式、寬的用橫式（版型 B 切換上下／左右對照），可以再改">
               <button
                 type="button"
                 onClick={() => pickRatio('auto')}
@@ -991,8 +1064,8 @@ export function ExportStudio(props: Props) {
                       事件之間不照時間比例、依先後平均排開，適合少量精選事件；圖上會固定標示「非等比」
                     </p>
                     {checkbox(ordinal ? '摺疊空白（順序等距時不需要）' : '摺疊空白', collapseGaps, setCollapseGaps, ordinal)}
-                    {layout === 'A' && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
-                    {layout === 'D' && checkbox('最新的在上面', reversed, setReversed)}
+                    {horizontal && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
+                    {!horizontal && checkbox('最新的在上面', reversed, setReversed)}
                     {layout === 'D' && checkbox('刻度置中對照', centerAxis, setCenterAxis)}
                   </>
                 )}

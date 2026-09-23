@@ -64,6 +64,8 @@ function resolveDomain(req: ExportRequestBase): [number, number] {
 export interface VerticalExportRequest extends ExportRequestBase {
   reversed: boolean
   centerAxis: boolean
+  /** 刻度尺的年份用大字（版型 B） */
+  bigYears?: boolean
   /** 標註框（選填） */
   callouts?: CalloutSpec[]
 }
@@ -73,6 +75,8 @@ export interface HorizontalExportRequest extends ExportRequestBase {
   compact: boolean
   /** 版型 A「多軸泳道」外觀：左側軸線名色塊、頂部刻度帶、方頭長條 */
   swimlane?: boolean
+  /** 版型 B「雙向對照」：刻度軸在中間、大年份，前半軸線在上、後半在下 */
+  centerAxis?: boolean
   /** 標註框（選填） */
   callouts?: CalloutSpec[]
 }
@@ -182,6 +186,7 @@ export function renderVerticalExportSvg(
       showRelations={req.showRelations}
       reversed={req.reversed}
       centerAxis={req.centerAxis}
+      bigYears={req.bigYears}
       collapseGaps={req.collapseGaps}
       ordinal={req.ordinal}
       callouts={req.callouts}
@@ -267,6 +272,7 @@ export function renderHorizontalExportSvg(
       ordinal={req.ordinal}
       compact={req.compact}
       swimlane={req.swimlane}
+      centerAxis={req.centerAxis}
       callouts={req.callouts}
       exportMode={{
         width: req.width,

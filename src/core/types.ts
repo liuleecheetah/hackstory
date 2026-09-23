@@ -166,6 +166,26 @@ export interface Relation {
   label?: string
 }
 
+/**
+ * 時期（SPEC 第 7.5 節）：一段有名字的時間，例如「戒嚴時期 1949–1987」。
+ * 畫成軸後面的淡色底，讓人一眼看出事件落在哪個大環境裡。
+ * 它是內容事實（別人取用這份時間軸時應該一併拿到），所以放在文件頂層，不放 display。SPEC 0.5 新增
+ */
+export interface Period {
+  /** 文件內唯一（選填） */
+  id?: string
+  /** 時期名稱，畫在底色帶的角落 */
+  title: string
+  /** 只接受絕對時間 */
+  start: AbsoluteTimePoint
+  /** 只接受絕對時間；省略 = 至今 */
+  end?: AbsoluteTimePoint
+  /** 底色（色碼，例如 "#e8e4dc"）；省略時由畫面依主題自動配淡色 */
+  color?: string
+  /** 補充說明，點底色帶時顯示 */
+  description?: string
+}
+
 /** 建議呈現方式（SPEC 第 8 節）。只是建議，載入者可覆寫 */
 export interface Display {
   orientation?: 'horizontal' | 'vertical'
@@ -186,5 +206,7 @@ export interface TimelineDocument {
   /** 可為空陣列 */
   events: HstEvent[]
   relations?: Relation[]
+  /** 時期底色（選填）。SPEC 0.5 新增 */
+  periods?: Period[]
   display?: Display
 }
