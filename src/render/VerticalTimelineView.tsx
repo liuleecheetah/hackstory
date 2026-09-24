@@ -17,6 +17,7 @@ import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { formatSkipped } from './gaps'
 import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
+import { layoutPeriods, periodSources } from './periods'
 import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import { estimateTextWidth } from './layout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
@@ -277,6 +278,20 @@ export function VerticalTimelineView({
     [sources, base, showDates, showYears, dateParts, T.palette],
   )
   const { warp, initialDomain, anchorTimes } = base
+
+  // 時期底色（SPEC 7.5）：第一份有時期的圖層畫滿版淡色底，其他圖層只在刻度尺旁畫細條
+  const periodLayout = useMemo(() => {
+    const { primary, others } = periodSources(sources)
+    return {
+      bands: primary ? layoutPeriods(primary.doc.periods, warp, C.periodFills, `${primary.id}/`) : [],
+      strips: others.map((src, i) => ({
+        key: src.id,
+        color: src.color ?? C.inkFaint,
+        row: i,
+        bands: layoutPeriods(src.doc.periods, warp, C.periodFills, `${src.id}/`),
+      })),
+    }
+  }, [sources, warp, C.periodFills, C.inkFaint])
 
   // 放大倍率：1 = 整條軸剛好是一頁的「舒服閱讀長度」，2 = 軸拉成兩倍長。
   //
@@ -941,6 +956,43 @@ export function VerticalTimelineView({
             </linearGradient>
           </defs>
 
+          {/* 時期底色：畫在最底層，橫跨所有欄。名稱寫在帶子起點的右上角（事件標題多半在左邊） */}
+          {periodLayout.bands.map((pb) => {
+            const top = layout.axisTop
+            const bottom = layout.axisTop + layout.contentH
+            const ya = layout.yOfU(pb.u0)
+            const yb = layout.yOfU(pb.u1)
+            const y0 = Math.max(top, Math.min(ya, yb))
+            const y1 = Math.min(bottom, Math.max(ya, yb))
+            if (y1 - y0 < 1) return null
+            const left = layout.rulerX > 0 ? 0 : RULER_W
+            // 帶子的「起點」：最早的在上面時是上緣，反過來時是下緣
+            const startY = ya <= yb ? y0 : y1
+            const labelY = ya <= yb ? startY + F.date + 3 * S : startY - 5 * S
+            const name = y1 - y0 >= F.date + 6 * S ? fitText(pb.title, width - left - 12 * S, F.date) : ''
+            return (
+              <g key={pb.key} data-period={pb.key}>
+                <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
+                <rect x={left} y={y0} width={width - left} height={y1 - y0} fill={pb.fill} opacity={pb.opacity} />
+                {name && (
+                  <text
+                    x={width - 6 * S}
+                    y={labelY}
+                    textAnchor="end"
+                    fontSize={F.date}
+                    fontWeight={600}
+                    fill={C.inkMuted}
+                    stroke={C.bg}
+                    strokeWidth={3 * S}
+                    paintOrder="stroke"
+                  >
+                    {name}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+
           {/* 欄底色與左側色條 */}
           {layout.columns.map(({ rect, band }, i) => (
             <g key={band ? band.key : `merged-${i}`}>
@@ -997,6 +1049,30 @@ export function VerticalTimelineView({
               strokeWidth={1}
             />
           ))}
+          {/* 其他圖層的時期：刻度尺右緣的細條（圖層色），滑鼠移上去看名稱 */}
+          {periodLayout.strips.map((strip) =>
+            strip.bands.map((pb) => {
+              const ya = layout.yOfU(pb.u0)
+              const yb = layout.yOfU(pb.u1)
+              const y0 = Math.max(layout.axisTop, Math.min(ya, yb))
+              const y1 = Math.min(layout.axisTop + layout.contentH, Math.max(ya, yb))
+              if (y1 - y0 < 1) return null
+              return (
+                <rect
+                  key={pb.key}
+                  x={layout.rulerX + RULER_W - (strip.row + 1) * 4 * S}
+                  y={y0}
+                  width={3 * S}
+                  height={y1 - y0}
+                  fill={strip.color}
+                  opacity={0.7}
+                >
+                  <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
+                </rect>
+              )
+            }),
+          )}
+
           {/* 刻度尺的邊界線：置中時兩側都畫，才看得出這是一根共用的時間軸 */}
           <line
             x1={layout.rulerX}

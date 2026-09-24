@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { formatSkipped } from './gaps'
 import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
+import { layoutPeriods, periodSources } from './periods'
 import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
@@ -203,6 +204,20 @@ export function TimelineView({
     () => buildBands(sources, base, { showDates, showYears, dateParts }, T.palette),
     [sources, base, showDates, showYears, dateParts, T.palette],
   )
+
+  // 時期底色（SPEC 7.5）：第一份有時期的圖層畫滿版淡色底，其他圖層只在刻度旁畫細條
+  const periodLayout = useMemo(() => {
+    const { primary, others } = periodSources(sources)
+    return {
+      bands: primary ? layoutPeriods(primary.doc.periods, warp, C.periodFills, `${primary.id}/`) : [],
+      strips: others.map((src, i) => ({
+        key: src.id,
+        color: src.color ?? C.inkFaint,
+        row: i,
+        bands: layoutPeriods(src.doc.periods, warp, C.periodFills, `${src.id}/`),
+      })),
+    }
+  }, [sources, warp, C.periodFills, C.inkFaint])
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
   // 這樣切換圖層顯示隱藏時，使用者已縮放的視野不會被重設。
@@ -718,6 +733,34 @@ export function TimelineView({
             <stop offset="1" stopColor={C.halo} stopOpacity="1" />
           </linearGradient>
         </defs>
+        {/* 時期底色：畫在最底層，軸線、格線、事件都疊在上面。名稱寫在帶子起點的上角 */}
+        {periodLayout.bands.map((pb) => {
+          const x0 = Math.max(plotL, xOfU(pb.u0))
+          const x1 = Math.min(width, xOfU(pb.u1))
+          if (x1 - x0 < 1) return null
+          const top = center ? 0 : AXIS_H
+          const name = fitText(pb.title, x1 - x0 - 8 * S, F.date)
+          return (
+            <g key={pb.key} data-period={pb.key}>
+              <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
+              <rect x={x0} y={top} width={x1 - x0} height={layout.height - top} fill={pb.fill} opacity={pb.opacity} />
+              {name && (
+                <text
+                  x={x0 + 4 * S}
+                  y={top + F.date + 3 * S}
+                  fontSize={F.date}
+                  fontWeight={600}
+                  fill={C.inkMuted}
+                  stroke={C.bg}
+                  strokeWidth={3 * S}
+                  paintOrder="stroke"
+                >
+                  {name}
+                </text>
+              )}
+            </g>
+          )
+        })}
         {!center && (
           <>
         {/* 泳道外觀：頂部整條刻度帶（淡底、粗年份） */}
@@ -866,6 +909,21 @@ export function TimelineView({
             })}
           </>
         )}
+        {/* 其他圖層的時期：刻度線旁的細條（圖層色），滑鼠移上去看名稱 */}
+        {periodLayout.strips.map((strip) =>
+          strip.bands.map((pb) => {
+            const x0 = Math.max(plotL, xOfU(pb.u0))
+            const x1 = Math.min(width, xOfU(pb.u1))
+            if (x1 - x0 < 1) return null
+            const y0 = (center ? layout.axisTop + CENTER_AXIS_H : AXIS_H) - (strip.row + 1) * 4 * S
+            return (
+              <rect key={pb.key} x={x0} y={y0} width={x1 - x0} height={3 * S} fill={strip.color} opacity={0.7}>
+                <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
+              </rect>
+            )
+          }),
+        )}
+
         {/* 軸線底色與標題 */}
         {layout.bands.map(({ key, label, color, bandTop, bandH }) => (
           <g key={`${key}-bg`}>

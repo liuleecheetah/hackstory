@@ -40,6 +40,8 @@ export interface ThemeColors {
   onColorDark: string
   /** 標註框的底色（淺色主題白底、深色主題深灰底） */
   calloutBg: string
+  /** 時期底色帶沒指定顏色時輪流使用的淡色（相鄰兩段才分得出來） */
+  periodFills: string[]
 }
 
 /** 六級字（px） */
@@ -118,6 +120,7 @@ const LIGHT_COLORS: ThemeColors = {
   onColorLight: '#ffffff',
   onColorDark: '#111827',
   calloutBg: '#ffffff',
+  periodFills: ['#f4efe4', '#e8eff5'],
 }
 
 /** 依倍率與密度算出字級與幾何 */
@@ -183,6 +186,7 @@ export const THEMES: Record<ThemeId, RenderTheme> = {
       onColorLight: '#ffffff',
       onColorDark: '#111827',
       calloutBg: '#252c37',
+      periodFills: ['#26231d', '#1c242d'],
     },
     DARK_PALETTE,
   ),
