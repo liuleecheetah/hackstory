@@ -8,6 +8,8 @@ import type { HstEvent, Relation, TimelineDocument, Track } from '../core'
 import { nextRelationId, removeEventFromDocument, removeRelationFrom } from '../core'
 import { DEFAULT_PALETTE } from '../render/theme'
 import type { TimelineSource } from '../render/types'
+import type { PeriodDraft } from './periods'
+import { addPeriodToDoc, removePeriodFromDoc, renamePeriodInDoc } from './periods'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -258,6 +260,38 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     )
   }, [])
 
+  /** 時期（SPEC 7.5）：新增、改名、刪除都進復原歷史，匯出時會保存 */
+  const editPeriods = useCallback(
+    (layerId: string, change: (doc: TimelineDocument) => TimelineDocument) => {
+      mutate((prev) => {
+        let changed = false
+        const next = prev.map((l) => {
+          if (l.id !== layerId) return l
+          const doc = change(l.doc)
+          if (doc === l.doc) return l
+          changed = true
+          return { ...l, doc }
+        })
+        // 沒有實際改變（例如改名改成空白）就不記一步復原
+        return changed ? next : prev
+      })
+    },
+    [mutate],
+  )
+  const addPeriod = useCallback(
+    (layerId: string, draft: PeriodDraft) => editPeriods(layerId, (doc) => addPeriodToDoc(doc, draft)),
+    [editPeriods],
+  )
+  const renamePeriod = useCallback(
+    (layerId: string, index: number, title: string) =>
+      editPeriods(layerId, (doc) => renamePeriodInDoc(doc, index, title)),
+    [editPeriods],
+  )
+  const removePeriod = useCallback(
+    (layerId: string, index: number) => editPeriods(layerId, (doc) => removePeriodFromDoc(doc, index)),
+    [editPeriods],
+  )
+
   /** 新增事件到指定圖層（id 由呼叫端產生）。匯出時會保存 */
   const addEvent = useCallback((layerId: string, event: HstEvent) => {
     mutate((prev) =>
@@ -365,6 +399,9 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     addTrack,
     renameTrack,
     removeTrack,
+    addPeriod,
+    renamePeriod,
+    removePeriod,
     undo,
     redo,
     canUndo: history.canUndo,

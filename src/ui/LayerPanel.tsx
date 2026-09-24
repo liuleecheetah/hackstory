@@ -4,7 +4,9 @@
 
 import { useState } from 'react'
 import type { Layer } from '../compose/useLayers'
+import type { PeriodDraft } from '../compose/periods'
 import { isCrossDocument } from '../core'
+import { PeriodEditor } from './PeriodEditor'
 
 interface Props {
   layers: Layer[]
@@ -30,6 +32,10 @@ interface Props {
   onAddTrack: (layerId: string) => void
   onRenameTrack: (layerId: string, trackId: string, title: string) => void
   onRemoveTrack: (layerId: string, trackId: string) => void
+  /** 時期（底色帶）管理 */
+  onAddPeriod: (layerId: string, draft: PeriodDraft) => void
+  onRenamePeriod: (layerId: string, index: number, title: string) => void
+  onRemovePeriod: (layerId: string, index: number) => void
   /** 面板收起來了（只剩一條窄邊，把寬度讓給時間軸） */
   collapsed?: boolean
   onToggleCollapsed?: () => void
@@ -57,6 +63,9 @@ export function LayerPanel({
   onAddTrack,
   onRenameTrack,
   onRemoveTrack,
+  onAddPeriod,
+  onRenamePeriod,
+  onRemovePeriod,
   collapsed = false,
   onToggleCollapsed,
 }: Props) {
@@ -340,6 +349,14 @@ export function LayerPanel({
                 </li>
               )}
             </ul>
+            {/* 時期：畫成軸後面的淡色底（SPEC 7.5） */}
+            <PeriodEditor
+              periods={layer.doc.periods ?? []}
+              readOnly={readOnly}
+              onAdd={(draft) => onAddPeriod(layer.id, draft)}
+              onRename={(index, title) => onRenamePeriod(layer.id, index, title)}
+              onRemove={(index) => onRemovePeriod(layer.id, index)}
+            />
           </li>
         ))}
         {layers.length === 0 && (
