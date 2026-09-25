@@ -126,3 +126,28 @@ describe('placeCallouts：絕不蓋到事件文字', () => {
     }
   })
 })
+
+describe('placeCallouts：指定偏好的一側（雙向對照）', () => {
+  it('prefer above：每個框都在事件的上方（框的中心高於事件），不上下交錯', () => {
+    const specs = [spec('a', 200, 300), spec('b', 500, 300), spec('c', 800, 300)]
+    const { placed } = placeCallouts(specs, B, 'horizontal', M, [], 'above')
+    expect(placed).toHaveLength(3)
+    for (const p of placed) expect(p.side).toBe('above')
+    // 沒指定時上下交錯：同樣三個事件至少有一個放在下方
+    const mixed = placeCallouts(specs, B, 'horizontal', M, []).placed
+    expect(mixed.some((p) => p.side === 'below')).toBe(true)
+  })
+
+  it('範圍只給刻度軸下方時，框不會跑到軸的另一側', () => {
+    const axisBottom = 300
+    const { placed } = placeCallouts(
+      [spec('a', 300, 340), spec('b', 600, 340)],
+      { ...B, top: axisBottom },
+      'horizontal',
+      M,
+      [],
+      'below',
+    )
+    for (const p of placed) expect(p.y).toBeGreaterThanOrEqual(axisBottom)
+  })
+})

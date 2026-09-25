@@ -205,6 +205,31 @@ export function TimelineView({
     [sources, base, showDates, showYears, dateParts, T.palette],
   )
 
+  // 雙向對照的標註框：上半軸線的事件往上方放、下半的往下方放，引線才不會穿過中間的刻度軸。
+  // 有標註的那一側，在圖的最外緣預留一條剛好放得下一排標註框的空間
+  const calloutSides = useMemo(() => {
+    const sideOf = new Map<string, 'top' | 'bottom'>()
+    if (!center || !callouts?.length) return { sideOf, top: 0, bottom: 0 }
+    const half = Math.ceil(preparedBands.length / 2)
+    preparedBands.forEach((b, i) =>
+      b.events.forEach((pe) => sideOf.set(`${b.sourceId}/${pe.ev.id}`, i < half ? 'top' : 'bottom')),
+    )
+    return {
+      sideOf,
+      top: callouts.filter((c) => sideOf.get(c.key) === 'top').length,
+      bottom: callouts.filter((c) => sideOf.get(c.key) === 'bottom').length,
+    }
+  }, [center, callouts, preparedBands])
+  /** 放得下 count 個標註框的標註帶要多高：一排放不下就多排幾排 */
+  const calloutStripH = (count: number) => {
+    if (count === 0) return 0
+    const m = calloutMetrics(T, 0)
+    // 一個框最高：標題兩行＋摘要兩行
+    const boxH = m.pad * 2 + 2 * m.titleFont * m.lineHeight + 2 * m.summaryFont * m.lineHeight
+    const perRow = Math.max(1, Math.floor((width - plotL - 8 * S) / (m.boxW + m.gap * 2)))
+    return Math.ceil(count / perRow) * (boxH + m.gap) + m.gap
+  }
+
   // 時期底色（SPEC 7.5）：第一份有時期的圖層畫滿版淡色底，其他圖層只在刻度旁畫細條
   const periodLayout = useMemo(() => {
     const { primary, others } = periodSources(sources)
@@ -344,7 +369,7 @@ export function TimelineView({
     // 先把真實時間換算到壓縮座標，再投影到像素
     const x = (t: number) => plotL + ((warp.toU(t) - a) / (b - a)) * plotW
 
-    let y = center ? 8 * S : AXIS_H + 8 * S
+    let y = center ? 8 * S + calloutStripH(calloutSides.top) : AXIS_H + 8 * S
     // 雙向對照：前半（無條件進位）在軸上方、後半在下方
     const half = Math.ceil(preparedBands.length / 2)
     let axisTop = 0
@@ -503,9 +528,11 @@ export function TimelineView({
       axisTop = y
       y += CENTER_AXIS_H + M.bandGap
     }
+    // 下半軸線的標註框放在最下方預留的這一條
+    if (center) y += calloutStripH(calloutSides.bottom)
 
     return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x, axisTop }
-  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H])
+  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H, calloutSides, T])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -600,14 +627,45 @@ export function TimelineView({
           )
           // 雙向對照：中間的刻度軸帶也不能蓋
           if (center) obstacles.push({ x: 0, y: layout.axisTop, w: width, h: CENTER_AXIS_H })
-          const result = placeCallouts(
-            withAnchor,
-            { left: plotL + 4 * S, top: (center ? 0 : AXIS_H) + 4 * S, right: width - 4 * S, bottom },
-            'horizontal',
-            // 框可以放遠一點（引線拉長），只要不蓋到事件
-            calloutMetrics(T, Math.max(width, exportAvailH)),
-            obstacles,
-          )
+          // 框可以放遠一點（引線拉長），只要不蓋到事件
+          const metrics = calloutMetrics(T, Math.max(width, exportAvailH))
+          const result = center
+            ? (() => {
+                // 雙向對照：上半只在刻度軸上方找位置、下半只在下方，引線不穿過刻度軸
+                const up = withAnchor.filter((c) => calloutSides.sideOf.get(c.key) !== 'bottom')
+                const down = withAnchor.filter((c) => calloutSides.sideOf.get(c.key) === 'bottom')
+                const left = plotL + 4 * S
+                const right = width - 4 * S
+                const a = placeCallouts(
+                  up,
+                  { left, top: 4 * S, right, bottom: layout.axisTop - 4 * S },
+                  'horizontal',
+                  metrics,
+                  obstacles,
+                  'above',
+                )
+                const b = placeCallouts(
+                  down,
+                  {
+                    left,
+                    top: layout.axisTop + CENTER_AXIS_H + 4 * S,
+                    right,
+                    bottom: Math.min(layout.height, exportAvailH) - 4 * S,
+                  },
+                  'horizontal',
+                  metrics,
+                  obstacles,
+                  'below',
+                )
+                return { placed: [...a.placed, ...b.placed], dropped: [...a.dropped, ...b.dropped] }
+              })()
+            : placeCallouts(
+                withAnchor,
+                { left: plotL + 4 * S, top: AXIS_H + 4 * S, right: width - 4 * S, bottom },
+                'horizontal',
+                metrics,
+                obstacles,
+              )
           const missing = callouts.filter((c) => !withAnchor.some((w) => w.key === c.key)).map((c) => c.key)
           return { placed: result.placed, dropped: [...result.dropped, ...missing] }
         })()

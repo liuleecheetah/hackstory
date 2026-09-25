@@ -525,11 +525,15 @@ export function ExportStudio(props: Props) {
     // 把圖再拉長重畫，直到每件都有標題（字放大的主題特別需要）
     // 拉長也沒有變少（例如好幾件同一天的事件擠在同一格）就停，不做出一張無謂的超長圖
     // （連續兩次拉長都沒有變少才停，保留最好的那次）
+    // 勾了標註框卻放不下時也一樣：圖拉長，事件之間才有空白處放框
+    // （先求每件事件都有標題，其次才是標註）
+    const shortfall = (r: { hidden: number; calloutsDropped: string[] }) =>
+      r.hidden * 1000 + r.calloutsDropped.length
     let tryH = v.height
-    for (let stale = 0; auto && v.hidden > 0 && stale < 2 && tryH < AUTO_MAX_H; ) {
+    for (let stale = 0; auto && shortfall(v) > 0 && stale < 2 && tryH < AUTO_MAX_H; ) {
       tryH = Math.min(AUTO_MAX_H, Math.ceil(tryH * 1.35))
       const next = { ...(await renderVerticalExportSvg({ ...vReq, height: tryH })), height: tryH }
-      if (next.hidden < v.hidden) {
+      if (shortfall(next) < shortfall(v)) {
         v = next
         stale = 0
       } else stale++

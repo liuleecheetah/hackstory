@@ -260,8 +260,12 @@ export function VerticalTimelineView({
   const wantStrip = !!exportMode && !!callouts && callouts.length > 0
   const stripW = calloutMetrics(T, 0, CALLOUT_BOX_W).boxW + 16 * S
   const bandCount = Math.max(1, sources.reduce((n, s) => n + s.doc.tracks.length, 0))
+  // 左右對照（刻度尺在中間）：左側軸線的標註放左邊、右側的放右邊，引線才不會穿過刻度尺——
+  // 所以兩側各留一條標註欄
+  const bothSides = centerAxis && bandCount >= 2
   const calloutStripW =
-    wantStrip && (width - stripW - RULER_W) / bandCount >= MIN_COL_W ? stripW : 0
+    wantStrip && (width - stripW * (bothSides ? 2 : 1) - RULER_W) / bandCount >= MIN_COL_W ? stripW : 0
+  const leftStripW = bothSides ? calloutStripW : 0
   const colAreaW = width - calloutStripW
   // 「回到選取的事件」浮動鈕的方向（事件捲出畫面時才出現）
   const [returnDir, setReturnDir] = useState<'up' | 'down' | null>(null)
@@ -534,7 +538,16 @@ export function VerticalTimelineView({
 
     // 對照模式：刻度尺移到中央、軸線分左右。單軸或單欄合流時沒有對照對象，維持一般排法
     const useCenter = centerAxis && mode === 'columns' && visibleBands.length >= 2
-    const center = useCenter ? centerColumnRects(colAreaW, visibleBands.length, RULER_W) : null
+    // 左邊留了標註欄時，整組欄位往右移一條欄寬
+    const center = useCenter
+      ? (() => {
+          const c = centerColumnRects(colAreaW - leftStripW, visibleBands.length, RULER_W)
+          return {
+            rulerX: c.rulerX + leftStripW,
+            columns: c.columns.map((col) => ({ ...col, x: col.x + leftStripW })),
+          }
+        })()
+      : null
     const rulerX = center ? center.rulerX : 0
     const rects = center
       ? center.columns
@@ -636,7 +649,7 @@ export function VerticalTimelineView({
     // 欄太窄，中文標題幾乎只剩省略號——同樣提醒使用者
     const narrowColumns =
       layoutColumns.length > 0 &&
-      (colAreaW - RULER_W) / layoutColumns.length < MIN_COL_W
+      (colAreaW - leftStripW - RULER_W) / layoutColumns.length < MIN_COL_W
 
     // 刻度：扣掉被摺疊的空白，每段密集區依自己佔的高度各自產生刻度
     const tView: [number, number] = [warp.toT(d0), warp.toT(d1)]
@@ -696,7 +709,7 @@ export function VerticalTimelineView({
       narrowColumns,
       anchors,
     }
-  }, [bands, sources, mode, width, colAreaW, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T, big])
+  }, [bands, sources, mode, width, colAreaW, warp, axisDomain, zoom, abbrOf, exportMode, reversed, centerAxis, T, big, leftStripW])
 
   // 版面隨時可能重算（縮放、改欄數），互動要用「最新的一份」換算座標
   const layoutRef = useRef(layout)
@@ -880,13 +893,35 @@ export function VerticalTimelineView({
               return [shape, label]
             }),
           )
-          const result = placeCallouts(
-            withAnchor,
-            { left: 4 * S, top, right: width - 6 * S, bottom },
-            'vertical',
-            calloutMetrics(T, width, CALLOUT_BOX_W),
-            obstacles,
-          )
+          const metrics = calloutMetrics(T, width, CALLOUT_BOX_W)
+          // 左右對照：刻度尺左邊的事件只在左半找位置、右邊的只在右半，引線不穿過刻度尺
+          const result =
+            layout.rulerX > 0
+              ? (() => {
+                  const mid = layout.rulerX + RULER_W / 2
+                  const a = placeCallouts(
+                    withAnchor.filter((c) => c.anchorX < mid),
+                    { left: 4 * S, top, right: layout.rulerX - 4 * S, bottom },
+                    'vertical',
+                    metrics,
+                    obstacles,
+                  )
+                  const b = placeCallouts(
+                    withAnchor.filter((c) => c.anchorX >= mid),
+                    { left: layout.rulerX + RULER_W + 4 * S, top, right: width - 6 * S, bottom },
+                    'vertical',
+                    metrics,
+                    obstacles,
+                  )
+                  return { placed: [...a.placed, ...b.placed], dropped: [...a.dropped, ...b.dropped] }
+                })()
+              : placeCallouts(
+                  withAnchor,
+                  { left: 4 * S, top, right: width - 6 * S, bottom },
+                  'vertical',
+                  metrics,
+                  obstacles,
+                )
           const missing = callouts.filter((c) => !withAnchor.some((w) => w.key === c.key)).map((c) => c.key)
           return { placed: result.placed, dropped: [...result.dropped, ...missing] }
         })()

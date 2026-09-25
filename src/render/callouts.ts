@@ -89,6 +89,8 @@ export function placeCallouts(
   m: CalloutMetrics,
   /** 畫面上已有的東西（事件圖形與文字）：絕不蓋到 */
   obstacles: Rect[] = [],
+  /** 橫式偏好放在事件的哪一側；沒給就上下交錯（雙向對照：上半往上、下半往下） */
+  prefer?: 'above' | 'below',
 ): CalloutLayout {
   const placed: PlacedCallout[] = []
   const dropped: string[] = []
@@ -112,7 +114,7 @@ export function placeCallouts(
     for (const v of variants) {
       const h =
         m.pad * 2 + v.titleLines.length * lh(m.titleFont) + v.summaryLines.length * lh(m.summaryFont)
-      const preferBelow = orientation === 'horizontal' && index % 2 === 1
+      const preferBelow = prefer ? prefer === 'below' : orientation === 'horizontal' && index % 2 === 1
       let best: (Rect & { side: PlacedCallout['side'] }) | null = null
       let bestScore = Infinity
       for (const c of gridCandidates(spec.anchorX, spec.anchorY, m.boxW, h, orientation, m.gap, bounds)) {
