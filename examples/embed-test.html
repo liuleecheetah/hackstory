@@ -11,9 +11,10 @@
       下面這段時間軸就是用「匯出／分享」產生的嵌入碼貼進來的：
     </p>
 
-    <!-- ↓ 這段就是 HackStory 產生的嵌入碼（開發中指向 localhost，部署後換成正式網址） -->
+    <!-- ↓ 這段就是 HackStory 產生的嵌入碼（開發中指向 localhost，部署後換成正式網址）。
+         嵌入碼一定要帶 src＝時間軸檔案的公開網址，否則只會顯示「沒有指定要顯示哪一份時間軸」 -->
     <iframe
-      src="http://localhost:5173/?embed=1"
+      src="http://localhost:5173/?embed=1&amp;src=http%3A%2F%2Flocalhost%3A5173%2Fexamples%2Fmarriage-equality.hst.json"
       width="960"
       height="600"
       style="border: 1px solid #ddd"

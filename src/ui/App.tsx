@@ -691,6 +691,21 @@ export default function App() {
   )
 
   // 嵌入模式：無面板、無工具列的乾淨檢視（縮放平移、點事件看詳情仍可用）
+  // 嵌入碼沒有指定資料（舊版的嵌入碼就是這樣）：不要顯示內建範例假裝是對方的時間軸，
+  // 直接說明——貼進報導的人一看就知道要換一段嵌入碼
+  if (isEmbed && SHARED_SRC_URLS.length === 0) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-surface p-6 text-center">
+        <div className="max-w-md space-y-2">
+          <p className="text-lg font-bold text-ink">這段嵌入碼沒有指定要顯示哪一份時間軸</p>
+          <p className="text-base text-ink-muted">
+            請回到 HackStory 的「匯出／分享」，先在「分享連結」填入時間軸檔案的公開網址，再複製新的嵌入碼。
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (isEmbed) {
     return (
       <div className="flex h-screen flex-col bg-surface">

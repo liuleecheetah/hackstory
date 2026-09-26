@@ -1,7 +1,7 @@
 // ui 層：匯出對話框
 // 下載各圖層的 .hst.json、把目前畫面存成 SVG / PNG、複製 iframe 嵌入碼。
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   documentToJson,
   downloadBlob,
@@ -40,6 +40,7 @@ export function ExportDialog({
   const [message, setMessage] = useState<string | null>(null)
   // 分享連結：使用者把 .hst.json 放上公開網址（或用公開試算表）後貼進來
   const [shareSrc, setShareSrc] = useState('')
+  const shareInputRef = useRef<HTMLInputElement>(null)
 
   const say = (msg: string, ms = 3000) => {
     setMessage(msg)
@@ -84,17 +85,12 @@ export function ExportDialog({
   // 只有直式才寫進網址：橫式不標記，嵌入到手機上時才能自動切成好讀的直式
   const orientParam = orientation === 'vertical' ? '&orient=vertical' : ''
 
-  const embedUrl = `${window.location.origin}${window.location.pathname}?embed=1${orientParam}`
-  const embedHtml = embedCode(embedUrl)
-
   const copy = (text: string, what: string) => {
     void navigator.clipboard
       .writeText(text)
       .then(() => say(`已複製${what}`))
       .catch(() => say('複製失敗——請直接框選文字手動複製'))
   }
-
-  const handleCopyEmbed = () => copy(embedHtml, '嵌入碼')
 
   /** 下載一個圖層，下載前先做整份文件驗證——不合法就拒絕，避免產出壞檔案 */
   const downloadLayer = (layer: Layer): boolean => {
@@ -234,6 +230,7 @@ export function ExportDialog({
               網址），或直接用「公開的 Google 試算表」網址——貼進下面，就會產生一個開啟即見的分享連結。
             </p>
             <input
+              ref={shareInputRef}
               type="url"
               value={shareSrc}
               onChange={(e) => setShareSrc(e.target.value)}
@@ -314,26 +311,49 @@ export function ExportDialog({
             </button>
           </section>
 
-          {/* iframe */}
+          {/* iframe：嵌入碼一定要指向使用者自己的資料。
+              沒有後端，網站本身不存任何人的時間軸——沒有公開網址的嵌入碼只會顯示內建範例，
+              貼進報導就是刊出事故，所以寧可不給，也不給錯的 */}
           <section>
             <h3 className="mb-1 text-base font-semibold text-ink">嵌入到其他網頁（iframe）</h3>
-            <p className="mb-2 text-sm text-ink-faint">
-              把下面這段貼進部落格或網站的 HTML，就會顯示乾淨的時間軸檢視（部署上線後網址會自動變成正式網址）。
-            </p>
-            <textarea
-              readOnly
-              value={embedHtml}
-              rows={3}
-              onFocus={(e) => e.target.select()}
-              className="w-full rounded border border-line bg-surface-alt p-2 font-mono text-sm text-ink"
-            />
-            <button
-              type="button"
-              onClick={handleCopyEmbed}
-              className="btn btn-primary mt-2"
-            >
-              複製嵌入碼
-            </button>
+            {shareEmbedHtml ? (
+              <>
+                <p className="mb-2 text-sm text-ink-faint">
+                  把下面這段貼進部落格或網站的 HTML，就會顯示這份時間軸（資料來自你在「分享連結」填的網址）。
+                </p>
+                <textarea
+                  readOnly
+                  value={shareEmbedHtml}
+                  rows={3}
+                  onFocus={(e) => e.target.select()}
+                  className="w-full rounded border border-line bg-surface-alt p-2 font-mono text-sm text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => copy(shareEmbedHtml, '嵌入碼')}
+                  className="btn btn-primary mt-2"
+                >
+                  複製嵌入碼
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mb-2 text-sm leading-relaxed text-ink-muted">
+                  嵌入碼要能顯示<strong>你的</strong>時間軸，資料必須先放在公開網址上（本網站不替你保存檔案）。
+                  請先在上面的「分享連結」貼上 .hst.json 或公開 Google 試算表的網址，這裡就會出現對應的嵌入碼。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                    shareInputRef.current?.focus()
+                  }}
+                  className="btn"
+                >
+                  前往填寫公開網址
+                </button>
+              </>
+            )}
           </section>
 
           {message && (
