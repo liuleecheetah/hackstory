@@ -33,6 +33,15 @@ import { buildBands, buildTimelineBase } from '../render/timelineData'
 import type { RatioId } from './ratios'
 import { RATIO_PRESETS } from './ratios'
 import { eventGroups, MAX_PAGES, planPages } from './splitPages'
+import {
+  clearStudioSettings,
+  docsToLayerIds,
+  layerIdsToDocs,
+  loadStudioSettings,
+  saveStudioSettings,
+  toDocKey,
+  toLayerKey,
+} from './studioSettings'
 import { StudioPreview } from './StudioPreview'
 
 /** 固定比例放不下時，文字最多自動縮到主題原本大小的多少（再小就讀不清楚） */
@@ -111,81 +120,142 @@ export function ExportStudio(props: Props) {
   const { open, onClose, layers, hiddenTracks, viewDomain, orientation } = props
 
   // ---- 設定 ----
-  const [layout, setLayout] = useState<LayoutId>(orientation === 'vertical' ? 'D' : 'A')
+  // 上次的設定（存在這個瀏覽器）：關掉再打開、重新整理頁面都接著用，改一個字不必整張重做
+  const [saved] = useState(() => loadStudioSettings())
+  const pick = <T,>(value: unknown, allowed: readonly T[], fallback: T): T =>
+    allowed.includes(value as T) ? (value as T) : fallback
+  const defaultLayout: LayoutId = orientation === 'vertical' ? 'D' : 'A'
+  const [layout, setLayout] = useState<LayoutId>(() =>
+    pick(saved?.layout, LAYOUTS.filter((l) => l.ready).map((l) => l.id), defaultLayout),
+  )
   // 版型 B 的方向：上下對照（橫式）或左右對照（直式）
-  const [bDir, setBDir] = useState<'h' | 'v'>(orientation === 'vertical' ? 'v' : 'h')
+  const [bDir, setBDir] = useState<'h' | 'v'>(
+    () => saved?.bDir ?? (orientation === 'vertical' ? 'v' : 'h'),
+  )
   // 預設「自動長度」：全部軸線與事件都放得下，不會一打開就被裁掉
-  const [ratioId, setRatioId] = useState<RatioChoice>('auto')
-  const [themeId, setThemeId] = useState<ThemeId>('presentation')
-  const [fontScale, setFontScale] = useState(1)
+  const [ratioId, setRatioId] = useState<RatioChoice>(() =>
+    pick(saved?.ratioId, ['auto', ...RATIO_PRESETS.map((r) => r.id)] as RatioChoice[], 'auto'),
+  )
+  const [themeId, setThemeId] = useState<ThemeId>(() =>
+    pick(saved?.themeId, Object.keys(THEMES) as ThemeId[], 'presentation'),
+  )
+  const [fontScale, setFontScale] = useState(() => saved?.fontScale ?? 1)
   // 固定比例放不下全部事件時：自動縮小文字，或依時間切成好幾張同樣比例的圖
-  const [overflowMode, setOverflowMode] = useState<'shrink' | 'split'>('shrink')
+  const [overflowMode, setOverflowMode] = useState<'shrink' | 'split'>(() => saved?.overflowMode ?? 'shrink')
   // 切成多張時，預覽正在看第幾張（從 0 起算）
   const [pageIdx, setPageIdx] = useState(0)
-  const [title, setTitle] = useState('')
-  const [subtitle, setSubtitle] = useState('')
-  const [footer, setFooter] = useState('')
+  // 使用者自己打的標題／副標／出處；null = 沒改過，跟著勾選的資料自動帶入
+  const [customTitle, setCustomTitle] = useState<string | null>(() => saved?.title ?? null)
+  const [customSubtitle, setCustomSubtitle] = useState<string | null>(() => saved?.subtitle ?? null)
+  const [customFooter, setCustomFooter] = useState<string | null>(() => saved?.footer ?? null)
   const [layerOn, setLayerOn] = useState<Set<string>>(new Set())
   const [trackOff, setTrackOff] = useState<Set<string>>(new Set())
-  const [rangeKind, setRangeKind] = useState<RangeKind>('view')
-  const [fromYear, setFromYear] = useState('')
-  const [toYear, setToYear] = useState('')
+  const [rangeKind, setRangeKind] = useState<RangeKind>(() =>
+    pick(saved?.rangeKind, ['view', 'all', 'years'] as RangeKind[], 'view'),
+  )
+  const [fromYear, setFromYear] = useState(() => saved?.fromYear ?? '')
+  const [toYear, setToYear] = useState(() => saved?.toYear ?? '')
   // 日期顯示：年、月、日分別勾選（預設跟主畫面的「顯示事件日期／含年份」一致）
-  const [dateYear, setDateYear] = useState(props.showDates && props.showYears)
-  const [dateMonth, setDateMonth] = useState(props.showDates)
-  const [dateDay, setDateDay] = useState(props.showDates)
+  const [dateYear, setDateYear] = useState(() => saved?.dateYear ?? (props.showDates && props.showYears))
+  const [dateMonth, setDateMonth] = useState(() => saved?.dateMonth ?? props.showDates)
+  const [dateDay, setDateDay] = useState(() => saved?.dateDay ?? props.showDates)
   // 出圖預設不畫關係線：簡報圖要乾淨，需要時再勾
-  const [showRelations, setShowRelations] = useState(false)
-  const [collapseGaps, setCollapseGaps] = useState(props.collapseGaps)
+  const [showRelations, setShowRelations] = useState(() => saved?.showRelations ?? false)
+  const [collapseGaps, setCollapseGaps] = useState(() => saved?.collapseGaps ?? props.collapseGaps)
   // 順序等距：事件依先後等距排列（圖上固定標「非等比」）；卡片大事記本來就依先後排，不適用
-  const [ordinal, setOrdinal] = useState(false)
-  const [compact, setCompact] = useState(props.compact)
-  const [reversed, setReversed] = useState(props.reversed)
-  const [centerAxis, setCenterAxis] = useState(props.centerAxis)
-  const [embedFontsInSvg, setEmbedFontsInSvg] = useState(false)
+  const [ordinal, setOrdinal] = useState(() => saved?.ordinal ?? false)
+  const [compact, setCompact] = useState(() => saved?.compact ?? props.compact)
+  const [reversed, setReversed] = useState(() => saved?.reversed ?? props.reversed)
+  const [centerAxis, setCenterAxis] = useState(() => saved?.centerAxis ?? props.centerAxis)
+  const [embedFontsInSvg, setEmbedFontsInSvg] = useState(() => saved?.embedFontsInSvg ?? false)
   // 版型 D：卡片大事記（依先後排列）或照時間比例的直式長圖
-  const [cardMode, setCardMode] = useState(true)
+  const [cardMode, setCardMode] = useState(() => saved?.cardMode ?? true)
   // 卡片上的小字預設都不顯示，要時再勾
-  const [showConfidence, setShowConfidence] = useState(false)
-  const [showSources, setShowSources] = useState(false)
+  const [showConfidence, setShowConfidence] = useState(() => saved?.showConfidence ?? false)
+  const [showSources, setShowSources] = useState(() => saved?.showSources ?? false)
   // 標註框：勾了哪些事件（依勾選順序），以及每個框的一句摘要（使用者可改）
   const [calloutKeys, setCalloutKeys] = useState<string[]>([])
   const [calloutText, setCalloutText] = useState<Record<string, string>>({})
   // 呈現哪些事件；只放關鍵事件時，圖上預設註明「僅列關鍵事件（N 件中的 M 件）」（可關）
-  const [eventScope, setEventScope] = useState<EventScope>('all')
-  const [showScopeNote, setShowScopeNote] = useState(true)
+  const [eventScope, setEventScope] = useState<EventScope>(() => saved?.eventScope ?? 'all')
+  const [showScopeNote, setShowScopeNote] = useState(() => saved?.showScopeNote ?? true)
 
-  // 每次打開工作室：預設值跟「目前畫面」一樣，標題、出處從文件資料帶入
+  // 圖層、軸線、標註要等拿到目前的圖層才對得上：第一次打開時從上次的設定換算回來，
+  // 之後再打開就保留使用者在工作室裡的勾選，只把「新載入、主畫面上顯示中」的圖層一併勾上
+  const initialized = useRef(false)
+  const knownLayers = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!open) return
     const visible = layers.filter((l) => l.visible)
-    const first = visible[0]?.doc.meta
+    if (!initialized.current) {
+      initialized.current = true
+      const fromSaved = saved ? docsToLayerIds(saved.layerDocs, layers) : []
+      if (saved && fromSaved.length > 0) {
+        setLayerOn(new Set(fromSaved))
+        setTrackOff(new Set(saved.trackOffDocs.flatMap((k) => toLayerKey(k, layers) ?? [])))
+        setCalloutKeys(saved.callouts.flatMap((k) => toLayerKey(k, layers) ?? []))
+        setCalloutText(
+          Object.fromEntries(
+            Object.entries(saved.calloutText).flatMap(([k, v]) => {
+              const key = toLayerKey(k, layers)
+              return key ? [[key, v]] : []
+            }),
+          ),
+        )
+      } else {
+        // 第一次用（或上次的資料都不在了）：跟目前畫面一樣
+        setLayerOn(new Set(visible.map((l) => l.id)))
+        setTrackOff(new Set(hiddenTracks))
+      }
+    } else {
+      setLayerOn((prev) => {
+        const next = new Set([...prev].filter((id) => layers.some((l) => l.id === id)))
+        for (const l of visible) if (!knownLayers.current.has(l.id)) next.add(l.id)
+        return next
+      })
+    }
+    knownLayers.current = new Set(layers.map((l) => l.id))
+    // 「目前畫面看到的那一段」要有主畫面的範圍才能用
+    if (!viewDomain) setRangeKind((k) => (k === 'view' ? 'all' : k))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  /** 「恢復預設設定」：丟掉記住的設定，全部回到第一次打開的樣子 */
+  const resetAll = () => {
+    clearStudioSettings()
+    const visible = layers.filter((l) => l.visible)
+    setLayout(defaultLayout)
+    setBDir(orientation === 'vertical' ? 'v' : 'h')
+    setRatioId('auto')
+    setThemeId('presentation')
+    setFontScale(1)
+    setOverflowMode('shrink')
+    setCustomTitle(null)
+    setCustomSubtitle(null)
+    setCustomFooter(null)
     setLayerOn(new Set(visible.map((l) => l.id)))
     setTrackOff(new Set(hiddenTracks))
-    setTitle(
-      visible.length === 1
-        ? visible[0].doc.meta.title
-        : visible.length > 1
-          ? `${visible[0].doc.meta.title} 等 ${visible.length} 份`
-          : 'HackStory',
-    )
-    setSubtitle(first?.subtitle ?? '')
-    setFooter(defaultFooter(visible))
+    setRangeKind(viewDomain ? 'view' : 'all')
+    setFromYear('')
+    setToYear('')
     setDateYear(props.showDates && props.showYears)
     setDateMonth(props.showDates)
     setDateDay(props.showDates)
     setShowRelations(false)
     setCollapseGaps(props.collapseGaps)
+    setOrdinal(false)
     setCompact(props.compact)
     setReversed(props.reversed)
     setCenterAxis(props.centerAxis)
-    setRangeKind(viewDomain ? 'view' : 'all')
-    // 標註預設一個都不勾，由使用者自己挑
+    setEmbedFontsInSvg(false)
+    setCardMode(true)
+    setShowConfidence(false)
+    setShowSources(false)
     setCalloutKeys([])
     setCalloutText({})
     setEventScope('all')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+    setShowScopeNote(true)
+  }
 
   // Esc 關閉
   useEffect(() => {
@@ -343,8 +413,21 @@ export function ExportStudio(props: Props) {
     setEventScope('all')
   }
 
+  // 標題、副標、出處：沒自己改過就跟著勾選的資料自動帶入
+  const selectedLayers = layers.filter((l) => layerOn.has(l.id))
+  const autoTitle =
+    selectedLayers.length === 1
+      ? selectedLayers[0].doc.meta.title
+      : selectedLayers.length > 1
+        ? `${selectedLayers[0].doc.meta.title} 等 ${selectedLayers.length} 份`
+        : 'HackStory'
+  const autoSubtitle = selectedLayers[0]?.doc.meta.subtitle ?? ''
+  const autoFooter = defaultFooter(selectedLayers)
+  // 標題清空了就用自動的；副標可以刻意留空
+  const titleText = customTitle?.trim() || autoTitle
+  const subtitleText = (customSubtitle ?? autoSubtitle).trim()
   // 出處行不可關閉（誠實與可信原則）：清空了就退回預設
-  const footerText = footer.trim() || defaultFooter(layers.filter((l) => layerOn.has(l.id)))
+  const footerText = customFooter?.trim() || autoFooter
 
   // ---- 產生圖片（預覽與下載共用同一份設定） ----
   type Page = { svg: SVGSVGElement; w: number; h: number }
@@ -444,7 +527,7 @@ export function ExportStudio(props: Props) {
           return u !== undefined && (page.first || u >= page.domain[0]) && u <= page.domain[1]
         })
       : calloutSpecs
-    const sub = subtitle.trim()
+    const sub = subtitleText
     const common = {
       sources,
       timeRange: page ? undefined : effectiveRange,
@@ -457,7 +540,7 @@ export function ExportStudio(props: Props) {
       showRelations,
       collapseGaps,
       ordinal: useOrdinal,
-      title: title.trim() || 'HackStory',
+      title: titleText,
       subtitle: page ? (sub ? `${sub} · ${page.label}` : page.label) : sub || undefined,
       footer: footerText,
       note: scopeNote,
@@ -564,7 +647,7 @@ export function ExportStudio(props: Props) {
   const [previewError, setPreviewError] = useState<string | null>(null)
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
-    layout, bDir, ratioId, themeId, fontScale, title, subtitle, footerText, [...layerOn], [...trackOff],
+    layout, bDir, ratioId, themeId, fontScale, titleText, subtitleText, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
     eventScope, showScopeNote, overflowMode, ordinal,
@@ -572,6 +655,51 @@ export function ExportStudio(props: Props) {
   ])
   // 設定一改，切出來的張數與內容都可能不同：預覽回到第 1 張
   useEffect(() => setPageIdx(0), [settingsKey])
+
+  // 記住設定（存在這個瀏覽器）：圖層、軸線、標註換成文件 id，重新載入後才對得回來
+  useEffect(() => {
+    if (!initialized.current) return
+    saveStudioSettings({
+      v: 1,
+      layout,
+      bDir,
+      ratioId,
+      themeId,
+      fontScale,
+      overflowMode,
+      title: customTitle,
+      subtitle: customSubtitle,
+      footer: customFooter,
+      layerDocs: layerIdsToDocs(layerOn, layers),
+      trackOffDocs: [...trackOff].flatMap((k) => toDocKey(k, layers) ?? []),
+      rangeKind,
+      fromYear,
+      toYear,
+      dateYear,
+      dateMonth,
+      dateDay,
+      showRelations,
+      collapseGaps,
+      ordinal,
+      compact,
+      reversed,
+      centerAxis,
+      embedFontsInSvg,
+      cardMode,
+      showConfidence,
+      showSources,
+      callouts: calloutKeys.flatMap((k) => toDocKey(k, layers) ?? []),
+      calloutText: Object.fromEntries(
+        Object.entries(calloutText).flatMap(([k, v]) => {
+          const key = toDocKey(k, layers)
+          return key ? [[key, v]] : []
+        }),
+      ),
+      eventScope,
+      showScopeNote,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsKey, customTitle, customSubtitle, customFooter, fromYear, toYear, embedFontsInSvg])
   useEffect(() => {
     if (!open) return
     const seq = ++renderSeq.current
@@ -751,7 +879,15 @@ export function ExportStudio(props: Props) {
       <header className="flex items-center gap-4 border-b border-line px-4 py-2">
         <h2 className="text-lg font-bold text-ink">出圖工作室</h2>
         <span className="text-sm text-ink-faint">預覽就是下載下來的樣子</span>
-        <button type="button" onClick={onClose} className="btn ml-auto">
+        <button
+          type="button"
+          onClick={resetAll}
+          title="工作室會記住你上次的設定；按這裡全部回到預設"
+          className="btn ml-auto"
+        >
+          恢復預設設定
+        </button>
+        <button type="button" onClick={onClose} className="btn">
           關閉（Esc）
         </button>
       </header>
@@ -928,22 +1064,30 @@ export function ExportStudio(props: Props) {
 
             <Section title="標題區">
               <Field label="標題">
-                <input value={title} onChange={(e) => setTitle(e.target.value)} className="field w-full" />
+                <input
+                  value={customTitle ?? autoTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  className="field w-full"
+                />
                 {headerFit.titleTruncated && (
                   <p className="mt-1 text-sm text-warn">標題太長：圖上最多放兩行，超過的部分會變成「…」，建議縮短</p>
                 )}
               </Field>
               <Field label="副標（可留空）">
-                <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="field w-full" />
+                <input
+                  value={customSubtitle ?? autoSubtitle}
+                  onChange={(e) => setCustomSubtitle(e.target.value)}
+                  className="field w-full"
+                />
                 {headerFit.subtitleTruncated && (
                   <p className="mt-1 text-sm text-warn">副標太長：圖上最多放兩行，超過的部分會變成「…」，建議縮短</p>
                 )}
               </Field>
               <Field label="出處行（固定在圖片底部，不可省略）">
                 <input
-                  value={footer}
-                  onChange={(e) => setFooter(e.target.value)}
-                  placeholder={defaultFooter(layers.filter((l) => layerOn.has(l.id)))}
+                  value={customFooter ?? autoFooter}
+                  onChange={(e) => setCustomFooter(e.target.value)}
+                  placeholder={autoFooter}
                   className="field w-full"
                 />
               </Field>
