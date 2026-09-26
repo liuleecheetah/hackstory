@@ -12,7 +12,7 @@ import type {
   RelativeResolution,
   TimelineDocument,
 } from '../core'
-import { dateFromParts, isAbsolute, isFeatured, resolveRelativeEvents } from '../core'
+import { dateFromParts, isAbsolute, isFeatured, resolveRelativeEvents, sameDocumentRelations } from '../core'
 import type { TimeWarp } from './gaps'
 import { buildWarp } from './gaps'
 import { truncate } from './layout'
@@ -32,6 +32,37 @@ export const RELATION_LABELS: Record<string, string> = {
   derives_from: '衍生自',
   contradicts: '與之矛盾',
   same_event: '同一事件',
+}
+
+/**
+ * 每種關係線的虛線樣式（不用顏色區分：顏色只拿來代表軸線）。
+ * 出圖時圖例照這組樣式畫，讀者才分得出哪條是「導致」、哪條是「回應」。
+ * 「同一事件」沿用原本的 4 3 虛線。
+ */
+export function relationDash(type: string, scale = 1): string | undefined {
+  const pattern: Record<string, number[]> = {
+    responds_to: [10, 4],
+    derives_from: [1.5, 3.5],
+    contradicts: [10, 3, 2, 3],
+    same_event: [4, 3],
+  }
+  const p = pattern[type]
+  return p ? p.map((n) => Math.round(n * scale * 100) / 100).join(' ') : undefined
+}
+
+/**
+ * 這些資料裡實際畫得出來的關係類型（兩端事件都在圖上的同一份文件關係），依固定順序排列。
+ * 出圖的圖例只列這些，不列圖上沒有的類型。
+ */
+export function relationTypesIn(sources: TimelineSource[]): string[] {
+  const present = new Set<string>()
+  for (const source of sources) {
+    const ids = new Set(source.doc.events.map((e) => e.id))
+    for (const rel of sameDocumentRelations(source.doc.relations)) {
+      if (ids.has(rel.from) && ids.has(rel.to)) present.add(rel.type)
+    }
+  }
+  return Object.keys(RELATION_LABELS).filter((t) => present.has(t))
 }
 
 /** 標題在軸上最多顯示幾個字（超過截斷，完整標題到詳情卡看） */

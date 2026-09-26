@@ -22,7 +22,7 @@ import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
 import { layoutPeriods, periodSources } from './periods'
 import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import { estimateTextWidth } from './layout'
-import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
+import { buildBands, buildTimelineBase, RELATION_LABELS, relationDash, relationTypesIn } from './timelineData'
 import type { PreparedBand, PreparedEvent } from './timelineData'
 import type { RenderTheme } from './theme'
 import { THEMES } from './theme'
@@ -260,8 +260,13 @@ export function VerticalTimelineView({
     : null
   const TITLE_H = header ? header.height : exportMode?.subtitle ? TITLE_SUB_H : TITLE_ONLY_H
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面
+  // 出圖時圖上有關係線，就在底部加圖例，讀者才看得懂每種線的意思
+  const relLegend = useMemo(
+    () => (exportMode && showRelations ? relationTypesIn(sources) : []),
+    [exportMode, showRelations, sources],
+  )
   const FOOTER_H = exportMode
-    ? exportFooterHeight(FOOTER_BASE_H, exportMode.footer, exportMode.note, exportMode.width, T)
+    ? exportFooterHeight(FOOTER_BASE_H, exportMode.footer, exportMode.note, exportMode.width, T, relLegend)
     : FOOTER_BASE_H
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
@@ -1242,7 +1247,8 @@ export function VerticalTimelineView({
                     fill="none"
                     stroke={active ? C.highlight : C.inkFaint}
                     strokeWidth={(active ? 2.5 : 1.25) * S}
-                    strokeDasharray={type === 'same_event' ? '4 3' : undefined}
+                    strokeDasharray={relationDash(type, S)}
+                    strokeLinecap={type === 'derives_from' ? 'round' : undefined}
                     opacity={active ? 0.95 : 0.35}
                     markerEnd="url(#hst-rel-arrow-v)"
                   />
@@ -1586,6 +1592,7 @@ export function VerticalTimelineView({
               height={exportMode.height}
               noteX={12 * S}
               theme={T}
+              legend={relLegend}
             />
           )}
     </svg>

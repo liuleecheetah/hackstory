@@ -16,7 +16,7 @@ import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { assignLanes, estimateTextWidth, wrapLines } from './layout'
 import { fitText } from './verticalLayout'
-import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
+import { buildBands, buildTimelineBase, RELATION_LABELS, relationDash, relationTypesIn } from './timelineData'
 import type { RenderTheme } from './theme'
 import { deriveTheme, textOnColor, THEMES } from './theme'
 import type { DateParts } from './timeScale'
@@ -180,8 +180,13 @@ export function TimelineView({
     : null
   const TITLE_H = header ? header.height : (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
+  // 出圖時圖上有關係線，就在底部加圖例，讀者才看得懂每種線的意思
+  const relLegend = useMemo(
+    () => (exportMode && showRelations ? relationTypesIn(sources) : []),
+    [exportMode, showRelations, sources],
+  )
   const FOOTER_H = exportMode
-    ? exportFooterHeight(BASE_FOOTER_H * S, exportMode.footer, exportMode.note, width, T)
+    ? exportFooterHeight(BASE_FOOTER_H * S, exportMode.footer, exportMode.note, width, T, relLegend)
     : BASE_FOOTER_H * S
   // 泳道外觀（版型 A，只在匯出時）：時間軸往右讓出一欄給軸線名色塊。
   // 沒開時 plotL = 0、plotW = width，所有座標與以前完全相同
@@ -1070,7 +1075,8 @@ export function TimelineView({
                   fill="none"
                   stroke={active ? C.highlight : C.inkFaint}
                   strokeWidth={(active ? 2.5 : 1.25) * S}
-                  strokeDasharray={type === 'same_event' ? '4 3' : undefined}
+                  strokeDasharray={relationDash(type, S)}
+                  strokeLinecap={type === 'derives_from' ? 'round' : undefined}
                   opacity={active ? 0.95 : 0.4}
                   markerEnd="url(#hst-rel-arrow)"
                 />
@@ -1342,6 +1348,7 @@ export function TimelineView({
             height={exportMode.height}
             noteX={12 * S}
             theme={T}
+            legend={relLegend}
           />
         )}
       </svg>
