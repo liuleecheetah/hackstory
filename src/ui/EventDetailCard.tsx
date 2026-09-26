@@ -9,6 +9,8 @@ import type { AbsoluteTimePoint, Confidence, HstEvent, Relation, RelativeAnchor 
 import { isAbsolute, isFeatured, parseDateTime } from '../core'
 import type { EventSelection } from '../render/TimelineView'
 import { formatPointLong } from '../render/timeScale'
+import type { SourceRow } from './eventSources'
+import { sourcesFromRows } from './eventSources'
 
 interface Props {
   selection: EventSelection
@@ -95,7 +97,10 @@ interface FormState {
   location: string
   tags: string
   confidence: string
+  /** 資料來源：每一列一筆，名稱與網址（網址選填） */
+  sources: SourceRow[]
 }
+
 
 export function EventDetailCard({
   selection,
@@ -131,6 +136,7 @@ export function EventDetailCard({
         location: '',
         tags: '',
         confidence: '',
+        sources: [{ title: '', url: '' }],
       })
       setEditing(true)
     } else {
@@ -249,6 +255,11 @@ export function EventDetailCard({
       location: event.location?.name ?? '',
       tags: (event.tags ?? []).join(', '),
       confidence: event.confidence ?? '',
+      // 至少留一列空白讓人直接填
+      sources:
+        event.sources && event.sources.length > 0
+          ? event.sources.map((src) => ({ title: src.title ?? '', url: src.url ?? '' }))
+          : [{ title: '', url: '' }],
     })
     setFormError(null)
     setEditing(true)
@@ -333,13 +344,33 @@ export function EventDetailCard({
     if (form.confidence) next.confidence = form.confidence as Confidence
     else delete next.confidence
 
+    const parsedSources = sourcesFromRows(form.sources)
+    if ('error' in parsedSources) {
+      setFormError(parsedSources.error)
+      return
+    }
+    if (parsedSources.sources.length > 0) next.sources = parsedSources.sources
+    else delete next.sources
+
     onUpdate(next)
     setEditing(false)
     setFormError(null)
   }
 
-  const setField = (field: Exclude<keyof FormState, 'relativeMode'>, value: string) =>
+  const setField = (field: Exclude<keyof FormState, 'relativeMode' | 'sources'>, value: string) =>
     setForm((prev) => (prev ? { ...prev, [field]: value } : prev))
+  /** 改來源表單的某一列；index = 列數時代表新增一列 */
+  const setSourceRow = (index: number, patch: Partial<SourceRow> | null) =>
+    setForm((prev) => {
+      if (!prev) return prev
+      const rows = [...prev.sources]
+      if (patch === null) rows.splice(index, 1)
+      else rows[index] = { ...(rows[index] ?? { title: '', url: '' }), ...patch }
+      return { ...prev, sources: rows.length > 0 ? rows : [{ title: '', url: '' }] }
+    })
+  // 標成「已查證」卻沒有任何來源：別人無法回查，提醒補上（不擋存檔）
+  const verifiedWithoutSource =
+    form?.confidence === 'verified' && form.sources.every((r) => !r.title.trim() && !r.url.trim())
 
   const inputCls = 'w-full rounded border border-line px-2 py-1 text-base'
   const labelCls = 'block text-sm text-ink-muted'
@@ -481,6 +512,47 @@ export function EventDetailCard({
                 <option value="unknown">未查證</option>
               </select>
             </label>
+          </div>
+          {verifiedWithoutSource && (
+            <p className="text-sm text-warn">標為「已查證」但沒有列出資料來源——別人無法回查，建議在下方補上來源</p>
+          )}
+          <div className={labelCls}>
+            資料來源（出處名稱與網址，網址可留白）
+            <div className="mt-1 space-y-1.5">
+              {form.sources.map((row, i) => (
+                <div key={i} className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={row.title}
+                    placeholder="例如：中央社 2019/5/17"
+                    onChange={(e) => setSourceRow(i, { title: e.target.value })}
+                    className={`${inputCls} flex-[2]`}
+                  />
+                  <input
+                    type="url"
+                    value={row.url}
+                    placeholder="https://…"
+                    onChange={(e) => setSourceRow(i, { url: e.target.value })}
+                    className={`${inputCls} flex-[3]`}
+                  />
+                  <button
+                    type="button"
+                    title="刪除這筆來源"
+                    onClick={() => setSourceRow(i, null)}
+                    className="px-1 text-ink-faint hover:text-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSourceRow(form.sources.length, { title: '', url: '' })}
+              className="mt-1 text-sm text-ink-faint hover:text-ink"
+            >
+              ＋ 再加一筆來源
+            </button>
           </div>
           <label className={labelCls}>
             標籤（逗號分隔）
