@@ -39,21 +39,57 @@ export function truncate(text: string, maxChars: number): string {
   return text.length > maxChars ? text.slice(0, maxChars) + '…' : text
 }
 
+/** 行首不該出現的標點（中文排版的「避頭」）：遇到就掛在上一行行尾 */
+const NO_LINE_START = /^[，。、；：！？」』）〉》】,.;:!?)\]}…]/u
+
+/**
+ * 切成排版用的小段：英文單字、數字（含 . - ' 等）連在一起不拆；空白一段；其餘一字一段。
+ * 這樣「Ryan × Righ」不會在 Righ 中間斷開，「2026/9/26」也不會拆成兩行
+ */
+function tokenize(text: string): string[] {
+  return text.match(/[A-Za-z0-9][A-Za-z0-9.'’\-/]*|\s+|./gsu) ?? []
+}
+
 /**
  * 把文字折成幾行，每行不超過 maxW 像素（依 estimateTextWidth 估算）。
+ * 英文單字不拆開、行首不放「，」「」」這類標點。
  * 超過 maxLines 行時，最後一行以「…」收尾——寧可截短也不溢出色塊。
  */
 export function wrapLines(text: string, maxW: number, fontSize: number, maxLines: number): string[] {
   const lines: string[] = []
   let line = ''
-  for (const ch of text) {
-    if (line && estimateTextWidth(line + ch, fontSize) > maxW) {
-      lines.push(line)
-      line = ''
-    }
-    line += ch
+  const push = () => {
+    const trimmed = line.trimEnd()
+    if (trimmed) lines.push(trimmed)
+    line = ''
   }
-  if (line) lines.push(line)
+  for (const token of tokenize(text)) {
+    // 行首不放空白
+    if (!line && /^\s+$/.test(token)) continue
+    if (line && estimateTextWidth(line + token, fontSize) > maxW) {
+      // 避頭標點：不讓下一行以「，」「」」開頭——把這一行最後一個字帶下去一起換行
+      if (NO_LINE_START.test(token) && [...line.trimEnd()].length > 1) {
+        const chars = [...line.trimEnd()]
+        const carry = chars.pop()!
+        line = chars.join('')
+        push()
+        line = carry + token
+        continue
+      }
+      push()
+      if (/^\s+$/.test(token)) continue
+    }
+    // 單字本身就比一行還寬（很長的網址）：只好逐字拆
+    if (!line && estimateTextWidth(token, fontSize) > maxW) {
+      for (const ch of token) {
+        if (line && estimateTextWidth(line + ch, fontSize) > maxW) push()
+        line += ch
+      }
+      continue
+    }
+    line += token
+  }
+  push()
   if (lines.length <= maxLines) return lines
   const kept = lines.slice(0, Math.max(1, maxLines))
   let last = kept[kept.length - 1]

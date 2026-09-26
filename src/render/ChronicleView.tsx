@@ -10,6 +10,7 @@ import { useMemo } from 'react'
 import { isAbsolute } from '../core'
 import type { ChronicleEntry } from './chronicleLayout'
 import { confidenceLabel, layoutChronicle, sourcesText } from './chronicleLayout'
+import { ExportFooter, exportFooterHeight } from './ExportFooter'
 import { estimateTextWidth } from './layout'
 import type { RenderTheme } from './theme'
 import { THEMES } from './theme'
@@ -60,8 +61,8 @@ export function ChronicleView({
 
   const TITLE_H = (exportMode.subtitle ? 64 : 42) * S
   const NOTE_H = 26 * S // 標題下方那一行：範圍與「依先後排列」說明
-  // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
-  const FOOTER_H = (26 + (exportMode.note ? 16 : 0)) * S
+  // 有底部註記時（例如「僅列關鍵事件」）多留一行；出處行太長會換行，底部跟著加高
+  const FOOTER_H = exportFooterHeight(26 * S, exportMode.footer, exportMode.note, width, theme)
   const padX = 20 * S
   const dateColW = 104 * S
   const spineX = padX + dateColW - 14 * S
@@ -281,17 +282,16 @@ export function ChronicleView({
           )
         })}
 
-        {/* 底部出處（不可省略） */}
-        <text x={width - 12 * S} y={height - 8 * S} textAnchor="end" fontSize={F.footer} fill={C.inkFaint}>
-          {exportMode.footer}
-        </text>
-        {/* 底部左側：只列關鍵事件等註記（可在工作室選擇不顯示）。
+        {/* 底部：出處（不可省略，太長會換行、不會被切掉）與左側註記（可在工作室選擇不顯示）。
             放不下的事件不在圖上註明：工作室在有事件放不下時根本不給下載 */}
-        {exportMode.note && (
-          <text x={padX} y={height - 24 * S} fontSize={F.footer} fill={C.inkFaint}>
-            {exportMode.note}
-          </text>
-        )}
+        <ExportFooter
+          footer={exportMode.footer}
+          note={exportMode.note}
+          width={width}
+          height={height}
+          noteX={padX}
+          theme={theme}
+        />
       </svg>
     </div>
   )

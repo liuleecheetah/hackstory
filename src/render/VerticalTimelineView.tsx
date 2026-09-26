@@ -15,6 +15,7 @@ import { sameDocumentRelations } from '../core'
 import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
+import { ExportFooter, exportFooterHeight } from './ExportFooter'
 import { formatSkipped } from './gaps'
 import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
 import { layoutPeriods, periodSources } from './periods'
@@ -248,7 +249,9 @@ export function VerticalTimelineView({
   } = useMemo(() => verticalSizes(T), [T])
   const TITLE_H = exportMode?.subtitle ? TITLE_SUB_H : TITLE_ONLY_H
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面
-  const FOOTER_H = FOOTER_BASE_H + (exportMode?.note ? 16 * S : 0)
+  const FOOTER_H = exportMode
+    ? exportFooterHeight(FOOTER_BASE_H, exportMode.footer, exportMode.note, exportMode.width, T)
+    : FOOTER_BASE_H
   // 欄標題列：捲動時用 transform 貼回上緣（直接改 DOM，避免每個捲動事件都重繪整張圖）
   const headerRef = useRef<SVGGElement>(null)
   // 0 = 還沒量到容器寬度。量到之前不畫，否則手機上會先用預設值畫成多欄再跳成單欄
@@ -1571,23 +1574,16 @@ export function VerticalTimelineView({
             )}
             </g>
           </g>
-          {/* 匯出圖片底部左側的註記（例如只列了關鍵事件），誠實告訴讀者這是精選 */}
-          {exportMode?.note && (
-            <text x={12 * S} y={exportMode.height - 24 * S} fontSize={F.footer} fill={C.inkFaint}>
-              {exportMode.note}
-            </text>
-          )}
-          {/* 匯出圖片底部的出處小字 */}
+          {/* 匯出圖片底部：左側註記（例如只列了關鍵事件）與出處小字（太長會換行，不會被切掉） */}
           {exportMode && (
-            <text
-              x={width - 12 * S}
-              y={exportMode.height - 8 * S}
-              textAnchor="end"
-              fontSize={F.footer}
-              fill={C.inkFaint}
-            >
-              {exportMode.footer}
-            </text>
+            <ExportFooter
+              footer={exportMode.footer}
+              note={exportMode.note}
+              width={width}
+              height={exportMode.height}
+              noteX={12 * S}
+              theme={T}
+            />
           )}
     </svg>
   )

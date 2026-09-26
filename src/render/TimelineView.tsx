@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
+import { ExportFooter, exportFooterHeight } from './ExportFooter'
 import { formatSkipped } from './gaps'
 import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
 import { layoutPeriods, periodSources } from './periods'
@@ -168,7 +169,9 @@ export function TimelineView({
   const CENTER_AXIS_H = F.title * 1.6 + 22 * S
   const TITLE_H = (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
-  const FOOTER_H = (BASE_FOOTER_H + (exportMode?.note ? 16 : 0)) * S
+  const FOOTER_H = exportMode
+    ? exportFooterHeight(BASE_FOOTER_H * S, exportMode.footer, exportMode.note, width, T)
+    : BASE_FOOTER_H * S
   // 泳道外觀（版型 A，只在匯出時）：時間軸往右讓出一欄給軸線名色塊。
   // 沒開時 plotL = 0、plotW = width，所有座標與以前完全相同
   const lane = swimlane && !!exportMode
@@ -399,16 +402,38 @@ export function TimelineView({
             shapeR = cx + dotR
           }
 
-          const labelW = estimateTextWidth(
+          let labelW = estimateTextWidth(
             pe.dateLabel ? `${pe.dateLabel} ${pe.title}` : pe.title,
             M.font,
           )
           // 標題預設放在圖形右側；右邊放不下時翻到左側，避免被畫面邊緣切掉
-          const labelSide: 'right' | 'left' =
+          let labelSide: 'right' | 'left' =
             shapeR + 6 * S + labelW > width && shapeL - 6 * S - labelW > plotL ? 'left' : 'right'
+          let label = pe.title
+          let dateLabel = pe.dateLabel
+          let clipped = false
+          // 出圖時畫布是固定的：左右兩邊都放不下，就挑空間大的一邊把標題截短（加「…」），
+          // 絕不讓字跑出圖外被切掉；連一個字都放不下的，回報給出圖工作室擋下載
+          if (isExport) {
+            const spaceR = width - (shapeR + 6 * S) - 2 * S
+            const spaceL = shapeL - 6 * S - plotL - 2 * S
+            if (labelW > spaceR && labelW > spaceL) {
+              labelSide = spaceR >= spaceL ? 'right' : 'left'
+              const avail = Math.max(spaceR, spaceL)
+              const prefixW = dateLabel ? estimateTextWidth(`${dateLabel} `, M.font) : 0
+              label = fitText(pe.title, avail - prefixW, M.font)
+              // 連日期都擠不下時，寧可捨棄日期也要留住標題
+              if ((label === '' || label === '…') && dateLabel) {
+                dateLabel = ''
+                label = fitText(pe.title, avail, M.font)
+              }
+              clipped = label === '' || label === '…'
+              labelW = (dateLabel ? estimateTextWidth(`${dateLabel} `, M.font) : 0) + estimateTextWidth(label, M.font)
+            }
+          }
           const occL = labelSide === 'left' ? shapeL - 6 * S - labelW : shapeL
           const occR = labelSide === 'right' ? shapeR + 6 * S + labelW : shapeR
-          return { ...pe, label: pe.title, shapeL, shapeR, labelSide, occL, occR }
+          return { ...pe, label, dateLabel, clipped, shapeL, shapeR, labelSide, occL, occR }
         })
         // 出圖時，範圍外的事件不畫、也不佔列——否則看不見的事件會把軸線撐高，圖白白變長
         // （螢幕上保留全部，平移時各事件的列才不會跳來跳去）
@@ -531,7 +556,10 @@ export function TimelineView({
     // 下半軸線的標註框放在最下方預留的這一條
     if (center) y += calloutStripH(calloutSides.bottom)
 
-    return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x, axisTop }
+    // 出圖時標題連一個字都放不下的事件數（出圖工作室據此擋下載）
+    const clippedLabels = bands.reduce((n, b) => n + b.items.filter((it) => it.clipped).length, 0)
+
+    return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x, axisTop, clippedLabels }
   }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H, calloutSides, T])
 
   // 沒有任何可見圖層：顯示提示文字
@@ -573,6 +601,13 @@ export function TimelineView({
         .map((m) => ({ x: m.pos, label: m.label }))
     : ticks.map((d) => ({ x: layout.x(d.getTime()), label: formatTick(d) }))
   const gridXs = slots ? slotXs : tickMarks.map((m) => m.x)
+  // 出圖時，貼在圖邊緣、字會被切掉一半的刻度（例如右上角只剩「19」）就不寫；螢幕上照舊
+  const edgeSafeTicks = isExport
+    ? tickMarks.filter((m) => {
+        const half = estimateTextWidth(m.label, lane ? F.track : F.event) / 2
+        return m.x - half >= (lane ? plotL : 0) && m.x + half <= width - 2 * S
+      })
+    : tickMarks
   // 雙向對照的大年份：字大，摺疊處兩側的刻度容易擠在一起、最右邊的會被切掉——太擠或出界的就不寫
   const centerTicks = center
     ? (() => {
@@ -681,6 +716,8 @@ export function TimelineView({
         className={exportMode ? 'block' : 'block cursor-grab active:cursor-grabbing'}
         style={exportMode ? { background: C.bg } : { background: C.bg, touchAction: 'none' }}
         data-overflow={exportOverflow ? '1' : '0'}
+        // 標題放不下（只剩圓點）的事件數
+        data-clipped={exportMode ? layout.clippedLabels : undefined}
         // 放不下而省略的標註（事件 key，以 | 分隔），讓出圖工作室能告訴使用者
         data-callouts-dropped={calloutLayout ? calloutLayout.dropped.join('|') : undefined}
         // 全部軸線都放得下需要的高度（出圖工作室「自動長度」用）
@@ -844,7 +881,7 @@ export function TimelineView({
         ) : (
           <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke={C.axis} />
         )}
-        {tickMarks.map((m, i) => (
+        {edgeSafeTicks.map((m, i) => (
           <text
             key={i}
             x={m.x}
@@ -1291,23 +1328,16 @@ export function TimelineView({
         {/* 標註框畫在最上層 */}
         {calloutLayout && <CalloutLayer placed={calloutLayout.placed} theme={T} />}
         </g>
-        {/* 匯出圖片底部左側的註記（例如只列了關鍵事件），誠實告訴讀者這是精選 */}
-        {exportMode?.note && (
-          <text x={12 * S} y={exportMode.height - 24 * S} fontSize={F.footer} fill={C.inkFaint}>
-            {exportMode.note}
-          </text>
-        )}
-        {/* 匯出圖片底部的出處小字 */}
+        {/* 匯出圖片底部：左側註記（例如只列了關鍵事件）與出處小字（太長會換行，不會被切掉） */}
         {exportMode && (
-          <text
-            x={width - 12 * S}
-            y={exportMode.height - 8 * S}
-            textAnchor="end"
-            fontSize={F.footer}
-            fill={C.inkFaint}
-          >
-            {exportMode.footer}
-          </text>
+          <ExportFooter
+            footer={exportMode.footer}
+            note={exportMode.note}
+            width={width}
+            height={exportMode.height}
+            noteX={12 * S}
+            theme={T}
+          />
         )}
       </svg>
   )

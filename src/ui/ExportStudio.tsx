@@ -486,14 +486,18 @@ export function ExportStudio(props: Props) {
       }
     }
     if (horizontal) {
-      const { svg, overflow, height, calloutsDropped } = await run(
+      const { svg, overflow, clipped, height, calloutsDropped } = await run(
         renderHorizontalExportSvg,
         { ...common, compact, swimlane: true, centerAxis: layout === 'B', callouts: pageCallouts },
         // 試算畫布要夠長：標註框放不進軸線之間的空白時，才有地方往下放
         calloutSpecs.length > 0 ? 200_000 : 600,
       )
       warnDroppedCallouts(calloutsDropped, warnings)
-      const lost = overflow ? '軸線與事件太多，超出畫面' : undefined
+      const lost = overflow
+        ? '軸線與事件太多，超出畫面'
+        : clipped > 0
+          ? `${clipped} 件事件的標題放不下，只剩圓點`
+          : undefined
       return { svg, warnings, w: drawW, h: height, lost }
     }
     if (layout === 'D' && cardMode) {

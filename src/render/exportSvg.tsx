@@ -103,6 +103,8 @@ export interface HorizontalExportResult extends ContentHeight, CalloutsDropped {
   svg: SVGSVGElement
   /** 軸線太多，超出這個比例的高度被裁掉 */
   overflow: boolean
+  /** 標題連一個字都放不下、只剩圓點的事件數（出圖時標題不會被切出圖外，改成截短；截到沒字才算） */
+  clipped: number
 }
 
 /** 離屏渲染時用的 id，避免與畫面上的時間軸 SVG 撞名 */
@@ -287,6 +289,7 @@ export function renderHorizontalExportSvg(
     (svg) => ({
       svg: detach(svg),
       overflow: svg.dataset.overflow === '1',
+      clipped: Number(svg.dataset.clipped ?? 0),
       contentHeight: contentHeightOf(svg),
       calloutsDropped: calloutsDroppedOf(svg),
     }),
