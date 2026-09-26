@@ -29,6 +29,7 @@ import {
 } from '../render/exportSvg'
 import type { RenderTheme, ThemeId } from '../render/theme'
 import { deriveTheme, THEMES } from '../render/theme'
+import { estimateTextWidth } from '../render/layout'
 import { buildBands, buildTimelineBase } from '../render/timelineData'
 import type { RatioId } from './ratios'
 import { RATIO_PRESETS } from './ratios'
@@ -80,9 +81,21 @@ type EventScope = 'all' | 'featured'
 const MAX_CALLOUTS = 8
 
 /** 摘要的預設值：事件描述的前 40 字 */
-function defaultSummary(description: string | undefined): string {
+function defaultSummary(description: string | undefined, maxChars = 40): string {
   const text = (description ?? '').replace(/\s+/g, ' ').trim()
-  return text.length > 40 ? text.slice(0, 40) + '…' : text
+  return text.length > maxChars ? text.slice(0, maxChars - 1) + '…' : text
+}
+
+/**
+ * 標註框的摘要最多放得下幾個中文字（兩行）。框寬：橫式 200、直式 160，扣掉左右內距，
+ * 摘要字級 11（全都跟著主題倍率一起放大，所以倍率互相抵消）。英數字算半個字
+ */
+function summaryCapacity(horizontal: boolean): number {
+  return Math.floor(((horizontal ? 200 : 160) - 16) / 11) * 2
+}
+/** 摘要大約佔幾個中文字寬（英數字算半個） */
+function summaryUsed(text: string): number {
+  return Math.ceil(estimateTextWidth(text, 1))
 }
 
 /** 比例：十種固定比例，或「自動長度」（寬度固定、高度拉長到全部放得下） */
@@ -159,6 +172,8 @@ export function ExportStudio(props: Props) {
   const [dateYear, setDateYear] = useState(() => saved?.dateYear ?? (props.showDates && props.showYears))
   const [dateMonth, setDateMonth] = useState(() => saved?.dateMonth ?? props.showDates)
   const [dateDay, setDateDay] = useState(() => saved?.dateDay ?? props.showDates)
+  // 精確到分鐘的事件：社群圖通常不需要「09:00」，預設不寫
+  const [dateTime, setDateTime] = useState(() => saved?.dateTime ?? false)
   // 出圖預設不畫關係線：簡報圖要乾淨，需要時再勾
   const [showRelations, setShowRelations] = useState(() => saved?.showRelations ?? false)
   const [collapseGaps, setCollapseGaps] = useState(() => saved?.collapseGaps ?? props.collapseGaps)
@@ -241,6 +256,7 @@ export function ExportStudio(props: Props) {
     setDateYear(props.showDates && props.showYears)
     setDateMonth(props.showDates)
     setDateDay(props.showDates)
+    setDateTime(false)
     setShowRelations(false)
     setCollapseGaps(props.collapseGaps)
     setOrdinal(false)
@@ -272,6 +288,8 @@ export function ExportStudio(props: Props) {
   // 目前要畫的寬度（自動長度時高度要畫了才知道）
   // 橫式：版型 A，或版型 B 的上下對照；其他都是直式
   const horizontal = layout === 'A' || (layout === 'B' && bDir === 'h')
+  // 標註框摘要最多放得下幾個字（直式的框比較窄）
+  const summaryCap = summaryCapacity(horizontal)
   // 左右對照是兩欄並排，一欄只有半張寬，自動長度給寬一點標題才放得下
   const drawW = auto
     ? horizontal
@@ -316,7 +334,7 @@ export function ExportStudio(props: Props) {
   const calloutCandidates = useMemo(() => calloutGroups.flatMap((g) => g.items), [calloutGroups])
   const calloutSpecs: CalloutSpec[] = calloutKeys.flatMap((key) => {
     const c = calloutCandidates.find((x) => x.key === key)
-    return c ? [{ key, title: c.title, summary: calloutText[key] ?? defaultSummary(c.description) }] : []
+    return c ? [{ key, title: c.title, summary: calloutText[key] ?? defaultSummary(c.description, summaryCap) }] : []
   })
 
   // 「全部」的起訖年份，拿來當自訂年份的預設值
@@ -450,7 +468,8 @@ export function ExportStudio(props: Props) {
     warnings: d.warnings,
     ...extra,
   })
-  const otherWays = '改選「自動長度」、縮短時間範圍、取消勾選部分軸線，或只放關鍵事件'
+  // 建議的其他做法：已經在用的就不要再叫使用者去做（例如已經勾了「只放關鍵事件」）
+  const otherWays = `改選「自動長度」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}`
 
   /**
    * 固定比例：選了要呈現的事件就一定要全部出現在圖上，否則是沒用的圖。
@@ -536,7 +555,7 @@ export function ExportStudio(props: Props) {
       height: preset.h,
       showDates: true,
       showYears: true,
-      dateParts: { year: dateYear, month: dateMonth, day: dateDay },
+      dateParts: { year: dateYear, month: dateMonth, day: dateDay, time: dateTime },
       showRelations,
       collapseGaps,
       ordinal: useOrdinal,
@@ -648,7 +667,7 @@ export function ExportStudio(props: Props) {
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
     layout, bDir, ratioId, themeId, fontScale, titleText, subtitleText, footerText, [...layerOn], [...trackOff],
-    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, showRelations, collapseGaps, compact,
+    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
     eventScope, showScopeNote, overflowMode, ordinal,
     calloutText,
@@ -678,6 +697,7 @@ export function ExportStudio(props: Props) {
       dateYear,
       dateMonth,
       dateDay,
+      dateTime,
       showRelations,
       collapseGaps,
       ordinal,
@@ -723,10 +743,12 @@ export function ExportStudio(props: Props) {
   }, [open, settingsKey, layers])
 
   // ---- 下載與複製 ----
-  const [message, setMessage] = useState<string | null>(null)
+  // 下載與複製的結果：進行中（灰）、成功（綠）、失敗或改用別的方式（紅／黃），停留夠久讓人看得到
+  type MessageTone = 'busy' | 'ok' | 'warn' | 'error'
+  const [message, setMessage] = useState<{ text: string; tone: MessageTone } | null>(null)
   const msgTimer = useRef<number | undefined>(undefined)
-  const say = (msg: string, ms = 3500) => {
-    setMessage(msg)
+  const say = (text: string, tone: MessageTone = 'busy', ms = tone === 'busy' ? 60_000 : 8000) => {
+    setMessage({ text, tone })
     window.clearTimeout(msgTimer.current)
     msgTimer.current = window.setTimeout(() => setMessage(null), ms)
   }
@@ -757,7 +779,7 @@ export function ExportStudio(props: Props) {
   }
 
   const downloadPng = (scale: number) => {
-    say('正在嵌入字型、產生 PNG…', 20_000)
+    say('正在嵌入字型、產生 PNG…')
     renderForExport()
       .then(async ({ pages }) => {
         const notes = new Set<string>()
@@ -770,13 +792,13 @@ export function ExportStudio(props: Props) {
           pixels = r.pixels
         }
         const what = pages.length > 1 ? `${pages.length} 張 PNG（每張 ${pixels}）` : `PNG（${pixels}）`
-        say(`已下載 ${what}${[...notes].map((n) => '；' + n).join('')}`, notes.size ? 8000 : 3500)
+        say(`✓ 已下載 ${what}${[...notes].map((n) => '；' + n).join('')}`, 'ok')
       })
-      .catch((e: Error) => say(`匯出失敗：${e.message}`))
+      .catch((e: Error) => say(`✕ 匯出失敗：${e.message}`, 'error'))
   }
 
   const downloadSvg = () => {
-    say(embedFontsInSvg ? '正在嵌入字型…' : '正在產生 SVG…', 20_000)
+    say(embedFontsInSvg ? '正在嵌入字型…' : '正在產生 SVG…')
     renderForExport()
       .then(async ({ pages }) => {
         const notes = new Set<string>()
@@ -792,9 +814,9 @@ export function ExportStudio(props: Props) {
           if (note) notes.add(note)
         }
         const what = pages.length > 1 ? `${pages.length} 個 SVG` : 'SVG'
-        say(`已下載 ${what}${[...notes].map((n) => '；' + n).join('')}`, notes.size ? 8000 : 3500)
+        say(`✓ 已下載 ${what}${[...notes].map((n) => '；' + n).join('')}`, 'ok')
       })
-      .catch((e: Error) => say(`匯出失敗：${e.message}`))
+      .catch((e: Error) => say(`✕ 匯出失敗：${e.message}`, 'error'))
   }
 
   const copyToClipboard = () => {
@@ -804,21 +826,21 @@ export function ExportStudio(props: Props) {
       const i = Math.min(pageIdx, pages.length - 1)
       return { ...(await makePng(pages[i], 2)), i, n: pages.length }
     })
-    say('正在產生圖片並複製…', 20_000)
+    say('正在產生圖片並複製…')
     void copyPngToClipboard(png.then((r) => r.blob)).then(async (ok) => {
       if (ok) {
         const { notes, i, n } = await png
         const which = n > 1 ? `第 ${i + 1}／${n} 張` : '圖片'
-        say(`已複製${which}，可以直接貼進簡報${notes.map((x) => '；' + x).join('')}`, notes.length ? 8000 : 3500)
+        say(`✓ 已複製${which}到剪貼簿，可以直接貼進簡報或社群貼文${notes.map((x) => '；' + x).join('')}`, 'ok')
         return
       }
       // 瀏覽器不讓複製圖片：退回下載，並說清楚
       try {
         const { blob, i, n } = await png
         downloadBlob(pageFile(i, n, '@2x.png'), blob)
-        say('這個瀏覽器不讓網頁複製圖片，已改成下載 PNG', 6000)
+        say(`這個瀏覽器不讓網頁複製圖片，已改成下載 PNG（${n > 1 ? `第 ${i + 1}／${n} 張` : '圖片'}）`, 'warn')
       } catch (e) {
-        say(`匯出失敗：${(e as Error).message}`)
+        say(`✕ 複製失敗：${(e as Error).message}`, 'error')
       }
     })
   }
@@ -1197,7 +1219,7 @@ export function ExportStudio(props: Props) {
               <div className="space-y-1.5">
                 {layout === 'D' && (
                   <>
-                    {checkbox('卡片模式（標題＋摘要＋來源）', cardMode, setCardMode)}
+                    {checkbox('卡片模式（標題＋摘要）', cardMode, setCardMode)}
                     <p className="ml-6 text-sm text-ink-faint">
                       {cardMode
                         ? '卡片依先後排列，間距不代表時間長短（圖上會註明）；不畫關係線'
@@ -1205,7 +1227,7 @@ export function ExportStudio(props: Props) {
                     </p>
                   </>
                 )}
-                {/* 日期：年、月、日各自勾選；勾「日」時一併帶入「月」 */}
+                {/* 日期：年、月、日、時間各自勾選；勾「日」時一併帶入「月」。時間只影響精確到分鐘的事件 */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-ink-muted">
                   <span>日期</span>
                   {checkbox('年', dateYear, setDateYear)}
@@ -1214,11 +1236,19 @@ export function ExportStudio(props: Props) {
                     setDateDay(v)
                     if (v) setDateMonth(true)
                   })}
+                  {checkbox('時間', dateTime, (v) => {
+                    setDateTime(v)
+                    // 時間要跟著日期才有意義：勾時間就一併帶入月、日
+                    if (v) {
+                      setDateDay(true)
+                      setDateMonth(true)
+                    }
+                  })}
                 </div>
                 {layout === 'D' && cardMode ? (
                   <>
                     {checkbox('顯示查證程度（已查證／據報導／有爭議）', showConfidence, setShowConfidence)}
-                    {checkbox('列出來源', showSources, setShowSources)}
+                    {checkbox('列出資料來源（出處）', showSources, setShowSources)}
                     {checkbox('最新的在上面', reversed, setReversed)}
                   </>
                 ) : (
@@ -1299,14 +1329,29 @@ export function ExportStudio(props: Props) {
                                   {c.title}
                                 </span>
                               </label>
-                              {on && (
-                                <input
-                                  value={calloutText[c.key] ?? defaultSummary(c.description)}
-                                  onChange={(e) => setCalloutText((prev) => ({ ...prev, [c.key]: e.target.value }))}
-                                  placeholder="一句摘要（可留空，只顯示標題）"
-                                  className="field ml-6 mt-1 w-[calc(100%-1.5rem)]"
-                                />
-                              )}
+                              {on &&
+                                (() => {
+                                  const text = calloutText[c.key] ?? defaultSummary(c.description, summaryCap)
+                                  const used = summaryUsed(text)
+                                  return (
+                                    <>
+                                      <input
+                                        value={text}
+                                        onChange={(e) => setCalloutText((prev) => ({ ...prev, [c.key]: e.target.value }))}
+                                        placeholder="一句摘要（可留空，只顯示標題）"
+                                        className="field ml-6 mt-1 w-[calc(100%-1.5rem)]"
+                                      />
+                                      <p
+                                        className={
+                                          'ml-6 text-sm ' + (used > summaryCap ? 'text-warn' : 'text-ink-faint')
+                                        }
+                                      >
+                                        約 {used}／{summaryCap} 字
+                                        {used > summaryCap && '——框裡放不下，超過的部分會變成「…」，建議縮短'}
+                                      </p>
+                                    </>
+                                  )
+                                })()}
                             </div>
                           )
                         })}
@@ -1321,7 +1366,23 @@ export function ExportStudio(props: Props) {
 
           {/* 底部：下載與複製 */}
           <div className="space-y-2 border-t border-line bg-surface p-4">
-            {message && <p className="text-sm text-ink-muted">{message}</p>}
+            {message && (
+              <p
+                role="status"
+                className={
+                  'rounded border px-2 py-1.5 text-sm ' +
+                  (message.tone === 'ok'
+                    ? 'border-green-300 bg-green-50 text-green-800'
+                    : message.tone === 'error'
+                      ? 'border-red-300 bg-red-50 text-red-800'
+                      : message.tone === 'warn'
+                        ? 'border-amber-300 bg-amber-50 text-amber-800'
+                        : 'border-line bg-surface-alt text-ink-muted')
+                }
+              >
+                {message.text}
+              </p>
+            )}
             {blocked && <p className="text-sm text-danger">有事件放不下，這個比例不能下載（原因見預覽上方）</p>}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => downloadPng(2)} className="btn btn-primary" disabled={blocked}>

@@ -289,7 +289,7 @@ export default function App() {
           return
         }
         if (sel.sourceId !== linking.sourceId) {
-          showNotice('關係只能連結同一份檔案內的事件（跨圖層請先合併成同一份 .hst.json）')
+          showNotice('關係線目前只能連結同一份時間軸裡的事件；連到其他圖層的事件，要等之後的「跨檔案連線」功能')
           return
         }
         if (sel.event.id === linking.fromId) {

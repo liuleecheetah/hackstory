@@ -75,6 +75,8 @@ export interface DateParts {
   year: boolean
   month: boolean
   day: boolean
+  /** 精確到分鐘的事件要不要寫時間（例如 09:00）；沒給 = 寫（主畫面的行為） */
+  time?: boolean
 }
 
 /**
@@ -101,8 +103,8 @@ export function formatPointParts(point: AbsoluteTimePoint, parts: DateParts): st
   else if (useM) text = `${m}月`
   else if (useD) text = `${d}日`
   else text = ''
-  // 分鐘精度：勾了「日」才連時間一起顯示
-  return point.precision === 'minute' && useD && timePart ? `${text} ${timePart}` : text
+  // 分鐘精度：勾了「日」（且沒有關掉時間）才連時間一起顯示
+  return point.precision === 'minute' && useD && parts.time !== false && timePart ? `${text} ${timePart}` : text
 }
 
 /** 詳情卡用的完整日期：中文長格式，依精度誠實呈現，circa 加「約」 */

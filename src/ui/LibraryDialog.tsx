@@ -45,6 +45,20 @@ export function LibraryDialog({ open, onClose, onLoad }: Props) {
     })
   }, [open, entries])
 
+  // Esc 關閉（跟出圖工作室、其他對話框一樣）
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setNotice(null)
+        setUrl('')
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   const close = () => {

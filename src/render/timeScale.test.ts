@@ -30,3 +30,14 @@ describe('formatPointParts：年、月、日分別勾選', () => {
     expect(formatPointParts({ value: '2017-05-24T09:00', precision: 'minute' }, all)).toBe('2017/5/24 09:00')
   })
 })
+
+describe('formatPointParts：時間（分鐘精度）', () => {
+  const p = { value: '2016-12-10T13:00', precision: 'minute' as const }
+  const all = { year: true, month: true, day: true }
+  it('沒指定時照舊寫時間（主畫面）', () => {
+    expect(formatPointParts(p, all)).toBe('2016/12/10 13:00')
+  })
+  it('出圖工作室關掉「時間」就只寫日期', () => {
+    expect(formatPointParts(p, { ...all, time: false })).toBe('2016/12/10')
+  })
+})
