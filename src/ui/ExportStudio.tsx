@@ -696,6 +696,13 @@ export function ExportStudio(props: Props) {
   }
 
   if (!open) return null
+
+  // 標題、副標在圖上最多兩行：看實際畫出來的圖（可能自動縮過字）有沒有被截短，有就在輸入框下提醒
+  const firstPage = preview?.pages[0]?.svg
+  const headerFit = {
+    titleTruncated: firstPage?.dataset.titleTruncated === '1',
+    subtitleTruncated: firstPage?.dataset.subtitleTruncated === '1',
+  }
   const blocked = Boolean(preview?.blocked)
   const pageCount = preview?.pages.length ?? 1
   const shownIdx = Math.min(pageIdx, pageCount - 1)
@@ -922,9 +929,15 @@ export function ExportStudio(props: Props) {
             <Section title="標題區">
               <Field label="標題">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} className="field w-full" />
+                {headerFit.titleTruncated && (
+                  <p className="mt-1 text-sm text-warn">標題太長：圖上最多放兩行，超過的部分會變成「…」，建議縮短</p>
+                )}
               </Field>
               <Field label="副標（可留空）">
                 <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="field w-full" />
+                {headerFit.subtitleTruncated && (
+                  <p className="mt-1 text-sm text-warn">副標太長：圖上最多放兩行，超過的部分會變成「…」，建議縮短</p>
+                )}
               </Field>
               <Field label="出處行（固定在圖片底部，不可省略）">
                 <input

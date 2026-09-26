@@ -11,6 +11,7 @@ import { isAbsolute } from '../core'
 import type { ChronicleEntry } from './chronicleLayout'
 import { confidenceLabel, layoutChronicle, sourcesText } from './chronicleLayout'
 import { ExportFooter, exportFooterHeight } from './ExportFooter'
+import { ExportHeader, layoutExportHeader } from './ExportHeader'
 import { estimateTextWidth } from './layout'
 import type { RenderTheme } from './theme'
 import { THEMES } from './theme'
@@ -19,7 +20,6 @@ import type { DateParts } from './timeScale'
 import { formatPointParts, formatRangeLabel } from './timeScale'
 import type { TimelineSource } from './types'
 import type { VerticalExportOptions } from './VerticalTimelineView'
-import { fitText } from './verticalLayout'
 
 interface Props {
   sources: TimelineSource[]
@@ -59,7 +59,9 @@ export function ChronicleView({
   const F = theme.font
   const S = theme.scale
 
-  const TITLE_H = (exportMode.subtitle ? 64 : 42) * S
+  // 標題、副標太長時各自換成最多兩行，標題列跟著加高
+  const header = layoutExportHeader(exportMode.title, exportMode.subtitle, width, theme)
+  const TITLE_H = header.height
   const NOTE_H = 26 * S // 標題下方那一行：範圍與「依先後排列」說明
   // 有底部註記時（例如「僅列關鍵事件」）多留一行；出處行太長會換行，底部跟著加高
   const FOOTER_H = exportFooterHeight(26 * S, exportMode.footer, exportMode.note, width, theme)
@@ -158,17 +160,13 @@ export function ChronicleView({
         style={{ background: C.bg }}
         data-hidden={layout.hidden}
         // 全部卡片都放得下需要的高度（出圖工作室「自動長度」用）
+        // 標題、副標兩行還放不下被截短了（出圖工作室在輸入框下提醒）
+        data-title-truncated={header.titleTruncated ? '1' : undefined}
+        data-subtitle-truncated={header.subtitleTruncated ? '1' : undefined}
         data-content-height={Math.ceil(spineBottom + FOOTER_H + 8 * S)}
       >
         {/* 標題區 */}
-        <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
-          {fitText(exportMode.title, width - 28 * S, F.title)}
-        </text>
-        {exportMode.subtitle && (
-          <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
-            {fitText(exportMode.subtitle, width - 28 * S, F.subtitle)}
-          </text>
-        )}
+        <ExportHeader layout={header} x={14 * S} theme={theme} />
 
         {/* 範圍，以及「間距不代表時間長短」的固定說明（誠實原則，不可省略） */}
         <text x={padX} y={TITLE_H + 16 * S} fontSize={F.footer} fill={C.inkFaint}>

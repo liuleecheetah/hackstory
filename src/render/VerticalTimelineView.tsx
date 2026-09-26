@@ -16,6 +16,7 @@ import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
 import { ExportFooter, exportFooterHeight } from './ExportFooter'
+import { ExportHeader, layoutExportHeader } from './ExportHeader'
 import { formatSkipped } from './gaps'
 import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
 import { layoutPeriods, periodSources } from './periods'
@@ -247,7 +248,17 @@ export function VerticalTimelineView({
     RULER_W,
     MIN_COL_W,
   } = useMemo(() => verticalSizes(T), [T])
-  const TITLE_H = exportMode?.subtitle ? TITLE_SUB_H : TITLE_ONLY_H
+  // 標題、副標太長時各自換成最多兩行，標題列跟著加高（順序等距時標題讓出右上角的「非等比」標示）
+  const header = exportMode
+    ? layoutExportHeader(
+        exportMode.title,
+        exportMode.subtitle,
+        exportMode.width,
+        T,
+        ordinal ? ordinalBadgeWidth(T, exportMode.width / 2) + 12 * S : 0,
+      )
+    : null
+  const TITLE_H = header ? header.height : exportMode?.subtitle ? TITLE_SUB_H : TITLE_ONLY_H
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面
   const FOOTER_H = exportMode
     ? exportFooterHeight(FOOTER_BASE_H, exportMode.footer, exportMode.note, exportMode.width, T)
@@ -942,6 +953,9 @@ export function VerticalTimelineView({
       data-narrow-columns={layout.narrowColumns ? '1' : '0'}
       data-callouts-dropped={calloutLayout ? calloutLayout.dropped.join('|') : undefined}
       // 不擠、舒服讀完整條軸需要的高度（出圖工作室「自動長度」用）
+      // 標題、副標兩行還放不下被截短了（出圖工作室在輸入框下提醒）
+      data-title-truncated={header?.titleTruncated ? '1' : undefined}
+      data-subtitle-truncated={header?.subtitleTruncated ? '1' : undefined}
       data-content-height={
         exportMode ? Math.ceil(layout.axisTop + layout.baseH + FOOTER_H + BOTTOM_PAD) : undefined
       }
@@ -1478,21 +1492,10 @@ export function VerticalTimelineView({
             {exportMode && (
               <>
                 <rect x={0} y={0} width={width} height={TITLE_H} fill={C.bg} />
-                <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
-                  {fitText(
-                    exportMode.title,
-                    width - 28 * S - (warp.ordinalSlots ? ordinalBadgeWidth(T, width / 2) + 12 * S : 0),
-                    F.title,
-                  )}
-                </text>
+                {header && <ExportHeader layout={header} x={14 * S} theme={T} />}
                 {/* 順序等距：右上角固定標「非等比」，不可關閉 */}
                 {warp.ordinalSlots && (
                   <OrdinalBadge right={width - 12 * S} top={11 * S} theme={T} maxW={width / 2} />
-                )}
-                {exportMode.subtitle && (
-                  <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
-                    {fitText(exportMode.subtitle, width - 28 * S, F.subtitle)}
-                  </text>
                 )}
               </>
             )}

@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sameDocumentRelations } from '../core'
 import { ExportFooter, exportFooterHeight } from './ExportFooter'
+import { ExportHeader, layoutExportHeader } from './ExportHeader'
 import { formatSkipped } from './gaps'
 import { OrdinalBadge, ordinalBadgeWidth } from './OrdinalBadge'
 import { layoutPeriods, periodSources } from './periods'
@@ -13,7 +14,7 @@ import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
-import { assignLanes, estimateTextWidth, truncate, wrapLines } from './layout'
+import { assignLanes, estimateTextWidth, wrapLines } from './layout'
 import { fitText } from './verticalLayout'
 import { buildBands, buildTimelineBase, RELATION_LABELS } from './timelineData'
 import type { RenderTheme } from './theme'
@@ -167,7 +168,17 @@ export function TimelineView({
   // 雙向對照：刻度軸在中間，軸帶加高放大年份
   const center = centerAxis && !!exportMode
   const CENTER_AXIS_H = F.title * 1.6 + 22 * S
-  const TITLE_H = (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
+  // 標題、副標太長時各自換成最多兩行，標題列跟著加高（順序等距時標題讓出右上角的「非等比」標示）
+  const header = exportMode
+    ? layoutExportHeader(
+        exportMode.title,
+        exportMode.subtitle,
+        width,
+        T,
+        ordinal ? ordinalBadgeWidth(T, width / 2) + 12 * S : 0,
+      )
+    : null
+  const TITLE_H = header ? header.height : (exportMode?.subtitle ? BASE_TITLE_SUB_H : BASE_TITLE_H) * S
   // 有底部註記時（例如「僅列關鍵事件」）多留一行，註記放在出處行上面，窄圖也不會擠在一起
   const FOOTER_H = exportMode
     ? exportFooterHeight(BASE_FOOTER_H * S, exportMode.footer, exportMode.note, width, T)
@@ -721,6 +732,9 @@ export function TimelineView({
         // 放不下而省略的標註（事件 key，以 | 分隔），讓出圖工作室能告訴使用者
         data-callouts-dropped={calloutLayout ? calloutLayout.dropped.join('|') : undefined}
         // 全部軸線都放得下需要的高度（出圖工作室「自動長度」用）
+        // 標題、副標兩行還放不下被截短了（出圖工作室在輸入框下提醒）
+        data-title-truncated={header?.titleTruncated ? '1' : undefined}
+        data-subtitle-truncated={header?.subtitleTruncated ? '1' : undefined}
         data-content-height={
           exportMode
             ? Math.ceil(
@@ -800,16 +814,7 @@ export function TimelineView({
         {/* 匯出圖片的頂部標題：輸出的圖自帶脈絡，不必靠貼文說明 */}
         {exportMode && (
           <>
-            <text x={14 * S} y={27 * S} fontSize={F.title} fontWeight={700} fill={C.ink}>
-              {slots
-                ? fitText(exportMode.title, width - 40 * S - ordinalBadgeWidth(T, width / 2), F.title)
-                : truncate(exportMode.title, 40)}
-            </text>
-            {exportMode.subtitle && (
-              <text x={14 * S} y={50 * S} fontSize={F.subtitle} fill={C.inkMuted}>
-                {truncate(exportMode.subtitle, 60)}
-              </text>
-            )}
+            {header && <ExportHeader layout={header} x={14 * S} theme={T} />}
             {/* 順序等距：右上角固定標「非等比」，不可關閉 */}
             {slots && <OrdinalBadge right={width - 12 * S} top={11 * S} theme={T} maxW={width / 2} />}
             <clipPath id="hst-export-clip">
