@@ -56,7 +56,7 @@ interface Props {
   collapseGaps?: boolean
   /**
    * 順序等距（只在出圖工作室）：事件依先後等距排列、不照時間比例。
-   * 刻度改成每格寫年份、軸線畫成一段一段，圖的右上角固定標「非等比」
+   * 刻度改成每格寫年份、軸線畫成一段一段，圖的右上角固定標「不照時間比例」
    */
   ordinal?: boolean
   /**
@@ -168,7 +168,7 @@ export function TimelineView({
   // 雙向對照：刻度軸在中間，軸帶加高放大年份
   const center = centerAxis && !!exportMode
   const CENTER_AXIS_H = F.title * 1.6 + 22 * S
-  // 標題、副標太長時各自換成最多兩行，標題列跟著加高（順序等距時標題讓出右上角的「非等比」標示）
+  // 標題、副標太長時各自換成最多兩行，標題列跟著加高（順序等距時標題讓出右上角的「不照時間比例」標示）
   const header = exportMode
     ? layoutExportHeader(
         exportMode.title,
@@ -820,7 +820,7 @@ export function TimelineView({
         {exportMode && (
           <>
             {header && <ExportHeader layout={header} x={14 * S} theme={T} />}
-            {/* 順序等距：右上角固定標「非等比」，不可關閉 */}
+            {/* 順序等距：右上角固定標「不照時間比例」，不可關閉 */}
             {slots && <OrdinalBadge right={width - 12 * S} top={11 * S} theme={T} maxW={width / 2} />}
             <clipPath id="hst-export-clip">
               <rect x={0} y={0} width={width} height={exportAvailH} />

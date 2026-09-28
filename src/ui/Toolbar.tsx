@@ -174,7 +174,7 @@ export function Toolbar(props: ToolbarProps) {
           onChange={(e) => display.setCollapseGaps(e.target.checked)}
           className="accent-accent"
         />
-        摺疊空白
+        壓縮沒有事件的年份
       </label>
       <label
         className={
@@ -182,7 +182,7 @@ export function Toolbar(props: ToolbarProps) {
         }
         title={
           isVertical
-            ? '直式暫不支援精簡模式'
+            ? '直式暫不支援縮小事件列'
             : '把事件列縮小，讓事件很多的軸線收斂，其他軸線比較看得到'
         }
       >
@@ -193,7 +193,7 @@ export function Toolbar(props: ToolbarProps) {
           onChange={(e) => display.setCompact(e.target.checked)}
           className="accent-accent"
         />
-        精簡模式
+        縮小事件列
       </label>
       {/* 只有直式才有意義的兩個選項 */}
       {isVertical && (
@@ -220,7 +220,7 @@ export function Toolbar(props: ToolbarProps) {
               onChange={(e) => display.setCenterAxis(e.target.checked)}
               className="accent-accent"
             />
-            刻度置中對照
+            年份刻度放中間
           </label>
         </>
       )}

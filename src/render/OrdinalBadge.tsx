@@ -1,4 +1,4 @@
-// render 層：順序等距的「非等比」標示（橫式、直式共用）
+// render 層：順序等距的「不照時間比例」標示（橫式、直式共用）
 //
 // 事件依先後等距排列時，間距不代表時間長短。讀者如果不知道，會把「1865→1870」跟
 // 「1870→1969」看成一樣久——所以圖的右上角**固定**畫這枚標示，沒有開關（計畫書原則 6：誠實）。
@@ -6,8 +6,8 @@
 import { estimateTextWidth } from './layout'
 import type { RenderTheme } from './theme'
 
-const MAIN = '非等比'
-const NOTE = '事件依先後等距排列，間距不代表時間長短'
+const MAIN = '不照時間比例'
+const NOTE = '事件依先後平均排開，間距不代表時間長短'
 
 /** 標示佔的寬度（標題要讓出這麼多空間） */
 export function ordinalBadgeWidth(theme: RenderTheme, maxW = Infinity): number {
@@ -15,7 +15,7 @@ export function ordinalBadgeWidth(theme: RenderTheme, maxW = Infinity): number {
   const S = theme.scale
   const pad = 8 * S
   const full = estimateTextWidth(MAIN, F.date) + 6 * S + estimateTextWidth(NOTE, F.footer) + pad * 2
-  // 太窄的圖只放「非等比」三個字
+  // 太窄的圖只放「不照時間比例」
   return full <= maxW ? full : estimateTextWidth(MAIN, F.date) + pad * 2
 }
 
@@ -29,7 +29,7 @@ export function OrdinalBadge({
   right: number
   top: number
   theme: RenderTheme
-  /** 最多可以多寬；放不下說明就只寫「非等比」 */
+  /** 最多可以多寬；放不下說明就只寫「不照時間比例」 */
   maxW?: number
 }) {
   const C = theme.colors

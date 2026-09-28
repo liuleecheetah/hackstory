@@ -60,10 +60,10 @@ function fitScales(start: number): number[] {
 /** 四種版型（見 docs/ui-upgrade-plan.md 第 0.7 節） */
 type LayoutId = 'A' | 'D' | 'B' | 'C'
 const LAYOUTS: Array<{ id: LayoutId; label: string; hint: string; ready: boolean }> = [
-  { id: 'A', label: 'A 多軸泳道', hint: '跨主體的橫向交互作用', ready: true },
-  { id: 'D', label: 'D 直式大事記', hint: '深度證據鏈與脈絡錨定', ready: true },
-  { id: 'B', label: 'B 雙向對照', hint: '二元對抗與矛盾檢驗', ready: true },
-  { id: 'C', label: 'C 因果魚骨', hint: '多重因果匯聚', ready: false },
+  { id: 'A', label: 'A 多軸泳道', hint: '每個角色一條軸，看彼此怎麼互動', ready: true },
+  { id: 'D', label: 'D 直式大事記', hint: '一件一張卡片，附摘要與來源，適合長圖', ready: true },
+  { id: 'B', label: 'B 雙向對照', hint: '兩方並排比較，例如官方說法與實際發生', ready: true },
+  { id: 'C', label: 'C 因果魚骨', hint: '看多個原因如何導致一件事', ready: false },
 ]
 
 const THEME_OPTIONS: Array<{ id: ThemeId; label: string }> = [
@@ -121,6 +121,8 @@ interface Props {
   compact: boolean
   reversed: boolean
   centerAxis: boolean
+  /** 設為／取消關鍵事件（★）：改的是檔案本身，主畫面同步、可復原。唯讀時不給 */
+  onToggleKey?: (layerId: string, eventId: string, key: boolean) => void
 }
 
 /** 今天的日期（出處行用） */
@@ -324,6 +326,8 @@ export function ExportStudio(props: Props) {
       items: band.events
         .map((pe) => ({
           key: `${band.sourceId}/${pe.ev.id}`,
+          layerId: band.sourceId,
+          eventId: pe.ev.id,
           title: pe.ev.title,
           featured: isFeatured(pe.ev),
           description: pe.ev.description,
@@ -470,7 +474,7 @@ export function ExportStudio(props: Props) {
     ...extra,
   })
   // 建議的其他做法：已經在用的就不要再叫使用者去做（例如已經勾了「只放關鍵事件」）
-  const otherWays = `改選「自動長度」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}`
+  const otherWays = `改選「長圖（高度自動）」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}`
 
   /**
    * 固定比例：選了要呈現的事件就一定要全部出現在圖上，否則是沒用的圖。
@@ -518,7 +522,7 @@ export function ExportStudio(props: Props) {
         blocked:
           plan.reason === 'too-many-pages'
             ? `要切成超過 ${MAX_PAGES} 張才放得下全部事件，這個比例不能下載——可以改成「自動縮小文字」，或${otherWays}`
-            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以改成「自動縮小文字」、調小文字大小${horizontal ? '、勾選「精簡模式」' : ''}，或${otherWays}`,
+            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以改成「自動縮小文字」、調小文字大小${horizontal ? '、勾選「縮小事件列」' : ''}，或${otherWays}`,
       })
     }
     const n = plan.pages.length
@@ -576,7 +580,7 @@ export function ExportStudio(props: Props) {
     const warnings: string[] = []
     if (rangeKind === 'years' && !timeRange) warnings.push('自訂年份還沒填完整，暫時畫出全部時間')
     if (eventScope === 'featured' && scopeCounts.featured === 0) {
-      warnings.push('這段時間、這些軸線沒有標示為關鍵事件（★）的事件，所以圖上沒有事件——請改選「所有事件」，或先在事件詳情卡把重點事件設為關鍵事件')
+      warnings.push('這段時間、這些軸線沒有標示為關鍵事件（★）的事件，所以圖上沒有事件——請改選「所有事件」；想只放幾件大事，可以在下方「標註事件」清單點 ☆ 設為關鍵事件，再切回「只放關鍵事件」')
     }
     if (layout === 'B') {
       const n = sources.reduce((k, src) => k + src.doc.tracks.length, 0)
@@ -657,7 +661,7 @@ export function ExportStudio(props: Props) {
     if (dropped.length === 0) return
     const names = dropped.map((k) => calloutCandidates.find((c) => c.key === k)?.title ?? k)
     warnings.push(
-      `有 ${dropped.length} 個標註放不下，已省略（${names.slice(0, 3).join('、')}${names.length > 3 ? '…' : ''}）——標註框不會蓋到事件文字，找不到空白處就省略；可以減少標註、縮短摘要、選較寬的比例或「自動長度」、改用版型 A，或該事件不在目前的時間範圍內`,
+      `有 ${dropped.length} 個標註放不下，已省略（${names.slice(0, 3).join('、')}${names.length > 3 ? '…' : ''}）——標註框不會蓋到事件文字，找不到空白處就省略；可以減少標註、縮短摘要、選較寬的比例或「長圖（高度自動）」、改用版型 A，或該事件不在目前的時間範圍內`,
     )
   }
 
@@ -1003,7 +1007,7 @@ export function ExportStudio(props: Props) {
                   (auto ? 'border-accent bg-accent text-white' : 'border-line text-ink hover:bg-surface-alt')
                 }
               >
-                <span className="text-base font-medium">自動長度</span>
+                <span className="text-base font-medium">長圖（高度自動）</span>
                 <span className={'ml-1.5 text-sm ' + (auto ? 'text-white/80' : 'text-ink-faint')}>
                   寬度固定、高度拉長到所有軸線與事件都放得下
                 </span>
@@ -1255,14 +1259,19 @@ export function ExportStudio(props: Props) {
                 ) : (
                   <>
                     {checkbox('關係線', showRelations, setShowRelations)}
-                    {checkbox('順序等距', ordinal, setOrdinal)}
+                    {checkbox('事件平均排開（不照時間比例）', ordinal, setOrdinal)}
                     <p className="-mt-1 ml-6 text-sm text-ink-faint">
-                      事件之間不照時間比例、依先後平均排開，適合少量精選事件；圖上會固定標示「非等比」
+                      依先後平均排開，適合事件少的圖；圖上會固定標示「不照時間比例」
                     </p>
-                    {checkbox(ordinal ? '摺疊空白（順序等距時不需要）' : '摺疊空白', collapseGaps, setCollapseGaps, ordinal)}
-                    {horizontal && checkbox('精簡模式（塞進更多軸線）', compact, setCompact)}
+                    {checkbox(
+                      ordinal ? '壓縮沒有事件的年份（平均排開時不需要）' : '壓縮沒有事件的年份',
+                      collapseGaps,
+                      setCollapseGaps,
+                      ordinal,
+                    )}
+                    {horizontal && checkbox('縮小事件列（放得下更多軸線）', compact, setCompact)}
                     {!horizontal && checkbox('最新的在上面', reversed, setReversed)}
-                    {layout === 'D' && checkbox('刻度置中對照', centerAxis, setCenterAxis)}
+                    {layout === 'D' && checkbox('年份刻度放中間', centerAxis, setCenterAxis)}
                   </>
                 )}
               </div>
@@ -1272,7 +1281,7 @@ export function ExportStudio(props: Props) {
                 標註事件（{calloutKeys.length}／{MAX_CALLOUTS}）
               </p>
               <p className="mb-2 text-sm text-ink-faint">
-                勾選的事件會加上「標題＋一句摘要」的說明框，用引線連回事件。關鍵事件（★）排在前面
+                勾選的事件會加上「標題＋一句摘要」的說明框，用引線連回事件。關鍵事件（★）排在前面；點 ☆／★ 可設為或取消關鍵事件
               </p>
               {!(layout === 'D' && cardMode) && (
                 <button
@@ -1326,7 +1335,26 @@ export function ExportStudio(props: Props) {
                                   className="mt-1 accent-accent"
                                 />
                                 <span>
-                                  {c.featured && <span className="mr-1 text-warn">★</span>}
+                                  {props.onToggleKey ? (
+                                    // 點星號＝設為／取消關鍵事件（不會勾到旁邊的標註框）
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        props.onToggleKey?.(c.layerId, c.eventId, !c.featured)
+                                      }}
+                                      title={c.featured ? '取消關鍵事件' : '設為關鍵事件'}
+                                      aria-label={c.featured ? '取消關鍵事件' : '設為關鍵事件'}
+                                      className={
+                                        'mr-1 rounded px-0.5 hover:bg-surface-alt ' +
+                                        (c.featured ? 'text-warn' : 'text-ink-faint')
+                                      }
+                                    >
+                                      {c.featured ? '★' : '☆'}
+                                    </button>
+                                  ) : (
+                                    c.featured && <span className="mr-1 text-warn">★</span>
+                                  )}
                                   {c.title}
                                 </span>
                               </label>

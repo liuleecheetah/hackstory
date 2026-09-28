@@ -83,7 +83,7 @@ interface Props {
   collapseGaps?: boolean
   /**
    * 順序等距（只在出圖工作室）：事件依先後等距排列、不照時間比例。
-   * 刻度改成每格寫年份、刻度尺畫成一段一段，圖的右上角固定標「非等比」
+   * 刻度改成每格寫年份、刻度尺畫成一段一段，圖的右上角固定標「不照時間比例」
    */
   ordinal?: boolean
   /** 是否繪製事件關係線（SPEC 第 7 節 relations，預設顯示） */
@@ -248,7 +248,7 @@ export function VerticalTimelineView({
     RULER_W,
     MIN_COL_W,
   } = useMemo(() => verticalSizes(T), [T])
-  // 標題、副標太長時各自換成最多兩行，標題列跟著加高（順序等距時標題讓出右上角的「非等比」標示）
+  // 標題、副標太長時各自換成最多兩行，標題列跟著加高（順序等距時標題讓出右上角的「不照時間比例」標示）
   const header = exportMode
     ? layoutExportHeader(
         exportMode.title,
@@ -1499,7 +1499,7 @@ export function VerticalTimelineView({
               <>
                 <rect x={0} y={0} width={width} height={TITLE_H} fill={C.bg} />
                 {header && <ExportHeader layout={header} x={14 * S} theme={T} />}
-                {/* 順序等距：右上角固定標「非等比」，不可關閉 */}
+                {/* 順序等距：右上角固定標「不照時間比例」，不可關閉 */}
                 {warp.ordinalSlots && (
                   <OrdinalBadge right={width - 12 * S} top={11 * S} theme={T} maxW={width / 2} />
                 )}

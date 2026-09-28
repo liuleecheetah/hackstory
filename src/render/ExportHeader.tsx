@@ -21,7 +21,7 @@ export interface ExportHeaderLayout {
 }
 
 /**
- * 排標題列。reserveRight：右上角要讓出多寬（例如順序等距的「非等比」標示），
+ * 排標題列。reserveRight：右上角要讓出多寬（例如順序等距的「不照時間比例」標示），
  * 只影響標題；副標在標示下方，寬度照常。
  */
 export function layoutExportHeader(

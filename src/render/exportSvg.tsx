@@ -33,7 +33,7 @@ export interface ExportRequestBase {
   dateParts?: DateParts
   showRelations: boolean
   collapseGaps: boolean
-  /** 順序等距：事件依先後等距排列（圖上會固定標示「非等比」）。卡片大事記本來就依先後排，不吃這個 */
+  /** 順序等距：事件依先後等距排列（圖上會固定標示「不照時間比例」）。卡片大事記本來就依先後排，不吃這個 */
   ordinal?: boolean
   /** 圖片頂部的標題 */
   title: string

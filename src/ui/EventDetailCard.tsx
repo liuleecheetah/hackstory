@@ -625,7 +625,7 @@ export function EventDetailCard({
                   onChange={onToggleKey}
                   className="accent-amber-500"
                 />
-                設為這份時間軸的重點（在軸上放大顯示）
+                ★ 設為關鍵事件（在軸上放大顯示，出圖可只放關鍵事件）
               </label>
             )}
 

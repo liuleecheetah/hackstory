@@ -543,6 +543,23 @@ export default function App() {
     setSelection({ ...selection, event })
   }, [selection, setKeyEvent])
 
+  // 出圖工作室的 ☆／★：同樣改圖層資料；若詳情卡正開著同一件事件，一併更新它的顯示
+  const handleStudioToggleKey = useCallback(
+    (layerId: string, eventId: string, key: boolean) => {
+      setKeyEvent(layerId, eventId, key)
+      if (selection && selection.sourceId === layerId && selection.event.id === eventId) {
+        const event = { ...selection.event }
+        if (key) {
+          event.featured = true
+        } else {
+          delete event.featured
+        }
+        setSelection({ ...selection, event })
+      }
+    },
+    [selection, setKeyEvent],
+  )
+
   // 詳情卡的「儲存編輯」：更新圖層資料，同步更新卡片顯示
   const handleUpdateEvent = useCallback(
     (next: HstEvent) => {
@@ -917,6 +934,7 @@ export default function App() {
         compact={compact}
         reversed={reversed}
         centerAxis={centerAxis}
+        onToggleKey={readOnly ? undefined : handleStudioToggleKey}
       />
       {selection && cardVisible && (
         <EventDetailCard
