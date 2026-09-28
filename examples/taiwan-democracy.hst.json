@@ -1675,6 +1675,6 @@
       "start": "1945",
       "end": "2024"
     },
-    "collapseGaps": true
+    "collapseGaps": false
   }
 }

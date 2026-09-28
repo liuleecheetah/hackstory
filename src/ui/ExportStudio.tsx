@@ -176,7 +176,8 @@ export function ExportStudio(props: Props) {
   const [dateTime, setDateTime] = useState(() => saved?.dateTime ?? false)
   // 出圖預設不畫關係線：簡報圖要乾淨，需要時再勾
   const [showRelations, setShowRelations] = useState(() => saved?.showRelations ?? false)
-  const [collapseGaps, setCollapseGaps] = useState(() => saved?.collapseGaps ?? props.collapseGaps)
+  // 出圖預設不摺疊：圖是給外人看的，時間感要誠實（摺疊會把長段空白壓成一小段），需要時再勾
+  const [collapseGaps, setCollapseGaps] = useState(() => saved?.collapseGaps ?? false)
   // 順序等距：事件依先後等距排列（圖上固定標「非等比」）；卡片大事記本來就依先後排，不適用
   const [ordinal, setOrdinal] = useState(() => saved?.ordinal ?? false)
   const [compact, setCompact] = useState(() => saved?.compact ?? props.compact)
@@ -258,7 +259,7 @@ export function ExportStudio(props: Props) {
     setDateDay(props.showDates)
     setDateTime(false)
     setShowRelations(false)
-    setCollapseGaps(props.collapseGaps)
+    setCollapseGaps(false)
     setOrdinal(false)
     setCompact(props.compact)
     setReversed(props.reversed)
