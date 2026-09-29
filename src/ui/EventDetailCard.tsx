@@ -199,10 +199,11 @@ export function EventDetailCard({
         next.maxHeight = Math.max(160, vh - safeTop - 12)
       } else if (roomAbove > roomBelow) {
         next.bottom = vh - ay + CARD_GAP
-        next.maxHeight = Math.min(vh * 0.64, roomAbove)
+        next.maxHeight = roomAbove
       } else {
         next.top = Math.max(safeTop, ay + CARD_GAP)
-        next.maxHeight = Math.min(vh * 0.64, roomBelow)
+        // 事件下方還有多少空間就用多少，內容短的卡片自然不會變高
+        next.maxHeight = roomBelow
       }
       return next
     }
@@ -617,6 +618,31 @@ export function EventDetailCard({
               <p className="text-ink-muted">地點：{event.location.name}</p>
             )}
 
+            {/* 資料來源緊接在內容後面：查證最常用，不必捲過關係清單才看得到 */}
+            {event.sources && event.sources.length > 0 && (
+              <div>
+                <p className="mb-1 text-sm font-semibold text-ink-muted">資料來源</p>
+                <ul className="space-y-0.5">
+                  {event.sources.map((s, i) => (
+                    <li key={i} className="truncate text-sm">
+                      {s.url ? (
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sky-700 underline hover:text-sky-900"
+                        >
+                          {s.title ?? s.url}
+                        </a>
+                      ) : (
+                        <span className="text-ink-muted">{s.title}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {onToggleKey && (
               <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-muted">
                 <input
@@ -690,29 +716,6 @@ export function EventDetailCard({
               </div>
             )}
 
-            {event.sources && event.sources.length > 0 && (
-              <div>
-                <p className="mb-1 text-sm font-semibold text-ink-muted">資料來源</p>
-                <ul className="space-y-0.5">
-                  {event.sources.map((s, i) => (
-                    <li key={i} className="truncate text-sm">
-                      {s.url ? (
-                        <a
-                          href={s.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sky-700 underline hover:text-sky-900"
-                        >
-                          {s.title ?? s.url}
-                        </a>
-                      ) : (
-                        <span className="text-ink-muted">{s.title}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
 
           {onUpdate && (

@@ -1206,9 +1206,10 @@ export function ExportStudio(props: Props) {
                   onChange={(e) => setCustomTitle(e.target.value)}
                   className="field w-full"
                 />
-                {headerFit.titleTruncated && (
-                  <p className="mt-1 text-sm text-warn">標題太長：圖上最多放兩行，超過的部分會變成「…」，建議縮短</p>
-                )}
+                {/* 提醒行固定佔一行：預覽畫好才知道放不放得下，若是臨時冒出來會把下面的選項往下推、害人點錯 */}
+                <p className={'mt-1 truncate text-sm ' + (headerFit.titleTruncated ? 'text-warn' : 'text-ink-faint')}>
+                  {headerFit.titleTruncated ? '標題太長：超過兩行的部分會變成「…」' : '圖上最多兩行'}
+                </p>
               </Field>
               <Field label="副標（可留空）">
                 <input
@@ -1216,9 +1217,9 @@ export function ExportStudio(props: Props) {
                   onChange={(e) => setCustomSubtitle(e.target.value)}
                   className="field w-full"
                 />
-                {headerFit.subtitleTruncated && (
-                  <p className="mt-1 text-sm text-warn">副標太長：圖上最多放兩行，超過的部分會變成「…」，建議縮短</p>
-                )}
+                <p className={'mt-1 truncate text-sm ' + (headerFit.subtitleTruncated ? 'text-warn' : 'text-ink-faint')}>
+                  {headerFit.subtitleTruncated ? '副標太長：超過兩行的部分會變成「…」' : '圖上最多兩行'}
+                </p>
               </Field>
               <Field label="出處行（固定在圖片底部，不可省略）">
                 <input

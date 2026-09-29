@@ -262,6 +262,12 @@ export function TimelineView({
       })),
     }
   }, [sources, warp, C.periodFills, C.inkFaint])
+  // 其他圖層的時期：刻度下方各佔一列（圖層色的淡底＋名稱），誰是誰一眼看得出來
+  const STRIP_ROW_H = F.footer + 8 * S
+  const stripsH = center ? 0 : periodLayout.strips.length * STRIP_ROW_H
+  /** 頂部表頭（刻度列＋其他圖層的時期列）的高度；畫面上往下捲時表頭固定在頂端 */
+  const HEADER_H = AXIS_H + stripsH
+  const headerRef = useRef<SVGGElement>(null)
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
   // 這樣切換圖層顯示隱藏時，使用者已縮放的視野不會被重設。
@@ -280,6 +286,16 @@ export function TimelineView({
     )
     prevWarpRef.current = warp
   }, [warp])
+
+  // 頂部表頭固定在可視範圍頂端：容器往下捲多少，表頭就往下移多少（不重畫整張圖）
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || isExport) return
+    const sync = () => headerRef.current?.setAttribute('transform', `translate(0 ${el.scrollTop})`)
+    sync()
+    el.addEventListener('scroll', sync, { passive: true })
+    return () => el.removeEventListener('scroll', sync)
+  })
 
   // 量測容器寬度，讓 SVG 跟著視窗伸縮
   useEffect(() => {
@@ -388,7 +404,7 @@ export function TimelineView({
     // 先把真實時間換算到壓縮座標，再投影到像素
     const x = (t: number) => plotL + ((warp.toU(t) - a) / (b - a)) * plotW
 
-    let y = center ? 8 * S + calloutStripH(calloutSides.top) : AXIS_H + 8 * S
+    let y = center ? 8 * S + calloutStripH(calloutSides.top) : HEADER_H + 8 * S
     // 雙向對照：前半（無條件進位）在軸上方、後半在下方
     const half = Math.ceil(preparedBands.length / 2)
     let axisTop = 0
@@ -524,6 +540,14 @@ export function TimelineView({
       }
     }
 
+    // 事件文字佔的範圍：關係說明標籤要避開，不能蓋住事件標題
+    const eventBoxes = bands.flatMap((band) =>
+      band.items.map((it) => ({ l: it.occL, r: it.occR, t: it.cy - M.laneH / 2 + 2 * S, b: it.cy + M.laneH / 2 - 2 * S })),
+    )
+    const labelH = 20 * S
+    const hitsEvent = (cx: number, cy: number, w: number) =>
+      eventBoxes.some((e) => cx - w / 2 < e.r && cx + w / 2 > e.l && cy - labelH / 2 < e.b && cy + labelH / 2 > e.t)
+
     // 關係線：只連同一份文件內、兩端都畫得出來的事件。
     // 跨文件關係（fromDoc／toDoc）先在這裡濾掉——事件 id 只在文件內唯一，
     // 若不明確略過，外部 id 剛好與本文件事件同名時會畫出一條錯誤的線。
@@ -545,10 +569,43 @@ export function TimelineView({
         const label = rel.label ?? RELATION_LABELS[rel.type] ?? rel.type
         // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
         const labelW = estimateTextWidth(label, F.date) + 18 * S
-        const labelX = Math.min(
-          Math.max((from.x + to.x) / 2, plotL + labelW / 2 + 4),
-          width - labelW / 2 - 4,
-        )
+        const clampX = (x: number) => Math.min(Math.max(x, plotL + labelW / 2 + 4), width - labelW / 2 - 4)
+        // 沿著曲線找一個不蓋到事件文字的位置：先試正中間，再往兩端移；都蓋到才退回正中間
+        const p0 = sameLevel ? { x: from.x, y: from.y - 8 } : from
+        const p3 = sameLevel ? { x: to.x, y: to.y - 8 } : to
+        const onCurve = (t: number) => {
+          const u = 1 - t
+          return {
+            x: u * u * u * p0.x + 3 * u * u * t * p0.x + 3 * u * t * t * p3.x + t * t * t * p3.x,
+            y: u * u * u * p0.y + 3 * u * u * t * midY + 3 * u * t * t * midY + t * t * t * p3.y,
+          }
+        }
+        let labelX = clampX((from.x + to.x) / 2)
+        let labelY = midY
+        // 事件文字多半往圓點右邊長，所以也試「貼在線的左側」；再不行試右側
+        const shifts = [0, -(labelW / 2 + 6 * S), labelW / 2 + 6 * S]
+        search: for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+          const pt = onCurve(t)
+          for (const dx of shifts) {
+            const x = clampX(pt.x + dx)
+            if (!hitsEvent(x, pt.y, labelW)) {
+              labelX = x
+              labelY = pt.y
+              break search
+            }
+          }
+          if (t === 0.8) {
+            // 兩件事靠得太近、線上到處都是字：改放在兩個圓點的左邊（事件文字往右長，左邊通常是空的）
+            const leftX = clampX(Math.min(p0.x, p3.x) - labelW / 2 - 10 * S)
+            for (const y of [midY, (p0.y + p3.y) / 2, p0.y, p3.y]) {
+              if (!hitsEvent(leftX, y, labelW)) {
+                labelX = leftX
+                labelY = y
+                break search
+              }
+            }
+          }
+        }
         return [
           {
             id: `${source.id}/rel-${i}`,
@@ -559,7 +616,7 @@ export function TimelineView({
             label,
             labelW,
             labelX,
-            labelY: midY,
+            labelY,
           },
         ]
       }),
@@ -577,7 +634,7 @@ export function TimelineView({
     const clippedLabels = bands.reduce((n, b) => n + b.items.filter((it) => it.clipped).length, 0)
 
     return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x, axisTop, clippedLabels }
-  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H, calloutSides, T])
+  }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, HEADER_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H, calloutSides, T])
 
   // 沒有任何可見圖層：顯示提示文字
   if (sources.length === 0) {
@@ -713,7 +770,7 @@ export function TimelineView({
               })()
             : placeCallouts(
                 withAnchor,
-                { left: plotL + 4 * S, top: AXIS_H + 4 * S, right: width - 4 * S, bottom },
+                { left: plotL + 4 * S, top: HEADER_H + 4 * S, right: width - 4 * S, bottom },
                 'horizontal',
                 metrics,
                 obstacles,
@@ -722,6 +779,123 @@ export function TimelineView({
           return { placed: result.placed, dropped: [...result.dropped, ...missing] }
         })()
       : null
+
+  // 頂部表頭：刻度列、其他圖層的時期列、主要時期的名稱。
+  // 畫在事件上面；畫面上往下捲時由下面的 effect 把它平移到可視範圍頂端（像試算表凍結首列）
+  const stickyHeader = (
+    <>
+        {!center && (
+          <g ref={headerRef} data-sticky-header="1">
+        {/* 頂部表頭底色：往下捲時蓋住底下捲上來的事件 */}
+        <rect x={0} y={0} width={width} height={HEADER_H} fill={C.bg} />
+        {/* 泳道外觀：頂部整條刻度帶（淡底、粗年份） */}
+        {lane && <rect x={0} y={0} width={width} height={AXIS_H} fill={C.grid} opacity={0.6} />}
+
+        {/* 頂部刻度列。順序等距時軸線畫成一段一段（每格一段、格與格之間斷開），一看就知道不是連續的時間 */}
+        {slots ? (
+          slotXs.map((x, i) => (
+            <line
+              key={`seg-${i}`}
+              x1={Math.max(plotL, x - slotPx / 2 + 3 * S)}
+              x2={Math.min(width, x + slotPx / 2 - 3 * S)}
+              y1={AXIS_H}
+              y2={AXIS_H}
+              stroke={C.axis}
+              strokeWidth={1.5 * S}
+            />
+          ))
+        ) : (
+          <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke={C.axis} />
+        )}
+        {edgeSafeTicks.map((m, i) => (
+          <text
+            key={i}
+            x={m.x}
+            y={AXIS_H - 10 * S}
+            textAnchor="middle"
+            fontSize={lane ? F.track : F.event}
+            fontWeight={lane ? 700 : undefined}
+            fill={lane ? C.ink : C.inkMuted}
+          >
+            {m.label}
+          </text>
+        ))}
+        {/* 左上角：目前可視範圍 */}
+        <text x={8 * S} y={14 * S} fontSize={F.date} fill={C.inkFaint}>
+          {formatRangeLabel(tView)}
+        </text>
+
+        {/* 斷軸記號：⫽ 加上「略過多久」，虛線貫穿到底 */}
+        {warp.gaps.map((g, i) => {
+          const xg = xOfU(g.uCenter)
+          if (xg < plotL - 30 || xg > width + 30) return null
+          return (
+            <g key={`gap-${i}`}>
+              <line x1={xg - 6 * S} y1={AXIS_H - 5 * S} x2={xg - 1 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
+              <line x1={xg + 1 * S} y1={AXIS_H - 5 * S} x2={xg + 6 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
+              {/* 「略過多久」放在頂部上排（與可視範圍文字同排），
+                  避開下排的刻度數字，兩者不再擦到 */}
+              <text x={xg} y={14 * S} textAnchor="middle" fontSize={F.footer} fill={C.inkFaint}>
+                {formatSkipped(g.skippedMs)}
+              </text>
+            </g>
+          )
+        })}
+
+          {/* 其他圖層的時期：刻度下方各一列，圖層色淡底＋名稱 */}
+        {periodLayout.strips.map((strip) => {
+          const rowY = AXIS_H + strip.row * STRIP_ROW_H
+          return (
+            <g key={strip.key} data-period-strip={strip.key}>
+              <line x1={0} x2={width} y1={rowY + STRIP_ROW_H} y2={rowY + STRIP_ROW_H} stroke={C.grid} />
+              {strip.bands.map((pb) => {
+                const x0 = Math.max(plotL, xOfU(pb.u0))
+                const x1 = Math.min(width, xOfU(pb.u1))
+                if (x1 - x0 < 1) return null
+                const name = fitText(pb.title, x1 - x0 - 8 * S, F.footer)
+                return (
+                  <g key={pb.key}>
+                    <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
+                    <rect x={x0} y={rowY + 2 * S} width={x1 - x0} height={STRIP_ROW_H - 4 * S} fill={strip.color} opacity={0.18} />
+                    <rect x={x0} y={rowY + 2 * S} width={2 * S} height={STRIP_ROW_H - 4 * S} fill={strip.color} />
+                    {name && (
+                      <text x={x0 + 6 * S} y={rowY + STRIP_ROW_H / 2 + F.footer * 0.36} fontSize={F.footer} fontWeight={600} fill={C.inkSoft}>
+                        {name}
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
+            </g>
+          )
+        })}
+        {/* 主要時期的名稱：寫在帶子起點、表頭正下方 */}
+        {periodLayout.bands.map((pb) => {
+          const x0 = Math.max(plotL, xOfU(pb.u0))
+          const x1 = Math.min(width, xOfU(pb.u1))
+          if (x1 - x0 < 1) return null
+          const name = fitText(pb.title, x1 - x0 - 8 * S, F.date)
+          if (!name) return null
+          return (
+            <text
+              key={`${pb.key}-name`}
+              x={x0 + 4 * S}
+              y={HEADER_H + F.date + 3 * S}
+              fontSize={F.date}
+              fontWeight={600}
+              fill={C.inkMuted}
+              stroke={C.bg}
+              strokeWidth={3 * S}
+              paintOrder="stroke"
+            >
+              {name}
+            </text>
+          )
+        })}
+          </g>
+        )}
+    </>
+  )
 
   // 畫面上的檢視與匯出圖片共用同一段 SVG——「看到的」與「存下來的」保證一致
   const svgEl = (
@@ -801,6 +975,8 @@ export function TimelineView({
           const rect = e.currentTarget.getBoundingClientRect()
           const xPix = e.clientX - rect.left
           const yPix = e.clientY - rect.top
+          // 點在固定的頂部表頭上（底下雖然有捲上來的軸線）不算
+          if (!center && yPix - (containerRef.current?.scrollTop ?? 0) < HEADER_H) return
           const band = layout.bands.find((b) => yPix >= b.bandTop && yPix <= b.bandTop + b.bandH)
           if (!band) return
           const u = domain[0] + (xPix / width) * (domain[1] - domain[0])
@@ -850,7 +1026,8 @@ export function TimelineView({
             <g key={pb.key} data-period={pb.key}>
               <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
               <rect x={x0} y={top} width={x1 - x0} height={layout.height - top} fill={pb.fill} opacity={pb.opacity} />
-              {name && (
+              {/* 名稱：版型 B 畫在這裡；一般檢視畫在頂部表頭裡（往下捲也看得到） */}
+              {name && center && (
                 <text
                   x={x0 + 4 * S}
                   y={top + F.date + 3 * S}
@@ -869,72 +1046,26 @@ export function TimelineView({
         })}
         {!center && (
           <>
-        {/* 泳道外觀：頂部整條刻度帶（淡底、粗年份） */}
-        {lane && <rect x={0} y={0} width={width} height={AXIS_H} fill={C.grid} opacity={0.6} />}
         {/* 直式格線 */}
         {gridXs.map((x, i) => (
           <line key={i} x1={x} x2={x} y1={AXIS_H} y2={layout.height} stroke={C.grid} strokeWidth={1} />
         ))}
-
-        {/* 頂部刻度列。順序等距時軸線畫成一段一段（每格一段、格與格之間斷開），一看就知道不是連續的時間 */}
-        {slots ? (
-          slotXs.map((x, i) => (
-            <line
-              key={`seg-${i}`}
-              x1={Math.max(plotL, x - slotPx / 2 + 3 * S)}
-              x2={Math.min(width, x + slotPx / 2 - 3 * S)}
-              y1={AXIS_H}
-              y2={AXIS_H}
-              stroke={C.axis}
-              strokeWidth={1.5 * S}
-            />
-          ))
-        ) : (
-          <line x1={0} x2={width} y1={AXIS_H} y2={AXIS_H} stroke={C.axis} />
-        )}
-        {edgeSafeTicks.map((m, i) => (
-          <text
-            key={i}
-            x={m.x}
-            y={AXIS_H - 10 * S}
-            textAnchor="middle"
-            fontSize={lane ? F.track : F.event}
-            fontWeight={lane ? 700 : undefined}
-            fill={lane ? C.ink : C.inkMuted}
-          >
-            {m.label}
-          </text>
-        ))}
-        {/* 左上角：目前可視範圍 */}
-        <text x={8 * S} y={14 * S} fontSize={F.date} fill={C.inkFaint}>
-          {formatRangeLabel(tView)}
-        </text>
-
-        {/* 斷軸記號：⫽ 加上「略過多久」，虛線貫穿到底 */}
+        {/* 斷軸記號的虛線貫穿到底（⫽ 與「略過多久」在頂部表頭） */}
         {warp.gaps.map((g, i) => {
           const xg = xOfU(g.uCenter)
           if (xg < plotL - 30 || xg > width + 30) return null
           return (
-            <g key={`gap-${i}`}>
-              <line x1={xg - 6 * S} y1={AXIS_H - 5 * S} x2={xg - 1 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
-              <line x1={xg + 1 * S} y1={AXIS_H - 5 * S} x2={xg + 6 * S} y2={AXIS_H + 5 * S} stroke={C.inkFaint} strokeWidth={1.5 * S} />
-              <line
-                x1={xg}
-                y1={AXIS_H + 5 * S}
-                x2={xg}
-                y2={layout.height}
-                stroke={C.axis}
-                strokeDasharray="2 6"
-              />
-              {/* 「略過多久」放在頂部上排（與可視範圍文字同排），
-                  避開下排的刻度數字，兩者不再擦到 */}
-              <text x={xg} y={14 * S} textAnchor="middle" fontSize={F.footer} fill={C.inkFaint}>
-                {formatSkipped(g.skippedMs)}
-              </text>
-            </g>
+            <line
+              key={`gapline-${i}`}
+              x1={xg}
+              y1={AXIS_H + 5 * S}
+              x2={xg}
+              y2={layout.height}
+              stroke={C.axis}
+              strokeDasharray="2 6"
+            />
           )
         })}
-
           </>
         )}
         {/* 雙向對照：刻度軸在正中間（淡底帶、大年份），上下兩側各放一半的軸線 */}
@@ -1015,13 +1146,13 @@ export function TimelineView({
             })}
           </>
         )}
-        {/* 其他圖層的時期：刻度線旁的細條（圖層色），滑鼠移上去看名稱 */}
-        {periodLayout.strips.map((strip) =>
+        {/* 版型 B：其他圖層的時期畫成中間刻度軸旁的細條（圖層色），滑鼠移上去看名稱 */}
+        {center && periodLayout.strips.map((strip) =>
           strip.bands.map((pb) => {
             const x0 = Math.max(plotL, xOfU(pb.u0))
             const x1 = Math.min(width, xOfU(pb.u1))
             if (x1 - x0 < 1) return null
-            const y0 = (center ? layout.axisTop + CENTER_AXIS_H : AXIS_H) - (strip.row + 1) * 4 * S
+            const y0 = layout.axisTop + CENTER_AXIS_H - (strip.row + 1) * 4 * S
             return (
               <rect key={pb.key} x={x0} y={y0} width={x1 - x0} height={3 * S} fill={strip.color} opacity={0.7}>
                 <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
@@ -1339,6 +1470,7 @@ export function TimelineView({
           })}
         {/* 標註框畫在最上層 */}
         {calloutLayout && <CalloutLayer placed={calloutLayout.placed} theme={T} />}
+        {stickyHeader}
         </g>
         {/* 匯出圖片底部：左側註記（例如只列了關鍵事件）與出處小字（太長會換行，不會被切掉） */}
         {exportMode && (
