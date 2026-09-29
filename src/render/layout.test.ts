@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimateTextWidth, wrapLines } from './layout'
+import { assignLanesByTime, estimateTextWidth, wrapLines } from './layout'
 
 describe('wrapLines：把文字折進固定寬度', () => {
   it('放得下就是一行', () => {
@@ -40,5 +40,53 @@ describe('wrapLines：排版細節', () => {
     const lines = wrapLines('https://example.org/very/long/path/that/never/ends', 60, 12, 10)
     expect(lines.length).toBeGreaterThan(1)
     expect(lines.every((l) => estimateTextWidth(l, 12) <= 60)).toBe(true)
+  })
+})
+
+describe('assignLanesByTime：疊在一起的事件，早的在上', () => {
+  it('不重疊的事件都在第 0 列', () => {
+    const lanes = assignLanesByTime([
+      { left: 0, right: 50, t: 1 },
+      { left: 100, right: 150, t: 2 },
+    ])
+    expect(lanes).toEqual([0, 0])
+  })
+
+  it('較晚的事件不會塞回較早事件上方的空位', () => {
+    // A 佔 0–100、B（較晚）佔 50–300 與 A 重疊 → B 在第 1 列；
+    // C（最晚）佔 120–200，第 0 列其實空著，但它跟 B 重疊，所以要排在 B 下面
+    const lanes = assignLanesByTime([
+      { left: 0, right: 100, t: 1 },
+      { left: 50, right: 300, t: 2 },
+      { left: 120, right: 200, t: 3 },
+    ])
+    expect(lanes).toEqual([0, 1, 2])
+  })
+
+  it('依時間排，不是依傳入順序或左邊位置（標題翻到左側的事件也一樣）', () => {
+    // 較早的事件標題翻到左側，佔的範圍在較晚事件的左邊，但它仍要在上面
+    const lanes = assignLanesByTime([
+      { left: 100, right: 200, t: 5 },
+      { left: 40, right: 110, t: 1 },
+    ])
+    expect(lanes).toEqual([1, 0])
+  })
+
+  it('任兩件左右重疊的事件：較早的列號一定比較小', () => {
+    const items = [
+      { left: 0, right: 80, t: 1 },
+      { left: 30, right: 60, t: 2 },
+      { left: 70, right: 160, t: 3 },
+      { left: 200, right: 260, t: 4 },
+      { left: 150, right: 230, t: 5 },
+    ]
+    const lanes = assignLanesByTime(items, 0)
+    for (let i = 0; i < items.length; i++) {
+      for (let j = 0; j < items.length; j++) {
+        const a = items[i]
+        const b = items[j]
+        if (a.t < b.t && a.left < b.right && b.left < a.right) expect(lanes[i]).toBeLessThan(lanes[j])
+      }
+    }
   })
 })

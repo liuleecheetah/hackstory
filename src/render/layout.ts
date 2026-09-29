@@ -25,6 +25,32 @@ export function assignLanes(items: LaneItem[], gap = 8): number[] {
   })
 }
 
+/**
+ * 依時間先後分配車道：讀者會把「上下」讀成先後，所以左右重疊（疊在一起）的兩件事件，
+ * 較早的一定在上面、較晚的一定在下面。
+ *
+ * 作法：依時間順序一件一件放，每件放在「與它重疊的較早事件」最下面那一列的下一列；
+ * 沒有跟任何較早事件重疊就回到第 0 列。（貪婪分配會把晚的事件塞回上面的空位，上下就不照時序了）
+ * 回傳每個項目的車道編號，順序與傳入的 items 相同；items 不必先排序。
+ */
+export function assignLanesByTime(items: Array<LaneItem & { t: number }>, gap = 8): number[] {
+  const order = items.map((_, i) => i).sort((a, b) => items[a].t - items[b].t || a - b)
+  const lanes: number[] = new Array(items.length)
+  const placed: number[] = []
+  for (const i of order) {
+    const it = items[i]
+    let lane = 0
+    for (const j of placed) {
+      const p = items[j]
+      const overlaps = it.left < p.right + gap && p.left < it.right + gap
+      if (overlaps && lanes[j] + 1 > lane) lane = lanes[j] + 1
+    }
+    lanes[i] = lane
+    placed.push(i)
+  }
+  return lanes
+}
+
 /** 粗估文字寬度（CJK 字全形、拉丁字半形），用來做碰撞排版 */
 export function estimateTextWidth(text: string, fontSize = 12): number {
   let w = 0
