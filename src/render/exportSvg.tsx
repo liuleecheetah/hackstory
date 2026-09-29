@@ -10,6 +10,8 @@ import type { ReactElement } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { CalloutSpec } from './callouts'
+import type { CitationLine } from './CarouselPages'
+import { ClosingPage, CoverPage } from './CarouselPages'
 import type { DateParts } from './timeScale'
 import { ChronicleView } from './ChronicleView'
 import type { RenderTheme } from './theme'
@@ -338,4 +340,29 @@ export function padExportSvg(
   body.setAttribute('height', String(height - top - bottom))
   outer.appendChild(body)
   return outer
+}
+
+/** 輪播封面與收尾頁共用的參數 */
+export interface CarouselPageRequest {
+  width: number
+  height: number
+  theme: RenderTheme
+  title: string
+  footer: string
+  /** logo（data: 網址） */
+  logo?: string
+}
+
+/** 畫一張輪播封面 */
+export function renderCoverExportSvg(
+  req: CarouselPageRequest & { subtitle?: string; rangeText?: string; pageCount: number },
+): Promise<{ svg: SVGSVGElement }> {
+  return renderOffscreen(<CoverPage {...req} svgId={OFFSCREEN_ID} />, (svg) => ({ svg: detach(svg) }))
+}
+
+/** 畫一張輪播收尾頁 */
+export function renderClosingExportSvg(
+  req: CarouselPageRequest & { callToAction?: string; citations: CitationLine[] },
+): Promise<{ svg: SVGSVGElement }> {
+  return renderOffscreen(<ClosingPage {...req} svgId={OFFSCREEN_ID} />, (svg) => ({ svg: detach(svg) }))
 }

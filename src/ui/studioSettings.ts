@@ -24,6 +24,11 @@ export interface StoredStudioSettings {
   perPage?: string
   /** 後來才加：9:16 避開限時動態的遮擋區 */
   storySafe?: boolean
+  /** 後來才加：輪播的封面、收尾頁、行動呼籲、logo（data: 網址） */
+  coverOn?: boolean
+  closingOn?: boolean
+  callToAction?: string
+  logo?: { dataUrl: string; name: string } | null
   /** 使用者自己打的標題／副標／出處；null = 沒改過，跟著資料自動帶入 */
   title: string | null
   subtitle: string | null

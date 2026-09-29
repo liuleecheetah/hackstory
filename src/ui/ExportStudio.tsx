@@ -17,6 +17,7 @@ import {
 } from '../adapters/export'
 import { embeddedFontCssForText, missingGlyphNote, svgToPngWithFonts } from '../adapters/fonts'
 import type { Layer } from '../compose/useLayers'
+import { collectCitations } from '../compose/citations'
 import { featuredOnly, linkedOnly } from '../compose/sourceFilters'
 import { sourcesFor } from '../compose/useLayers'
 import { isFeatured } from '../core'
@@ -24,6 +25,8 @@ import type { CalloutSpec } from '../render/callouts'
 import {
   padExportSvg,
   renderChronicleExportSvg,
+  renderClosingExportSvg,
+  renderCoverExportSvg,
   renderHorizontalExportSvg,
   renderVerticalExportSvg,
   renderWithAutoHeight,
@@ -83,6 +86,11 @@ type EventScope = 'all' | 'featured' | 'linked'
  * 上方是頭像、帳號名與進度條，下方是回覆框。依 Instagram 建議（1080×1920 上方約 250、下方約 340 留白）換算
  */
 const STORY_SAFE = { top: 125, bottom: 170 }
+
+/** logo 檔案大小上限（再大的圖對一個小角落沒有意義，也會拖慢出圖） */
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+/** 記在瀏覽器裡的 logo 上限（data: 網址的字數）；超過就只用在這一次 */
+const LOGO_STORE_MAX = 400_000
 
 /** 標註框最多幾個（計畫書：6–8 個，再多圖就亂了） */
 const MAX_CALLOUTS = 8
@@ -170,6 +178,12 @@ export function ExportStudio(props: Props) {
   const [perPage, setPerPage] = useState(() => saved?.perPage ?? '')
   // 9:16：避開限時動態上方頭像列、下方回覆框會蓋住的地方
   const [storySafe, setStorySafe] = useState(() => saved?.storySafe ?? true)
+  // 輪播的封面與收尾頁（只在「切分成多張圖」時加）；行動呼籲與 logo 給這兩頁用
+  const [coverOn, setCoverOn] = useState(() => saved?.coverOn ?? true)
+  const [closingOn, setClosingOn] = useState(() => saved?.closingOn ?? true)
+  const [callToAction, setCallToAction] = useState(() => saved?.callToAction ?? '')
+  const [logo, setLogo] = useState<{ dataUrl: string; name: string } | null>(() => saved?.logo ?? null)
+  const [logoNote, setLogoNote] = useState<string | null>(null)
   // 切成多張時，預覽正在看第幾張（從 0 起算）
   const [pageIdx, setPageIdx] = useState(0)
   // 使用者自己打的標題／副標／出處；null = 沒改過，跟著勾選的資料自動帶入
@@ -263,6 +277,10 @@ export function ExportStudio(props: Props) {
     setOverflowMode('shrink')
     setPerPage('')
     setStorySafe(true)
+    setCoverOn(true)
+    setClosingOn(true)
+    setCallToAction('')
+    // logo 是使用者上傳的素材、不是版面設定：恢復預設時保留，不必重傳
     setCustomTitle(null)
     setCustomSubtitle(null)
     setCustomFooter(null)
@@ -558,10 +576,16 @@ export function ExportStudio(props: Props) {
     // 有設「每張最多幾件」：就算一張放得下，件數超過也要切開（做輪播）
     const cap = perPageN
     const countIn = ([a, b]: [number, number]) => splitBasis?.starts.filter((u) => u >= a && u <= b).length ?? 0
-    if (!splitBasis || (!whole.lost && (cap === null || splitBasis.starts.length <= cap))) return single(whole)
+    // 封面、收尾頁也算頁碼（輪播上的順序就是第 1、2、3…張）
+    const extras = (coverOn ? 1 : 0) + (closingOn ? 1 : 0)
+    if (!splitBasis) return single(whole)
+    const fitsInOne = !whole.lost && (cap === null || splitBasis.starts.length <= cap)
+    if (fitsInOne && extras === 0) return single(whole)
     // 試畫時先放最長的頁碼佔位：定稿的頁碼不會更長，試的時候放得下，定稿就一定放得下
-    const probeLabel = `第 ${MAX_PAGES}／${MAX_PAGES} 張`
-    const plan = await planPages(splitBasis.groups, splitBasis.domain, async (domain) => {
+    const probeLabel = `第 ${MAX_PAGES + extras}／${MAX_PAGES + extras} 張`
+    const plan: Awaited<ReturnType<typeof planPages>> = fitsInOne
+      ? { ok: true, pages: [splitBasis.domain] }
+      : await planPages(splitBasis.groups, splitBasis.domain, async (domain) => {
       if (cap !== null && countIn(domain) > cap) return false
       const d = await renderWith(theme, { domain, label: probeLabel, first: domain[0] === splitBasis.domain[0] })
       return !d.lost
@@ -582,20 +606,107 @@ export function ExportStudio(props: Props) {
       })
     }
     const n = plan.pages.length
+    const total = n + extras
+    const offset = coverOn ? 1 : 0
     const drawn: Drawn[] = []
     for (const [i, domain] of plan.pages.entries()) {
-      drawn.push(await renderWith(theme, { domain, label: `第 ${i + 1}／${n} 張`, first: i === 0 }))
+      drawn.push(await renderWith(theme, { domain, label: `第 ${i + 1 + offset}／${total} 張`, first: i === 0 }))
     }
     const lostAt = drawn.findIndex((d) => d.lost)
+    const pages: Page[] = drawn.map(({ svg, w, h }) => ({ svg, w, h }))
+    if (coverOn) pages.unshift(await renderCover(total))
+    if (closingOn) pages.push(await renderClosing())
+    const extraText = [coverOn && '封面', closingOn && '收尾頁'].filter(Boolean).join('與')
     return {
-      pages: drawn.map(({ svg, w, h }) => ({ svg, w, h })),
+      pages,
       warnings: [...new Set(drawn.flatMap((d) => d.warnings))],
       info:
-        n > 1
-          ? `全部事件依時間先後分成 ${n} 張同樣比例的圖${cap !== null ? `（每張最多 ${cap} 件）` : ''}，每張的副標後面標有「第幾／共幾張」；下載時會一次下載 ${n} 個檔案`
+        total > 1
+          ? `全部事件依時間先後分成 ${n} 張同樣比例的圖${cap !== null ? `（每張最多 ${cap} 件）` : ''}${extraText ? `，另加${extraText}` : ''}，共 ${total} 張，每張標有「第幾／共幾張」；下載時會一次下載 ${total} 個檔案`
           : undefined,
-      blocked: lostAt >= 0 ? `第 ${lostAt + 1} 張還有事件放不下（${drawn[lostAt].lost}），不能下載` : undefined,
+      blocked: lostAt >= 0 ? `第 ${lostAt + 1 + offset} 張還有事件放不下（${drawn[lostAt].lost}），不能下載` : undefined,
     }
+  }
+
+  // ---- 輪播的封面與收尾頁 ----
+  /** 封面上的時間範圍，例如「1947–2000」：圖上事件實際涵蓋的年份（不含畫面兩側留的空白） */
+  // 只在畫封面時才算（要跑一次排版），不在每次打字時重算
+  const coverRangeText = () => {
+    let t0 = Infinity
+    let t1 = -Infinity
+    const base = buildTimelineBase(sources, collapseGaps)
+    for (const band of buildBands(sources, base, { showDates: false, showYears: false })) {
+      for (const pe of band.events) {
+        if (!scopeCounts.shown.has(`${band.sourceId}/${pe.ev.id}`)) continue
+        t0 = Math.min(t0, pe.tStart)
+        t1 = Math.max(t1, pe.kind === 'bar' ? pe.tEnd - 1 : pe.tStart)
+      }
+    }
+    if (!Number.isFinite(t0)) return undefined
+    // 自訂的時間範圍比事件窄時，以範圍為準（跨過範圍邊界的長期事件只畫得到範圍內那段）
+    if (effectiveRange) {
+      t0 = Math.max(t0, effectiveRange[0])
+      t1 = Math.min(t1, effectiveRange[1] - 1)
+    }
+    const y0 = new Date(t0).getFullYear()
+    const y1 = new Date(t1).getFullYear()
+    return y0 === y1 ? String(y0) : `${y0}–${y1}`
+  }
+  /** 9:16 避開遮擋區時，封面、收尾頁也一樣上下留白 */
+  const padSafe = (svg: SVGSVGElement) =>
+    safe ? padExportSvg(svg, drawW, preset.h, safe.top, safe.bottom, theme.colors.bg) : svg
+  const extraPageReq = () => ({
+    width: drawW,
+    height: drawH,
+    theme,
+    title: titleText,
+    footer: footerText,
+    logo: logo?.dataUrl,
+  })
+  const renderCover = async (total: number): Promise<Page> => {
+    const { svg } = await renderCoverExportSvg({
+      ...extraPageReq(),
+      subtitle: subtitleText || undefined,
+      rangeText: coverRangeText(),
+      pageCount: total,
+    })
+    return { svg: padSafe(svg), w: drawW, h: preset.h }
+  }
+  const renderClosing = async (): Promise<Page> => {
+    // 只列圖上畫得出來的事件（在時間範圍內）的來源
+    const shownSources = sources.map((src) => ({
+      ...src,
+      doc: { ...src.doc, events: src.doc.events.filter((e) => scopeCounts.shown.has(`${src.id}/${e.id}`)) },
+    }))
+    const { svg } = await renderClosingExportSvg({
+      ...extraPageReq(),
+      callToAction,
+      citations: collectCitations(shownSources),
+    })
+    return { svg: padSafe(svg), w: drawW, h: preset.h }
+  }
+
+  /** 上傳 logo：讀成 data: 網址，嵌進 SVG／PNG 才帶得走 */
+  const pickLogo = (file: File | undefined) => {
+    if (!file) return
+    if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) {
+      setLogoNote('請選 PNG、JPG、SVG 或 WebP 圖片')
+      return
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      setLogoNote('圖片超過 2 MB，請先縮小再上傳')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = String(reader.result)
+      setLogo({ dataUrl, name: file.name })
+      setLogoNote(
+        dataUrl.length > LOGO_STORE_MAX ? '這張圖比較大，這次可以用，但不會記住，下次打開要重新上傳' : null,
+      )
+    }
+    reader.onerror = () => setLogoNote('讀不到這個檔案，請再試一次')
+    reader.readAsDataURL(file)
   }
 
   /** 用指定的主題（字級）畫一次；有遮擋區時把圖放進中間那段、上下留空 */
@@ -749,7 +860,8 @@ export function ExportStudio(props: Props) {
     layout, bDir, ratioId, themeId, fontScale, titleText, subtitleText, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
-    eventScope, showScopeNote, overflowMode, ordinal, perPage, storySafe,
+    eventScope, showScopeNote, overflowMode, ordinal, perPage, storySafe, coverOn, closingOn, callToAction,
+    logo ? `${logo.name}:${logo.dataUrl.length}` : '',
     calloutText,
   ])
   // 設定一改，切出來的張數與內容都可能不同：預覽回到第 1 張
@@ -768,6 +880,11 @@ export function ExportStudio(props: Props) {
       overflowMode,
       perPage,
       storySafe,
+      coverOn,
+      closingOn,
+      callToAction,
+      // 太大的 logo 不存（瀏覽器的儲存空間有限），這次照用，下次打開要重傳
+      logo: logo && logo.dataUrl.length <= LOGO_STORE_MAX ? logo : null,
       title: customTitle,
       subtitle: customSubtitle,
       footer: customFooter,
@@ -1166,6 +1283,60 @@ export function ExportStudio(props: Props) {
                         做輪播用：填了就算一張放得下也會依時間切開；留空＝每張放到滿為止
                         {perPage.trim() !== '' && perPageN === null && '（請填 1 以上的整數）'}
                       </p>
+                    </div>
+                  )}
+                  {overflowMode === 'split' && (
+                    <div className="ml-6 mt-2 space-y-1.5 rounded border border-line p-2">
+                      <p className="text-sm font-medium text-ink">輪播的封面與收尾頁</p>
+                      {checkbox('加封面（大標題、時間範圍、「共 N 張，往後滑 →」）', coverOn, setCoverOn)}
+                      {checkbox('加收尾頁（行動呼籲、資料來源清單）', closingOn, setClosingOn)}
+                      {closingOn && (
+                        <label className="block text-sm text-ink-muted">
+                          行動呼籲（收尾頁的大字，可留空）
+                          <textarea
+                            value={callToAction}
+                            onChange={(e) => setCallToAction(e.target.value)}
+                            rows={2}
+                            placeholder="例：追蹤我們，一起記得這段歷史"
+                            className="field mt-0.5 w-full"
+                          />
+                        </label>
+                      )}
+                      {(coverOn || closingOn) && (
+                        <div className="text-sm text-ink-muted">
+                          <p>logo（放在封面左上、收尾頁右下）</p>
+                          {logo ? (
+                            <div className="mt-1 flex items-center gap-2">
+                              <img src={logo.dataUrl} alt="" className="h-8 max-w-[120px] rounded border border-line object-contain" />
+                              <span className="min-w-0 flex-1 truncate">{logo.name}</span>
+                              <button
+                                type="button"
+                                className="btn text-sm"
+                                onClick={() => {
+                                  setLogo(null)
+                                  setLogoNote(null)
+                                }}
+                              >
+                                移除
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="btn mt-1 inline-block cursor-pointer text-sm">
+                              上傳 logo 圖片…
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                className="hidden"
+                                onChange={(e) => {
+                                  pickLogo(e.target.files?.[0])
+                                  e.target.value = ''
+                                }}
+                              />
+                            </label>
+                          )}
+                          {logoNote && <p className="mt-1 text-warn">{logoNote}</p>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
