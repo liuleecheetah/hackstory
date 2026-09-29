@@ -50,7 +50,7 @@ export interface StoredStudioSettings {
   showSources: boolean
   callouts: string[]
   calloutText: Record<string, string>
-  eventScope: 'all' | 'featured'
+  eventScope: 'all' | 'featured' | 'linked'
   showScopeNote: boolean
 }
 

@@ -17,7 +17,7 @@ import {
 } from '../adapters/export'
 import { embeddedFontCssForText, missingGlyphNote, svgToPngWithFonts } from '../adapters/fonts'
 import type { Layer } from '../compose/useLayers'
-import { featuredOnly } from '../compose/sourceFilters'
+import { featuredOnly, linkedOnly } from '../compose/sourceFilters'
 import { sourcesFor } from '../compose/useLayers'
 import { isFeatured } from '../core'
 import type { CalloutSpec } from '../render/callouts'
@@ -76,7 +76,7 @@ const THEME_OPTIONS: Array<{ id: ThemeId; label: string }> = [
 
 type RangeKind = 'view' | 'all' | 'years'
 /** 呈現哪些事件：全部，或只放關鍵事件（★ featured） */
-type EventScope = 'all' | 'featured'
+type EventScope = 'all' | 'featured' | 'linked'
 
 /**
  * 9:16 限時動態上下會被蓋住的地方（畫布 540×960 的座標）：
@@ -128,6 +128,8 @@ interface Props {
   compact: boolean
   reversed: boolean
   centerAxis: boolean
+  /** 主畫面是不是「只顯示有關係線的事件」（「跟主畫面一樣」要照著做） */
+  linkedOnly: boolean
   /** 設為／取消關鍵事件（★）：改的是檔案本身，主畫面同步、可復原。唯讀時不給 */
   onToggleKey?: (layerId: string, eventId: string, key: boolean) => void
 }
@@ -329,9 +331,64 @@ export function ExportStudio(props: Props) {
     () => sourcesFor(layers, (l) => layerOn.has(l.id), trackOff),
     [layers, layerOn, trackOff],
   )
+  const timeRange = useMemo((): [number, number] | undefined => {
+    if (rangeKind !== 'years') return undefined
+    const a = parseInt(fromYear, 10)
+    const b = parseInt(toYear, 10)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined
+    return [new Date(Math.min(a, b), 0, 1).getTime(), new Date(Math.max(a, b) + 1, 0, 1).getTime()]
+  }, [rangeKind, fromYear, toYear])
+
+  // 「目前畫面看到的那一段」換算成真實時間。
+  // 主畫面回報的範圍是它自己的座標（含空白摺疊）；工作室篩掉軸線或事件後摺疊方式會不同，
+  // 直接沿用座標會對到別的年份——所以先用主畫面的資料換回真實的年月日
+  const screenTimeRange = useMemo((): [number, number] | undefined => {
+    if (!viewDomain) return undefined
+    const main = sourcesFor(layers, (l) => l.visible, hiddenTracks)
+    if (main.length === 0) return undefined
+    const { warp } = buildTimelineBase(main, props.collapseGaps)
+    return [warp.toT(viewDomain[0]), warp.toT(viewDomain[1])]
+  }, [viewDomain, layers, hiddenTracks, props.collapseGaps])
+  // 實際要畫的時間範圍（真實時間）；undefined = 全部
+  const effectiveRange = useMemo(
+    () => (rangeKind === 'view' ? screenTimeRange : rangeKind === 'years' ? timeRange : undefined),
+    [rangeKind, screenTimeRange, timeRange],
+  )
+
+  // 這段時間範圍裡一共幾件、其中幾件是關鍵事件、幾件有關係線（「僅列…」的註記與提醒用）
+  const scopeCounts = useMemo(() => {
+    if (baseSources.length === 0) return { total: 0, featured: 0, linked: 0, shown: new Set<string>() }
+    const base = buildTimelineBase(baseSources, collapseGaps)
+    const [d0, d1] = effectiveRange
+      ? [base.warp.toU(effectiveRange[0]), base.warp.toU(effectiveRange[1])]
+      : base.initialDomain
+    let total = 0
+    let featured = 0
+    // 落在這段時間裡的事件：關係線兩端都在這裡面才畫得出來
+    const shown = new Set<string>()
+    for (const band of buildBands(baseSources, base, { showDates: false, showYears: false })) {
+      for (const pe of band.events) {
+        const uEnd = pe.kind === 'bar' ? base.warp.toU(pe.tEnd) : pe.u
+        if (uEnd < d0 || pe.u > d1) continue
+        total++
+        if (pe.isKey) featured++
+        shown.add(`${band.sourceId}/${pe.ev.id}`)
+      }
+    }
+    const linked = linkedOnly(baseSources, (sid, eid) => shown.has(`${sid}/${eid}`)).reduce(
+      (k, src) => k + src.doc.events.length,
+      0,
+    )
+    return { total, featured, linked, shown }
+  }, [baseSources, collapseGaps, effectiveRange])
   const sources = useMemo(
-    () => (eventScope === 'featured' ? featuredOnly(baseSources) : baseSources),
-    [baseSources, eventScope],
+    () =>
+      eventScope === 'featured'
+        ? featuredOnly(baseSources)
+        : eventScope === 'linked'
+          ? linkedOnly(baseSources, (sid, eid) => scopeCounts.shown.has(`${sid}/${eid}`))
+          : baseSources,
+    [baseSources, eventScope, scopeCounts],
   )
 
   // 標註框的候選事件，依軸線分組（跟圖上同一套軸線名與顏色）；
@@ -368,53 +425,13 @@ export function ExportStudio(props: Props) {
     return initialDomain.map((u) => new Date(warp.toT(u)).getFullYear()) as [number, number]
   }, [sources, collapseGaps])
 
-  const timeRange = useMemo((): [number, number] | undefined => {
-    if (rangeKind !== 'years') return undefined
-    const a = parseInt(fromYear, 10)
-    const b = parseInt(toYear, 10)
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined
-    return [new Date(Math.min(a, b), 0, 1).getTime(), new Date(Math.max(a, b) + 1, 0, 1).getTime()]
-  }, [rangeKind, fromYear, toYear])
-
-  // 「目前畫面看到的那一段」換算成真實時間。
-  // 主畫面回報的範圍是它自己的座標（含空白摺疊）；工作室篩掉軸線或事件後摺疊方式會不同，
-  // 直接沿用座標會對到別的年份——所以先用主畫面的資料換回真實的年月日
-  const screenTimeRange = useMemo((): [number, number] | undefined => {
-    if (!viewDomain) return undefined
-    const main = sourcesFor(layers, (l) => l.visible, hiddenTracks)
-    if (main.length === 0) return undefined
-    const { warp } = buildTimelineBase(main, props.collapseGaps)
-    return [warp.toT(viewDomain[0]), warp.toT(viewDomain[1])]
-  }, [viewDomain, layers, hiddenTracks, props.collapseGaps])
-  // 實際要畫的時間範圍（真實時間）；undefined = 全部
-  const effectiveRange = useMemo(
-    () => (rangeKind === 'view' ? screenTimeRange : rangeKind === 'years' ? timeRange : undefined),
-    [rangeKind, screenTimeRange, timeRange],
-  )
-
-  // 這段時間範圍裡一共幾件、其中幾件是關鍵事件（「僅列關鍵事件」的註記與提醒用）
-  const scopeCounts = useMemo(() => {
-    if (baseSources.length === 0) return { total: 0, featured: 0 }
-    const base = buildTimelineBase(baseSources, collapseGaps)
-    const [d0, d1] = effectiveRange
-      ? [base.warp.toU(effectiveRange[0]), base.warp.toU(effectiveRange[1])]
-      : base.initialDomain
-    let total = 0
-    let featured = 0
-    for (const band of buildBands(baseSources, base, { showDates: false, showYears: false })) {
-      for (const pe of band.events) {
-        const uEnd = pe.kind === 'bar' ? base.warp.toU(pe.tEnd) : pe.u
-        if (uEnd < d0 || pe.u > d1) continue
-        total++
-        if (pe.isKey) featured++
-      }
-    }
-    return { total, featured }
-  }, [baseSources, collapseGaps, effectiveRange])
-  const scopeNote =
-    eventScope === 'featured' && showScopeNote
+  const scopeNote = !showScopeNote
+    ? undefined
+    : eventScope === 'featured'
       ? `僅列關鍵事件（${scopeCounts.total} 件中的 ${scopeCounts.featured} 件）`
-      : undefined
+      : eventScope === 'linked'
+        ? `僅列有關係線的事件（${scopeCounts.total} 件中的 ${scopeCounts.linked} 件）`
+        : undefined
 
   const useOrdinal = ordinal && !(layout === 'D' && cardMode)
 
@@ -452,7 +469,8 @@ export function ExportStudio(props: Props) {
     setLayerOn(new Set(layers.filter((l) => l.visible).map((l) => l.id)))
     setTrackOff(new Set(hiddenTracks))
     setRangeKind(viewDomain ? 'view' : 'all')
-    setEventScope('all')
+    setEventScope(props.linkedOnly ? 'linked' : 'all')
+    if (props.linkedOnly) setShowRelations(true)
   }
 
   // 標題、副標、出處：沒自己改過就跟著勾選的資料自動帶入
@@ -627,6 +645,9 @@ export function ExportStudio(props: Props) {
       }
     }
     if (rangeKind === 'years' && !timeRange) warnings.push('自訂年份還沒填完整，暫時畫出全部時間')
+    if (eventScope === 'linked' && scopeCounts.linked === 0) {
+      warnings.push('這段時間、這些軸線裡沒有「兩端都在圖上」的關係線，所以圖上沒有事件——請改選「所有事件」，或多勾選關係線另一端所在的軸線、放寬時間範圍')
+    }
     if (eventScope === 'featured' && scopeCounts.featured === 0) {
       warnings.push('這段時間、這些軸線沒有標示為關鍵事件（★）的事件，所以圖上沒有事件——請改選「所有事件」；想只放幾件大事，可以在下方「標註事件」清單點 ☆ 設為關鍵事件，再切回「只放關鍵事件」')
     }
@@ -1214,6 +1235,7 @@ export function ExportStudio(props: Props) {
                   [
                     ['all', '所有事件'],
                     ['featured', '只放關鍵事件（★）'],
+                    ['linked', '只放有關係線的事件'],
                   ] as const
                 ).map(([scope, label]) => (
                   <label key={scope} className="flex items-center gap-2 text-base text-ink-muted">
@@ -1221,20 +1243,33 @@ export function ExportStudio(props: Props) {
                       type="radio"
                       name="studio-scope"
                       checked={eventScope === scope}
-                      onChange={() => setEventScope(scope)}
+                      onChange={() => {
+                        setEventScope(scope)
+                        // 只放有關係線的事件，看的就是線：一併打開關係線（可以再關）
+                        if (scope === 'linked') setShowRelations(true)
+                      }}
                       className="accent-accent"
                     />
                     {label}
-                    {scope === 'featured' && (
+                    {scope !== 'all' && (
                       <span className="text-sm text-ink-faint">
-                        （{scopeCounts.total} 件中的 {scopeCounts.featured} 件）
+                        （{scopeCounts.total} 件中的 {scope === 'featured' ? scopeCounts.featured : scopeCounts.linked} 件）
                       </span>
                     )}
                   </label>
                 ))}
-                {eventScope === 'featured' && (
+                {eventScope === 'linked' && (
+                  <p className="ml-6 text-sm text-ink-faint">關係線兩端的事件都在圖上才算（軸線有勾、在時間範圍內）</p>
+                )}
+                {eventScope !== 'all' && (
                   <div className="ml-6">
-                    {checkbox('圖上註明「僅列關鍵事件（N 件中的 M 件）」', showScopeNote, setShowScopeNote)}
+                    {checkbox(
+                      eventScope === 'featured'
+                        ? '圖上註明「僅列關鍵事件（N 件中的 M 件）」'
+                        : '圖上註明「僅列有關係線的事件（N 件中的 M 件）」',
+                      showScopeNote,
+                      setShowScopeNote,
+                    )}
                   </div>
                 )}
               </div>

@@ -15,6 +15,7 @@ import {
   sameDocumentRelations,
   validateDocument,
 } from '../core'
+import { linkedOnly } from '../compose/sourceFilters'
 import { useLayers } from '../compose/useLayers'
 import type {
   EventSelection,
@@ -195,6 +196,12 @@ export default function App() {
   const [showDates, setShowDates] = useState(true)
   const [showYears, setShowYears] = useState(true)
   const [showRelations, setShowRelations] = useState(true)
+  // 只顯示有關係線的事件（篩選屬於 compose 層，這裡只決定要不要套用）
+  const [linkedOnlyView, setLinkedOnlyView] = useState(false)
+  const shownSources = useMemo(
+    () => (linkedOnlyView ? linkedOnly(visibleSources) : visibleSources),
+    [linkedOnlyView, visibleSources],
+  )
   // 精簡模式：事件列縮小，讓卡滿的軸線收斂、其他軸線看得到
   const [compact, setCompact] = useState(false)
   // 摺疊空白：預設聽第一份文件的 display.collapseGaps 建議（SPEC 第 8 節）
@@ -789,6 +796,8 @@ export default function App() {
           setShowYears,
           showRelations,
           setShowRelations,
+          linkedOnly: linkedOnlyView,
+          setLinkedOnly: setLinkedOnlyView,
           collapseGaps,
           setCollapseGaps,
           compact,
@@ -844,7 +853,7 @@ export default function App() {
         <div className="min-w-0 flex-1">
           {isVertical ? (
             <VerticalTimelineView
-              sources={visibleSources}
+              sources={shownSources}
               scaleRequest={scaleRequest}
               onScaleModeChange={setActiveMode}
               showDates={showDates}
@@ -861,7 +870,7 @@ export default function App() {
             />
           ) : (
             <TimelineView
-              sources={visibleSources}
+              sources={shownSources}
               scaleRequest={scaleRequest}
               onScaleModeChange={setActiveMode}
               showDates={showDates}
@@ -934,6 +943,7 @@ export default function App() {
         compact={compact}
         reversed={reversed}
         centerAxis={centerAxis}
+        linkedOnly={linkedOnlyView}
         onToggleKey={readOnly ? undefined : handleStudioToggleKey}
       />
       {selection && cardVisible && (

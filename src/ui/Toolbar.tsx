@@ -36,6 +36,9 @@ export interface DisplayOptionsState {
   setShowYears: (v: boolean) => void
   showRelations: boolean
   setShowRelations: (v: boolean) => void
+  /** 只顯示有關係線的事件（兩端都在畫面上的軸線裡） */
+  linkedOnly: boolean
+  setLinkedOnly: (v: boolean) => void
   collapseGaps: boolean
   setCollapseGaps: (v: boolean) => void
   compact: boolean
@@ -166,6 +169,18 @@ export function Toolbar(props: ToolbarProps) {
           className="accent-accent"
         />
         顯示關係線
+      </label>
+      <label
+        className="flex items-center gap-1.5 text-base text-ink-muted"
+        title="只留下有關係線連到另一件事件的事件；另一端所在的軸線被隱藏時不算"
+      >
+        <input
+          type="checkbox"
+          checked={display.linkedOnly}
+          onChange={(e) => display.setLinkedOnly(e.target.checked)}
+          className="accent-accent"
+        />
+        只顯示有關係線的事件
       </label>
       <label className="flex items-center gap-1.5 text-base text-ink-muted">
         <input
