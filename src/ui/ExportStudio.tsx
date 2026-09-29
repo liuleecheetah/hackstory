@@ -22,6 +22,7 @@ import { sourcesFor } from '../compose/useLayers'
 import { isFeatured } from '../core'
 import type { CalloutSpec } from '../render/callouts'
 import {
+  padExportSvg,
   renderChronicleExportSvg,
   renderHorizontalExportSvg,
   renderVerticalExportSvg,
@@ -76,6 +77,12 @@ const THEME_OPTIONS: Array<{ id: ThemeId; label: string }> = [
 type RangeKind = 'view' | 'all' | 'years'
 /** 呈現哪些事件：全部，或只放關鍵事件（★ featured） */
 type EventScope = 'all' | 'featured'
+
+/**
+ * 9:16 限時動態上下會被蓋住的地方（畫布 540×960 的座標）：
+ * 上方是頭像、帳號名與進度條，下方是回覆框。依 Instagram 建議（1080×1920 上方約 250、下方約 340 留白）換算
+ */
+const STORY_SAFE = { top: 125, bottom: 170 }
 
 /** 標註框最多幾個（計畫書：6–8 個，再多圖就亂了） */
 const MAX_CALLOUTS = 8
@@ -157,6 +164,10 @@ export function ExportStudio(props: Props) {
   const [fontScale, setFontScale] = useState(() => saved?.fontScale ?? 1)
   // 固定比例放不下全部事件時：自動縮小文字，或依時間切成好幾張同樣比例的圖
   const [overflowMode, setOverflowMode] = useState<'shrink' | 'split'>(() => saved?.overflowMode ?? 'shrink')
+  // 切成多張時每張最多幾件（留空＝放到滿為止）；做輪播時用
+  const [perPage, setPerPage] = useState(() => saved?.perPage ?? '')
+  // 9:16：避開限時動態上方頭像列、下方回覆框會蓋住的地方
+  const [storySafe, setStorySafe] = useState(() => saved?.storySafe ?? true)
   // 切成多張時，預覽正在看第幾張（從 0 起算）
   const [pageIdx, setPageIdx] = useState(0)
   // 使用者自己打的標題／副標／出處；null = 沒改過，跟著勾選的資料自動帶入
@@ -248,6 +259,8 @@ export function ExportStudio(props: Props) {
     setThemeId('presentation')
     setFontScale(1)
     setOverflowMode('shrink')
+    setPerPage('')
+    setStorySafe(true)
     setCustomTitle(null)
     setCustomSubtitle(null)
     setCustomFooter(null)
@@ -290,6 +303,10 @@ export function ExportStudio(props: Props) {
   const preset = RATIO_PRESETS.find((r) => r.id === ratioId) ?? RATIO_PRESETS[5]
   // 社群圖（臉書、限時動態等）在手機上看：不自動縮小文字，放不下就請使用者刪減或切多張
   const social = !auto && preset.social
+  // 限時動態的遮擋區：圖畫在中間那段，上下留空
+  const safe = !auto && ratioId === '9-16' && storySafe ? STORY_SAFE : null
+  const drawH = preset.h - (safe ? safe.top + safe.bottom : 0)
+  const perPageN = /^\d+$/.test(perPage.trim()) && Number(perPage) > 0 ? Number(perPage) : null
   // 目前要畫的寬度（自動長度時高度要畫了才知道）
   // 橫式：版型 A，或版型 B 的上下對照；其他都是直式
   const horizontal = layout === 'A' || (layout === 'B' && bDir === 'h')
@@ -419,7 +436,7 @@ export function ExportStudio(props: Props) {
         starts.push(Math.max(pe.u, domain[0]))
       }
     }
-    return { domain, groups: eventGroups(starts), uOf }
+    return { domain, groups: eventGroups(starts), starts, uOf }
   }, [sources, collapseGaps, effectiveRange, useOrdinal])
 
   // 標註的事件被篩掉了（例如改成只放關鍵事件），就自動取消它的勾選
@@ -514,19 +531,30 @@ export function ExportStudio(props: Props) {
   /** 依時間前後切成好幾張同樣比例的圖，文字維持設定的大小，張數最少 */
   const renderSplit = async (): Promise<Rendered> => {
     const whole = await renderWith(theme)
-    if (!whole.lost || !splitBasis) return single(whole)
+    // 有設「每張最多幾件」：就算一張放得下，件數超過也要切開（做輪播）
+    const cap = perPageN
+    const countIn = ([a, b]: [number, number]) => splitBasis?.starts.filter((u) => u >= a && u <= b).length ?? 0
+    if (!splitBasis || (!whole.lost && (cap === null || splitBasis.starts.length <= cap))) return single(whole)
     // 試畫時先放最長的頁碼佔位：定稿的頁碼不會更長，試的時候放得下，定稿就一定放得下
     const probeLabel = `第 ${MAX_PAGES}／${MAX_PAGES} 張`
     const plan = await planPages(splitBasis.groups, splitBasis.domain, async (domain) => {
+      if (cap !== null && countIn(domain) > cap) return false
       const d = await renderWith(theme, { domain, label: probeLabel, first: domain[0] === splitBasis.domain[0] })
       return !d.lost
     })
     if (!plan.ok) {
+      // 同一個時間點的事件就超過每張件數：只能把件數調大
+      const sameTime = Math.max(...splitBasis.groups.map((g) => splitBasis.starts.filter((u) => u === g).length))
+      if (cap !== null && plan.reason === 'single-too-big' && sameTime > cap) {
+        return single(whole, {
+          blocked: `同一個時間點有 ${sameTime} 件事件，超過「每張最多 ${cap} 件」，不能拆到兩張——請把每張件數調到 ${sameTime} 以上`,
+        })
+      }
       return single(whole, {
         blocked:
           plan.reason === 'too-many-pages'
             ? `要切成超過 ${MAX_PAGES} 張才放得下全部事件，這個比例不能下載——可以${social ? '' : '改成「自動縮小文字」，或'}${otherWays}`
-            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以${social ? '' : '改成「自動縮小文字」、調小文字大小、'}${horizontal ? '勾選「縮小事件列」、' : ''}${otherWays}`,
+            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下${whole.lost ? `（${whole.lost}）` : ''}，這個比例不能下載——可以${social ? '' : '改成「自動縮小文字」、調小文字大小、'}${horizontal ? '勾選「縮小事件列」、' : ''}${otherWays}`,
       })
     }
     const n = plan.pages.length
@@ -540,14 +568,21 @@ export function ExportStudio(props: Props) {
       warnings: [...new Set(drawn.flatMap((d) => d.warnings))],
       info:
         n > 1
-          ? `全部事件依時間先後分成 ${n} 張同樣比例的圖，每張的副標後面標有「第幾／共幾張」；下載時會一次下載 ${n} 個檔案`
+          ? `全部事件依時間先後分成 ${n} 張同樣比例的圖${cap !== null ? `（每張最多 ${cap} 件）` : ''}，每張的副標後面標有「第幾／共幾張」；下載時會一次下載 ${n} 個檔案`
           : undefined,
       blocked: lostAt >= 0 ? `第 ${lostAt + 1} 張還有事件放不下（${drawn[lostAt].lost}），不能下載` : undefined,
     }
   }
 
-  /** 用指定的主題（字級）畫一次；lost = 有事件沒畫出來的原因 */
+  /** 用指定的主題（字級）畫一次；有遮擋區時把圖放進中間那段、上下留空 */
   const renderWith = async (theme: RenderTheme, page?: PageSpec): Promise<Drawn> => {
+    const d = await renderBody(theme, page)
+    if (!safe) return d
+    return { ...d, svg: padExportSvg(d.svg, d.w, preset.h, safe.top, safe.bottom, theme.colors.bg), h: preset.h }
+  }
+
+  /** 用指定的主題（字級）畫一次；lost = 有事件沒畫出來的原因 */
+  const renderBody = async (theme: RenderTheme, page?: PageSpec): Promise<Drawn> => {
     // 切成多張時：這張只畫自己那一段，副標後面加頁碼，標註只放落在這一段的事件
     const pageCallouts = page
       ? calloutSpecs.filter((c) => {
@@ -561,7 +596,7 @@ export function ExportStudio(props: Props) {
       timeRange: page ? undefined : effectiveRange,
       domain: page?.domain,
       width: drawW,
-      height: preset.h,
+      height: drawH,
       showDates: true,
       showYears: true,
       dateParts: { year: dateYear, month: dateMonth, day: dateDay, time: dateTime },
@@ -580,7 +615,7 @@ export function ExportStudio(props: Props) {
       req: Req,
       probeHeight: number,
     ): Promise<Res & { height: number }> =>
-      auto ? renderWithAutoHeight(render, req, probeHeight) : { ...(await render(req)), height: preset.h }
+      auto ? renderWithAutoHeight(render, req, probeHeight) : { ...(await render(req)), height: drawH }
     const warnings: string[] = []
     if (social) {
       // 畫布在手機上約縮成 375 寬顯示：估算事件字在手機上多大，太小就提醒（不擋下載）
@@ -687,7 +722,7 @@ export function ExportStudio(props: Props) {
     layout, bDir, ratioId, themeId, fontScale, titleText, subtitleText, footerText, [...layerOn], [...trackOff],
     rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
-    eventScope, showScopeNote, overflowMode, ordinal,
+    eventScope, showScopeNote, overflowMode, ordinal, perPage, storySafe,
     calloutText,
   ])
   // 設定一改，切出來的張數與內容都可能不同：預覽回到第 1 張
@@ -704,6 +739,8 @@ export function ExportStudio(props: Props) {
       themeId,
       fontScale,
       overflowMode,
+      perPage,
+      storySafe,
       title: customTitle,
       subtitle: customSubtitle,
       footer: customFooter,
@@ -943,6 +980,7 @@ export function ExportStudio(props: Props) {
             pageCount={pageCount}
             onPage={setPageIdx}
             onSplit={!auto && overflowMode === 'shrink' ? () => setOverflowMode('split') : undefined}
+            safeZones={safe}
             onFeatured={
               eventScope === 'all' && scopeCounts.featured > 0 ? () => setEventScope('featured') : undefined
             }
@@ -1054,6 +1092,11 @@ export function ExportStudio(props: Props) {
                   </div>
                 </div>
               ))}
+              {ratioId === '9-16' && (
+                <div className="mt-2">
+                  {checkbox('避開限時動態的頭像列與回覆框（上下留白）', storySafe, setStorySafe)}
+                </div>
+              )}
               {!auto && (
                 <div className="mt-3 space-y-1">
                   <p className="text-sm text-ink-faint">放不下全部事件時</p>
@@ -1079,6 +1122,25 @@ export function ExportStudio(props: Props) {
                       {label}
                     </label>
                   ))}
+                  {overflowMode === 'split' && (
+                    <div className="ml-6 space-y-1">
+                      <label className="flex items-center gap-2 text-base text-ink-muted">
+                        每張最多
+                        <input
+                          value={perPage}
+                          onChange={(e) => setPerPage(e.target.value)}
+                          inputMode="numeric"
+                          placeholder="不限"
+                          className="field w-20"
+                        />
+                        件
+                      </label>
+                      <p className="text-sm text-ink-faint">
+                        做輪播用：填了就算一張放得下也會依時間切開；留空＝每張放到滿為止
+                        {perPage.trim() !== '' && perPageN === null && '（請填 1 以上的整數）'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </Section>

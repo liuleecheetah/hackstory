@@ -20,6 +20,10 @@ export interface StoredStudioSettings {
   themeId: string
   fontScale: number
   overflowMode: 'shrink' | 'split'
+  /** 後來才加：切成多張時每張最多幾件（空字串＝不限） */
+  perPage?: string
+  /** 後來才加：9:16 避開限時動態的遮擋區 */
+  storySafe?: boolean
   /** 使用者自己打的標題／副標／出處；null = 沒改過，跟著資料自動帶入 */
   title: string | null
   subtitle: string | null

@@ -304,3 +304,38 @@ export async function renderWithAutoHeight<Req extends ExportRequestBase, Res ex
   const final = await render({ ...req, height })
   return { ...final, height }
 }
+
+/**
+ * 在圖的上下各留一段空白（例如限時動態上方的頭像列、下方的回覆框會蓋住的地方）：
+ * 原本的圖畫在中間，外面再包一層同寬、較高的畫布，空白處填底色。
+ * 原圖上的 data-*（標題有沒有被截短等）搬到外層，呼叫端照常讀得到。
+ */
+export function padExportSvg(
+  inner: SVGSVGElement,
+  width: number,
+  height: number,
+  top: number,
+  bottom: number,
+  background: string,
+): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg'
+  const outer = document.createElementNS(NS, 'svg')
+  outer.setAttribute('xmlns', NS)
+  outer.setAttribute('width', String(width))
+  outer.setAttribute('height', String(height))
+  outer.setAttribute('class', 'block')
+  for (const [k, v] of Object.entries(inner.dataset)) {
+    if (v !== undefined) outer.dataset[k] = v
+  }
+  const bg = document.createElementNS(NS, 'rect')
+  bg.setAttribute('width', String(width))
+  bg.setAttribute('height', String(height))
+  bg.setAttribute('fill', background)
+  outer.appendChild(bg)
+  const body = inner.cloneNode(true) as SVGSVGElement
+  body.setAttribute('x', '0')
+  body.setAttribute('y', String(top))
+  body.setAttribute('height', String(height - top - bottom))
+  outer.appendChild(body)
+  return outer
+}

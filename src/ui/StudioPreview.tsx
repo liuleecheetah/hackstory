@@ -23,6 +23,8 @@ interface Props {
   onSplit?: () => void
   /** 放不下時可以直接改成「只放關鍵事件」（沒給就不顯示按鈕） */
   onFeatured?: () => void
+  /** 9:16 限時動態會被蓋住的上下兩段（畫布座標）：預覽上用斜線標出來，不會出現在下載的圖裡 */
+  safeZones?: { top: number; bottom: number } | null
   /** 切成多張時：正在看第幾張（從 0 起算）、共幾張、換張 */
   pageIndex?: number
   pageCount?: number
@@ -44,6 +46,7 @@ export function StudioPreview({ svg, width, height, background, busy,
   blocked,
   onSplit,
   onFeatured,
+  safeZones,
   pageIndex = 0,
   pageCount = 1,
   onPage,
@@ -125,9 +128,32 @@ export function StudioPreview({ svg, width, height, background, busy,
                 ? 'mx-auto'
                 : 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2')
             }
-            style={{ width: boxW, height: boxH, background }}
-            dangerouslySetInnerHTML={{ __html: markup }}
-          />
+            style={{ width: boxW, height: boxH, background, position: scrolling ? 'relative' : undefined }}
+          >
+            <div className="h-full w-full" dangerouslySetInnerHTML={{ __html: markup }} />
+            {safeZones &&
+              (
+                [
+                  ['top', safeZones.top, '頭像列會蓋住這裡'],
+                  ['bottom', safeZones.bottom, '回覆框會蓋住這裡'],
+                ] as const
+              ).map(([side, h, text]) => (
+                <div
+                  key={side}
+                  className="pointer-events-none absolute inset-x-0 flex items-center justify-center text-sm text-ink-muted"
+                  style={{
+                    [side]: 0,
+                    height: `${(h / height) * 100}%`,
+                    background:
+                      'repeating-linear-gradient(135deg, rgba(100,116,139,0.14) 0 6px, rgba(100,116,139,0.04) 6px 12px)',
+                    borderBottom: side === 'top' ? '1px dashed rgba(100,116,139,0.6)' : undefined,
+                    borderTop: side === 'bottom' ? '1px dashed rgba(100,116,139,0.6)' : undefined,
+                  }}
+                >
+                  {text}（預覽才有，下載的圖是空白）
+                </div>
+              ))}
+          </div>
         )}
         {(busy || !markup) && (
           <div className="absolute right-2 top-2 rounded bg-surface/90 px-2 py-1 text-sm text-ink-muted shadow">
