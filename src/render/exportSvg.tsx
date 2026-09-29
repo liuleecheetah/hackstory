@@ -7,6 +7,7 @@
 // 這一層不知道圖片之後要變成 PNG 還是 SVG 檔——那是 adapters 的事。
 
 import type { ReactElement } from 'react'
+import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { CalloutSpec } from './callouts'
 import type { DateParts } from './timeScale'
@@ -123,32 +124,20 @@ function renderOffscreen<T>(element: ReactElement, read: (svg: SVGSVGElement) =>
     document.body.appendChild(host)
     const root = createRoot(host)
 
-    const cleanup = () => {
+    // 同步畫完：flushSync 回來時 DOM 已經在了，馬上讀結果。
+    // 以前是等瀏覽器的下一個影格（或 150 毫秒保底）才讀——出圖工作室一次預覽常要畫幾次到幾十次，
+    // 空等累積起來就是好幾秒。匯出的寬高由參數給定、文字寬度用估算，不靠畫面量測，所以不必等
+    try {
+      flushSync(() => root.render(element))
+      const svg = host.querySelector('svg')
+      if (!(svg instanceof SVGSVGElement)) throw new Error('離屏渲染沒有產生 SVG')
+      resolve(read(svg))
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error(String(e)))
+    } finally {
       root.unmount()
       host.remove()
     }
-
-    root.render(element)
-
-    // 等瀏覽器畫完一個影格，DOM 才真的存在。
-    // 分頁切到背景時 requestAnimationFrame 不會觸發，所以加一個計時器保底——
-    // 否則使用者切走再切回來，預覽會永遠停在「產生預覽中…」
-    let done = false
-    const extract = () => {
-      if (done) return
-      done = true
-      try {
-        const svg = host.querySelector('svg')
-        if (!(svg instanceof SVGSVGElement)) throw new Error('離屏渲染沒有產生 SVG')
-        resolve(read(svg))
-      } catch (e) {
-        reject(e instanceof Error ? e : new Error(String(e)))
-      } finally {
-        cleanup()
-      }
-    }
-    requestAnimationFrame(() => requestAnimationFrame(extract))
-    setTimeout(extract, 150)
   })
 }
 
