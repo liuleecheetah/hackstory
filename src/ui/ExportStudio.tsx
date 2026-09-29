@@ -32,7 +32,7 @@ import { deriveTheme, THEMES } from '../render/theme'
 import { estimateTextWidth } from '../render/layout'
 import { buildBands, buildTimelineBase } from '../render/timelineData'
 import type { RatioId } from './ratios'
-import { RATIO_PRESETS } from './ratios'
+import { MIN_PHONE_EVENT_PX, PHONE_VIEW_W, RATIO_PRESETS } from './ratios'
 import { eventGroups, MAX_PAGES, planPages } from './splitPages'
 import {
   clearStudioSettings,
@@ -288,6 +288,8 @@ export function ExportStudio(props: Props) {
 
   const auto = ratioId === 'auto'
   const preset = RATIO_PRESETS.find((r) => r.id === ratioId) ?? RATIO_PRESETS[5]
+  // 社群圖（臉書、限時動態等）在手機上看：不自動縮小文字，放不下就請使用者刪減或切多張
+  const social = !auto && preset.social
   // 目前要畫的寬度（自動長度時高度要畫了才知道）
   // 橫式：版型 A，或版型 B 的上下對照；其他都是直式
   const horizontal = layout === 'A' || (layout === 'B' && bDir === 'h')
@@ -489,7 +491,7 @@ export function ExportStudio(props: Props) {
     if (overflowMode === 'split') return renderSplit()
     const base = THEMES[themeId]
     let last: Rendered | null = null
-    for (const s of fitScales(fontScale)) {
+    for (const s of social ? [fontScale] : fitScales(fontScale)) {
       const t = s === fontScale ? theme : deriveTheme(base, { scale: base.scale * s })
       const d = await renderWith(t)
       if (!d.lost) {
@@ -501,7 +503,9 @@ export function ExportStudio(props: Props) {
         )
       }
       last = single(d, {
-        blocked: `文字自動縮到 ${Math.round(MIN_FIT_SCALE * 100)}% 還是放不下全部事件（${d.lost}），這個比例不能下載——可以改成「切分成多張圖」，或${otherWays}`,
+        blocked: social
+          ? `社群圖主要在手機上看，為了字看得清楚，不自動縮小文字；目前放不下全部事件（${d.lost}），這個比例不能下載——可以改成「切分成多張圖」，或${otherWays}`
+          : `文字自動縮到 ${Math.round(MIN_FIT_SCALE * 100)}% 還是放不下全部事件（${d.lost}），這個比例不能下載——可以改成「切分成多張圖」，或${otherWays}`,
       })
     }
     return last!
@@ -521,8 +525,8 @@ export function ExportStudio(props: Props) {
       return single(whole, {
         blocked:
           plan.reason === 'too-many-pages'
-            ? `要切成超過 ${MAX_PAGES} 張才放得下全部事件，這個比例不能下載——可以改成「自動縮小文字」，或${otherWays}`
-            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以改成「自動縮小文字」、調小文字大小${horizontal ? '、勾選「縮小事件列」' : ''}，或${otherWays}`,
+            ? `要切成超過 ${MAX_PAGES} 張才放得下全部事件，這個比例不能下載——可以${social ? '' : '改成「自動縮小文字」，或'}${otherWays}`
+            : `就算切成多張也放不下：同一個時間點的事件單獨一張都放不下（${whole.lost}），這個比例不能下載——可以${social ? '' : '改成「自動縮小文字」、調小文字大小、'}${horizontal ? '勾選「縮小事件列」、' : ''}${otherWays}`,
       })
     }
     const n = plan.pages.length
@@ -578,6 +582,15 @@ export function ExportStudio(props: Props) {
     ): Promise<Res & { height: number }> =>
       auto ? renderWithAutoHeight(render, req, probeHeight) : { ...(await render(req)), height: preset.h }
     const warnings: string[] = []
+    if (social) {
+      // 畫布在手機上約縮成 375 寬顯示：估算事件字在手機上多大，太小就提醒（不擋下載）
+      const phonePx = (theme.font.event * PHONE_VIEW_W) / drawW
+      if (phonePx < MIN_PHONE_EVENT_PX) {
+        warnings.push(
+          `在手機上，事件文字大約只有 ${phonePx.toFixed(1)}px，可能看不清楚——建議把「字級」調回 100% 以上${themeId === 'presentation' || themeId === 'presentation-dark' ? '' : '、改用「簡報」主題'}${eventScope === 'featured' ? '' : '，或只放關鍵事件'}`,
+        )
+      }
+    }
     if (rangeKind === 'years' && !timeRange) warnings.push('自訂年份還沒填完整，暫時畫出全部時間')
     if (eventScope === 'featured' && scopeCounts.featured === 0) {
       warnings.push('這段時間、這些軸線沒有標示為關鍵事件（★）的事件，所以圖上沒有事件——請改選「所有事件」；想只放幾件大事，可以在下方「標註事件」清單點 ☆ 設為關鍵事件，再切回「只放關鍵事件」')
@@ -930,6 +943,9 @@ export function ExportStudio(props: Props) {
             pageCount={pageCount}
             onPage={setPageIdx}
             onSplit={!auto && overflowMode === 'shrink' ? () => setOverflowMode('split') : undefined}
+            onFeatured={
+              eventScope === 'all' && scopeCounts.featured > 0 ? () => setEventScope('featured') : undefined
+            }
             background={theme.colors.bg}
             busy={busy}
             warnings={preview?.warnings ?? []}
@@ -1043,7 +1059,12 @@ export function ExportStudio(props: Props) {
                   <p className="text-sm text-ink-faint">放不下全部事件時</p>
                   {(
                     [
-                      ['shrink', `自動縮小文字（最小到 ${Math.round(MIN_FIT_SCALE * 100)}%）`],
+                      [
+                        'shrink',
+                        social
+                          ? '不縮小文字（社群圖在手機上看，字要夠大）'
+                          : `自動縮小文字（最小到 ${Math.round(MIN_FIT_SCALE * 100)}%）`,
+                      ],
                       ['split', '切分成多張圖（同樣比例、文字不縮小）'],
                     ] as const
                   ).map(([mode, label]) => (

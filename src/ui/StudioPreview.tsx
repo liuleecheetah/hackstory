@@ -21,6 +21,8 @@ interface Props {
   blocked?: string
   /** 放不下時可以直接改成「切分成多張圖」（沒給就不顯示按鈕） */
   onSplit?: () => void
+  /** 放不下時可以直接改成「只放關鍵事件」（沒給就不顯示按鈕） */
+  onFeatured?: () => void
   /** 切成多張時：正在看第幾張（從 0 起算）、共幾張、換張 */
   pageIndex?: number
   pageCount?: number
@@ -41,6 +43,7 @@ export function StudioPreview({ svg, width, height, background, busy,
   info,
   blocked,
   onSplit,
+  onFeatured,
   pageIndex = 0,
   pageCount = 1,
   onPage,
@@ -83,10 +86,19 @@ export function StudioPreview({ svg, width, height, background, busy,
       {blocked && (
         <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
           <p>✕ {blocked}</p>
-          {onSplit && (
-            <button type="button" onClick={onSplit} className="btn mt-2">
-              改成切分成多張圖
-            </button>
+          {(onFeatured || onSplit) && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {onFeatured && (
+                <button type="button" onClick={onFeatured} className="btn">
+                  只放關鍵事件（★）
+                </button>
+              )}
+              {onSplit && (
+                <button type="button" onClick={onSplit} className="btn">
+                  改成切分成多張圖
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
