@@ -111,6 +111,7 @@ export interface HorizontalExportOptions {
 
 const DAY = 86_400_000
 // 以下是主題倍率 1 時的高度，實際使用時乘上主題倍率（字放大，格子也要跟著放大）
+const EXPORT_AXIS_H = 30 // 出圖時的刻度列（只有刻度數字一排）
 const BASE_AXIS_H = 46 // 頂部刻度列高度（上排放「可視範圍」文字，下排放刻度數字，避免兩者疊在一起）
 
 /** 各尺度按鈕對應的可視時間跨度 */
@@ -164,7 +165,10 @@ export function TimelineView({
   const C = T.colors
   const F = T.font
   const S = T.scale
-  const AXIS_H = BASE_AXIS_H * S
+  // 出圖時刻度列不放上排的「可視範圍」文字（標題區已經交代了脈絡），省下一排給事件——
+  // 臉書 1.91:1 這種矮圖每一排都很寶貴。有壓縮空白時上排要寫「略過幾年」，照舊留著
+  const compactAxis = isExport && !collapseGaps
+  const AXIS_H = (compactAxis ? EXPORT_AXIS_H : BASE_AXIS_H) * S
   // 雙向對照：刻度軸在中間，軸帶加高放大年份
   const center = centerAxis && !!exportMode
   const CENTER_AXIS_H = F.title * 1.6 + 22 * S
@@ -633,7 +637,11 @@ export function TimelineView({
     // 出圖時標題連一個字都放不下的事件數（出圖工作室據此擋下載）
     const clippedLabels = bands.reduce((n, b) => n + b.items.filter((it) => it.clipped).length, 0)
 
-    return { bands, relationLines, anchors, height: Math.max(y + 8, 320), x, axisTop, clippedLabels }
+    // 螢幕上至少 320 高（內容很少時不要擠成一條）；出圖時只算內容真正需要的高度——
+    // 否則臉書 1.91:1（600×315）扣掉標題與出處只剩約 200，永遠被判定「超出畫面」
+    // 出圖時最後一條軸線下面不必再留軸線間距（圖底下接著就是出處行）
+    const contentBottom = isExport && !center && bands.length > 0 ? y - M.bandGap + 4 * S : y + 8
+    return { bands, relationLines, anchors, height: Math.max(contentBottom, isExport ? 0 : 320), x, axisTop, clippedLabels }
   }, [sources, preparedBands, domain, width, warp, M, F, S, AXIS_H, HEADER_H, lane, plotL, plotW, labelRowH, isExport, center, CENTER_AXIS_H, calloutSides, T])
 
   // 沒有任何可見圖層：顯示提示文字
@@ -820,10 +828,12 @@ export function TimelineView({
             {m.label}
           </text>
         ))}
-        {/* 左上角：目前可視範圍 */}
-        <text x={8 * S} y={14 * S} fontSize={F.date} fill={C.inkFaint}>
-          {formatRangeLabel(tView)}
-        </text>
+        {/* 左上角：目前可視範圍（出圖的精簡刻度列不放） */}
+        {!compactAxis && (
+          <text x={8 * S} y={14 * S} fontSize={F.date} fill={C.inkFaint}>
+            {formatRangeLabel(tView)}
+          </text>
+        )}
 
         {/* 斷軸記號：⫽ 加上「略過多久」，虛線貫穿到底 */}
         {warp.gaps.map((g, i) => {
