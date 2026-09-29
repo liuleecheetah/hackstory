@@ -1,29 +1,44 @@
 // compose 層：時期（SPEC 7.5）的新增、改名、刪除（純函式）
 //
-// 圖層面板的時期編輯只做四件事：列出、新增（名稱＋起訖年）、改名、刪除。
+// 圖層面板的時期編輯只做四件事：列出、新增（名稱＋起訖時間，可填到年、月或日）、改名、刪除。
 // 顏色交給主題自動配，不做顏色挑選器（計畫書 2.4.3）。
 // 這裡只負責把文件改成新的樣子；進不進復原歷史由 useLayers 的 mutate 決定。
 
-import type { Period, TimelineDocument } from '../core'
+import type { AbsoluteTimePoint, Period, TimelineDocument } from '../core'
+import { absolutePointRange, parseDateTime } from '../core'
 
 /** 面板上「新增時期」表單填的東西 */
 export interface PeriodDraft {
   title: string
-  /** 四位數年份 */
-  startYear: string
-  /** 四位數年份；空白 = 至今 */
-  endYear: string
+  /** 開始：年、年/月或年/月/日，例如 1949、1949/5、1949/5/20、1949年5月20日 */
+  start: string
+  /** 結束（同上）；空白 = 至今 */
+  end: string
 }
 
-const RE_YEAR = /^\d{4}$/
+/**
+ * 把表單上的一個時間讀成時間點。時期只要到「日」為止：寫了幾點幾分也不收，
+ * 讀不懂就回傳錯誤原因
+ */
+function readPoint(raw: string): AbsoluteTimePoint | { error: string } {
+  const r = parseDateTime(raw.trim())
+  if (!r.ok) return { error: r.reason }
+  if (!('value' in r.start) || r.start.precision === 'minute') {
+    return { error: '時期只能填到年、月或日（不填時間）' }
+  }
+  return { value: r.start.value, precision: r.start.precision }
+}
 
 /** 表單哪裡填得不對（回傳給使用者看的中文）；都對就回傳 null */
 export function periodDraftError(d: PeriodDraft): string | null {
   if (d.title.trim() === '') return '請填時期名稱'
-  if (!RE_YEAR.test(d.startYear.trim())) return '起年請填四位數年份，例如 1949'
-  const end = d.endYear.trim()
-  if (end !== '' && !RE_YEAR.test(end)) return '迄年請填四位數年份，或留白表示「至今」'
-  if (end !== '' && Number(end) < Number(d.startYear.trim())) return '迄年不能早於起年'
+  if (d.start.trim() === '') return '請填開始時間，例如 1949 或 1949/5/20'
+  const start = readPoint(d.start)
+  if ('error' in start) return `開始時間看不懂：${start.error}。可以填 1949、1949/5 或 1949/5/20`
+  if (d.end.trim() === '') return null
+  const end = readPoint(d.end)
+  if ('error' in end) return `結束時間看不懂：${end.error}。可以填 1987、1987/7 或 1987/7/15，或留白表示「至今」`
+  if (absolutePointRange(end).end <= absolutePointRange(start).start) return '結束時間不能早於開始時間'
   return null
 }
 
@@ -45,15 +60,19 @@ function nextPeriodId(periods: Period[]): string {
 /** 新增一個時期（依起始時間排好，面板與檔案裡的順序都跟時間一致） */
 export function addPeriodToDoc(doc: TimelineDocument, draft: PeriodDraft): TimelineDocument {
   const existing = doc.periods ?? []
-  const end = draft.endYear.trim()
+  const start = readPoint(draft.start)
+  // 表單已經用 periodDraftError 擋過；這裡再保險一次，讀不懂就不改文件
+  if ('error' in start) return doc
+  const end = draft.end.trim() === '' ? null : readPoint(draft.end)
+  if (end && 'error' in end) return doc
   const period: Period = {
     id: nextPeriodId(existing),
     title: draft.title.trim(),
-    start: { value: draft.startYear.trim(), precision: 'year' },
-    ...(end ? { end: { value: end, precision: 'year' as const } } : {}),
+    start,
+    ...(end ? { end } : {}),
   }
-  const periods = [...existing, period].sort((a, b) =>
-    a.start.value < b.start.value ? -1 : a.start.value > b.start.value ? 1 : 0,
+  const periods = [...existing, period].sort(
+    (a, b) => absolutePointRange(a.start).start - absolutePointRange(b.start).start,
   )
   return withPeriodVersion({ ...doc, periods })
 }
@@ -76,8 +95,13 @@ export function removePeriodFromDoc(doc: TimelineDocument, index: number): Timel
   return without
 }
 
-/** 面板上顯示的年份範圍，例如「1949–1987」「2000–至今」 */
+/** 面板上顯示的時間範圍，例如「1949–1987」「1949/5/20–1987/7/15」「2000–至今」 */
 export function periodYears(p: Period): string {
-  const y = (v: string) => v.slice(0, 4)
-  return `${y(p.start.value)}–${p.end ? y(p.end.value) : '至今'}`
+  // 1949-05-20 → 1949/5/20（去掉月、日前面的 0）
+  const show = (v: string) =>
+    v
+      .split('-')
+      .map((part, i) => (i === 0 ? part : String(Number(part))))
+      .join('/')
+  return `${show(p.start.value)}–${p.end ? show(p.end.value) : '至今'}`
 }

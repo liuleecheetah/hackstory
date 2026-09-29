@@ -1,6 +1,6 @@
 // ui 層：圖層面板裡的「時期」小節
 //
-// 只做四件事：列出、新增（名稱＋起年＋迄年）、改名、刪除（計畫書 2.4.3）。
+// 只做四件事：列出、新增（名稱＋起訖時間，可填到年、月或日）、改名、刪除（計畫書 2.4.3）。
 // 顏色由主題自動配，不做顏色挑選器。修改都經過 useLayers，所以可以復原。
 
 import { useState } from 'react'
@@ -16,7 +16,7 @@ interface Props {
   onRemove: (index: number) => void
 }
 
-const EMPTY: PeriodDraft = { title: '', startYear: '', endYear: '' }
+const EMPTY: PeriodDraft = { title: '', start: '', end: '' }
 
 export function PeriodEditor({ periods, readOnly, onAdd, onRename, onRemove }: Props) {
   // 正在改名的時期（清單位置）與草稿
@@ -49,7 +49,6 @@ export function PeriodEditor({ periods, readOnly, onAdd, onRename, onRemove }: P
   const field = (key: keyof PeriodDraft, placeholder: string, className: string) => (
     <input
       type="text"
-      inputMode={key === 'title' ? undefined : 'numeric'}
       value={adding?.[key] ?? ''}
       placeholder={placeholder}
       onChange={(e) => setAdding((d) => (d ? { ...d, [key]: e.target.value } : d))}
@@ -82,11 +81,12 @@ export function PeriodEditor({ periods, readOnly, onAdd, onRename, onRemove }: P
                 className="min-w-0 flex-1 rounded border border-line px-1 py-0.5 text-sm"
               />
             ) : (
-              <span className="min-w-0 flex-1 truncate text-sm text-ink-muted" title={p.description ?? p.title}>
-                {p.title}
+              // 名稱一行、起訖時間一行：填到月日後時間變長，擠在同一行名稱會被截成「戒嚴…」
+              <span className="min-w-0 flex-1" title={p.description ?? p.title}>
+                <span className="block truncate text-sm text-ink-muted">{p.title}</span>
+                <span className="block text-sm tabular-nums text-ink-faint">{periodYears(p)}</span>
               </span>
             )}
-            <span className="shrink-0 text-sm tabular-nums text-ink-faint">{periodYears(p)}</span>
             {!readOnly && (
               <>
                 <button
@@ -118,10 +118,11 @@ export function PeriodEditor({ periods, readOnly, onAdd, onRename, onRemove }: P
           <div className="mt-1 space-y-1 rounded border border-line bg-surface p-2">
             {field('title', '時期名稱，例如「戒嚴時期」', 'w-full')}
             <div className="flex items-center gap-1 text-sm text-ink-muted">
-              {field('startYear', '起年', 'w-16')}
-              <span>到</span>
-              {field('endYear', '迄年（留白＝至今）', 'w-32')}
+              {field('start', '開始，例 1949/5/20', 'min-w-0 flex-1')}
+              <span className="shrink-0">到</span>
+              {field('end', '結束（留白＝至今）', 'min-w-0 flex-1')}
             </div>
+            <p className="text-sm text-ink-faint">可以只填年（1949），或填到月（1949/5）、日（1949/5/20）</p>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-2">
               <button type="button" onClick={submit} className="btn btn-primary">
