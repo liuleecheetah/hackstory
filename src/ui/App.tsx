@@ -9,6 +9,7 @@ import type { HstEvent, Relation, RelationType, RelativeAnchor, TimelineDocument
 import {
   isAbsolute,
   isFeatured,
+  isRelationReversed,
   parseDateTime,
   relativeDependsOn,
   removeEventFromDocument,
@@ -1034,6 +1035,21 @@ export default function App() {
           clientX={relationDraft.clientX}
           clientY={relationDraft.clientY}
           onCreate={handleCreateRelation}
+          isReversed={(type) => {
+            const doc = layers.find((l) => l.id === relationDraft.sourceId)?.doc
+            const from = doc?.events.find((e) => e.id === relationDraft.fromId)
+            const to = doc?.events.find((e) => e.id === relationDraft.toId)
+            return from && to ? isRelationReversed(type, from, to) : false
+          }}
+          onSwap={() =>
+            setRelationDraft({
+              ...relationDraft,
+              fromId: relationDraft.toId,
+              fromTitle: relationDraft.toTitle,
+              toId: relationDraft.fromId,
+              toTitle: relationDraft.fromTitle,
+            })
+          }
           onCancel={() => {
             setRelationDraft(null)
             setCardVisible(true)

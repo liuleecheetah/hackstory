@@ -242,7 +242,17 @@ export function LayerPanel({
             {!readOnly && (
               <button
                 type="button"
-                onClick={() => onRemove(layer.id)}
+                onClick={() => {
+                  // 一鍵就把整份時間軸拿掉太容易誤按：先確認（移除後仍可按「復原」找回）
+                  const n = layer.doc.events.length
+                  if (
+                    window.confirm(
+                      `要移除「${layer.doc.meta.title}」這個圖層嗎？（${n} 筆事件）\n移除後可以按工具列的「↩ 復原」找回；還沒下載的修改請先下載保存。`,
+                    )
+                  ) {
+                    onRemove(layer.id)
+                  }
+                }}
                 title="移除此圖層"
                 className="px-1 text-base text-ink-faint hover:text-red-600"
               >

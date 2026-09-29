@@ -392,7 +392,7 @@ export function ExportStudio(props: Props) {
   )
 
   // 標註框的候選事件，依軸線分組（跟圖上同一套軸線名與顏色）；
-  // 每組裡關鍵事件排前面，其餘依時間先後
+  // 每組裡關鍵事件排前面，其餘依時間先後。時間範圍外的事件不會畫出來，不列（勾了也只會被省略）
   const calloutGroups = useMemo(() => {
     const base = buildTimelineBase(sources, collapseGaps)
     return buildBands(sources, base, { showDates: false, showYears: false }, theme.palette).map((band) => ({
@@ -400,6 +400,7 @@ export function ExportStudio(props: Props) {
       label: band.label,
       color: band.color,
       items: band.events
+        .filter((pe) => scopeCounts.shown.has(`${band.sourceId}/${pe.ev.id}`))
         .map((pe) => ({
           key: `${band.sourceId}/${pe.ev.id}`,
           layerId: band.sourceId,
@@ -410,8 +411,8 @@ export function ExportStudio(props: Props) {
           t: pe.tStart,
         }))
         .sort((a, b) => Number(b.featured) - Number(a.featured) || a.t - b.t),
-    }))
-  }, [sources, collapseGaps, theme.palette])
+    })).filter((g) => g.items.length > 0)
+  }, [sources, collapseGaps, theme.palette, scopeCounts])
   const calloutCandidates = useMemo(() => calloutGroups.flatMap((g) => g.items), [calloutGroups])
   const calloutSpecs: CalloutSpec[] = calloutKeys.flatMap((key) => {
     const c = calloutCandidates.find((x) => x.key === key)
@@ -456,13 +457,18 @@ export function ExportStudio(props: Props) {
     return { domain, groups: eventGroups(starts), starts, uOf }
   }, [sources, collapseGaps, effectiveRange, useOrdinal])
 
-  // 標註的事件被篩掉了（例如改成只放關鍵事件），就自動取消它的勾選
+  // 標註的事件被篩掉了（例如改成只放關鍵事件），就自動取消它的勾選。
+  // 只是落在時間範圍外的不取消（打年份打到一半也會暫時落在範圍外）：先不列、不畫，範圍放寬就回來
+  const calloutAllKeys = useMemo(
+    () => new Set(sources.flatMap((src) => src.doc.events.map((e) => `${src.id}/${e.id}`))),
+    [sources],
+  )
   useEffect(() => {
     setCalloutKeys((prev) => {
-      const next = prev.filter((k) => calloutCandidates.some((c) => c.key === k))
+      const next = prev.filter((k) => calloutAllKeys.has(k))
       return next.length === prev.length ? prev : next
     })
-  }, [calloutCandidates])
+  }, [calloutAllKeys])
 
   /** 「跟主畫面一樣」：圖層、軸線、時間範圍、呈現的事件都回到主畫面的樣子 */
   const matchScreen = () => {
@@ -1398,6 +1404,11 @@ export function ExportStudio(props: Props) {
               <p className="mb-1 text-base font-bold text-ink">
                 標註事件（{calloutKeys.length}／{MAX_CALLOUTS}）
               </p>
+              {calloutKeys.length > calloutSpecs.length && (
+                <p className="mb-1 text-sm text-warn">
+                  其中 {calloutKeys.length - calloutSpecs.length} 個在目前的時間範圍外，暫時不畫；範圍放寬就會回來
+                </p>
+              )}
               <p className="mb-2 text-sm text-ink-faint">
                 勾選的事件會加上「標題＋一句摘要」的說明框，用引線連回事件。關鍵事件（★）排在前面；點 ☆／★ 可設為或取消關鍵事件
               </p>
@@ -1476,32 +1487,34 @@ export function ExportStudio(props: Props) {
                                   {c.title}
                                 </span>
                               </label>
-                              {on &&
-                                (() => {
-                                  const text = calloutText[c.key] ?? defaultSummary(c.description, summaryCap)
-                                  const used = summaryUsed(text)
-                                  return (
-                                    <>
-                                      <input
-                                        value={text}
-                                        onChange={(e) => setCalloutText((prev) => ({ ...prev, [c.key]: e.target.value }))}
-                                        placeholder="一句摘要（可留空，只顯示標題）"
-                                        className="field ml-6 mt-1 w-[calc(100%-1.5rem)]"
-                                      />
-                                      <p
-                                        className={
-                                          'ml-6 text-sm ' + (used > summaryCap ? 'text-warn' : 'text-ink-faint')
-                                        }
-                                      >
-                                        約 {used}／{summaryCap} 字
-                                        {used > summaryCap && '——框裡放不下，超過的部分會變成「…」，建議縮短'}
-                                      </p>
-                                    </>
-                                  )
-                                })()}
                             </div>
                           )
                         })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {/* 摘要輸入框集中放在清單下面：展開在清單裡會把下面的項目往下推，連點時會點到輸入框 */}
+              {!(layout === 'D' && cardMode) && calloutSpecs.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm text-ink-faint">每個標註的一句摘要（依勾選順序）</p>
+                  {calloutSpecs.map((spec) => {
+                    const text = spec.summary
+                    const used = summaryUsed(text)
+                    return (
+                      <div key={spec.key}>
+                        <p className="truncate text-sm font-medium text-ink">{spec.title}</p>
+                        <input
+                          value={text}
+                          onChange={(e) => setCalloutText((prev) => ({ ...prev, [spec.key]: e.target.value }))}
+                          placeholder="一句摘要（可留空，只顯示標題）"
+                          className="field mt-0.5 w-full"
+                        />
+                        <p className={'text-sm ' + (used > summaryCap ? 'text-warn' : 'text-ink-faint')}>
+                          約 {used}／{summaryCap} 字
+                          {used > summaryCap && '——框裡放不下，超過的部分會變成「…」，建議縮短'}
+                        </p>
                       </div>
                     )
                   })}

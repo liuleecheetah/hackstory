@@ -12,6 +12,10 @@ interface Props {
   clientY: number
   onCreate: (type: RelationType, label: string) => void
   onCancel: () => void
+  /** 這個關係類型的方向跟兩件事的時間先後是否明顯矛盾（例如原因比結果晚） */
+  isReversed?: (type: RelationType) => boolean
+  /** 把起點與目標對調 */
+  onSwap?: () => void
 }
 
 /** 關係類型的中文名稱（SPEC 第 7 節） */
@@ -25,7 +29,7 @@ const TYPE_OPTIONS: Array<{ value: RelationType; label: string }> = [
 
 const W = 320
 
-export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate, onCancel }: Props) {
+export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate, onCancel, isReversed, onSwap }: Props) {
   const [type, setType] = useState<RelationType>('causes')
   const [label, setLabel] = useState('')
 
@@ -68,6 +72,22 @@ export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate,
           ))}
         </select>
       </label>
+
+      {/* 方向跟時間先後矛盾：提醒、給對調按鈕，但不擋（也許資料的日期才是錯的） */}
+      {isReversed?.(type) && (
+        <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm text-amber-800">
+          <p>
+            {type === 'causes'
+              ? '原因發生在結果之後，方向是不是反了？'
+              : `「${fromTitle}」比「${toTitle}」早發生，方向是不是反了？`}
+          </p>
+          {onSwap && (
+            <button type="button" onClick={onSwap} className="btn mt-1 text-sm">
+              ⇄ 對調方向
+            </button>
+          )}
+        </div>
+      )}
 
       <label className="block text-sm text-ink-muted">
         線上顯示的說明（選填）

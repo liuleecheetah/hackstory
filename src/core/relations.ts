@@ -3,7 +3,9 @@
 // 事件 id 只保證在「同一份文件內」唯一，所以光看 from／to 的字串無法分辨
 // 它指的是本文件的事件、還是別份文件裡剛好同名的事件——必須看 fromDoc／toDoc。
 
-import type { Relation } from './types'
+import { absolutePointRange } from './time'
+import type { HstEvent, Relation, RelationType } from './types'
+import { isAbsolute } from './types'
 
 /**
  * 這條關係是否指向其他文件（SPEC 0.4 的 fromDoc／toDoc）。
@@ -61,4 +63,20 @@ export function removeRelationFrom(relations: Relation[], target: Relation): Rel
     alreadyRemoved = true
     return false
   })
+}
+
+/**
+ * 關係的方向跟時間先後是否明顯矛盾（建立關係時提醒用，不擋）。
+ *
+ * 「A 導致 B」A 應該比 B 早；「A 回應 B」「A 衍生自 B」A 應該比 B 晚。
+ * 只在「明顯」顛倒時回報：兩件事的時間範圍重疊（例如同一年、精度只到年）就不算，
+ * 相對時間的事件沒有確切日期，也不判斷。矛盾、同一事件沒有先後可言。
+ */
+export function isRelationReversed(type: RelationType, from: HstEvent, to: HstEvent): boolean {
+  if (!isAbsolute(from.start) || !isAbsolute(to.start)) return false
+  const a = absolutePointRange(from.start)
+  const b = absolutePointRange(to.start)
+  if (type === 'causes') return a.start >= b.end
+  if (type === 'responds_to' || type === 'derives_from') return a.end <= b.start
+  return false
 }

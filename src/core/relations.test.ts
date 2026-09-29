@@ -1,9 +1,10 @@
 // 跨文件關係的判斷。
 // 重點情境：外部事件 id「剛好」與本文件某事件同名——這正是會畫錯線的那種資料。
 import { describe, expect, it } from 'vitest'
-import type { Relation } from './types'
+import type { HstEvent, Relation } from './types'
 import {
   isCrossDocument,
+  isRelationReversed,
   nextRelationId,
   removeRelationFrom,
   sameDocumentRelations,
@@ -88,5 +89,37 @@ describe('removeRelationFrom — 依身分刪除，不依陣列位置', () => {
     const result = removeRelationFrom(mixed, { from: 'a', to: 'b', type: 'causes' })
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe('rel-1')
+  })
+})
+
+describe('isRelationReversed：關係方向跟時間先後明顯矛盾', () => {
+  const at = (value: string, precision: 'year' | 'day' = 'day'): HstEvent => ({
+    id: value,
+    track: 't',
+    title: value,
+    start: { value, precision },
+  })
+
+  it('「導致」：原因比結果晚才算顛倒', () => {
+    expect(isRelationReversed('causes', at('2001-01-01'), at('2000-01-01'))).toBe(true)
+    expect(isRelationReversed('causes', at('2000-01-01'), at('2001-01-01'))).toBe(false)
+  })
+
+  it('「回應」「衍生自」：回應的一方比被回應的早才算顛倒', () => {
+    expect(isRelationReversed('responds_to', at('2000-01-01'), at('2001-01-01'))).toBe(true)
+    expect(isRelationReversed('derives_from', at('2000-01-01'), at('2001-01-01'))).toBe(true)
+    expect(isRelationReversed('responds_to', at('2001-01-01'), at('2000-01-01'))).toBe(false)
+  })
+
+  it('時間範圍重疊（同一年、精度只到年）不算', () => {
+    expect(isRelationReversed('causes', at('2000', 'year'), at('2000-03-01'))).toBe(false)
+    expect(isRelationReversed('causes', at('2000-05-01'), at('2000-05-01'))).toBe(false)
+  })
+
+  it('相對時間、矛盾、同一事件不判斷', () => {
+    const rel: HstEvent = { id: 'r', track: 't', title: 'r', start: { relative: { after: 'x' } } }
+    expect(isRelationReversed('causes', rel, at('2000-01-01'))).toBe(false)
+    expect(isRelationReversed('contradicts', at('2001-01-01'), at('2000-01-01'))).toBe(false)
+    expect(isRelationReversed('same_event', at('2001-01-01'), at('2000-01-01'))).toBe(false)
   })
 })
