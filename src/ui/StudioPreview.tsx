@@ -155,7 +155,7 @@ export function StudioPreview({ svg, width, height, background, busy,
               ))}
           </div>
         )}
-        {(busy || !markup) && (
+        {(busy || (!markup && !error)) && (
           <div className="absolute right-2 top-2 rounded bg-surface/90 px-2 py-1 text-sm text-ink-muted shadow">
             {markup ? '更新預覽中…' : '產生預覽中…'}
           </div>

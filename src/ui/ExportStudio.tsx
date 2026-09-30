@@ -931,7 +931,10 @@ export function ExportStudio(props: Props) {
           setPreviewError(null)
         })
         .catch((e: Error) => {
-          if (seq === renderSeq.current) setPreviewError(e.message)
+          if (seq !== renderSeq.current) return
+          // 畫不出來時把上一次的圖清掉：留著舊圖（例如舊的封面、舊的「共 N 張」）會讓人以為還能用
+          setPreview(null)
+          setPreviewError(e.message)
         })
         .finally(() => {
           if (seq === renderSeq.current) setBusy(false)
@@ -1052,7 +1055,8 @@ export function ExportStudio(props: Props) {
     titleTruncated: firstPage?.dataset.titleTruncated === '1',
     subtitleTruncated: firstPage?.dataset.subtitleTruncated === '1',
   }
-  const blocked = Boolean(preview?.blocked)
+  // 預覽失敗（例如沒有勾任何圖層）也不給下載
+  const blocked = Boolean(preview?.blocked) || previewError !== null
   const pageCount = preview?.pages.length ?? 1
   const shownIdx = Math.min(pageIdx, pageCount - 1)
   const shown = preview?.pages[shownIdx]
@@ -1715,7 +1719,13 @@ export function ExportStudio(props: Props) {
                 {message.text}
               </p>
             )}
-            {blocked && <p className="text-sm text-danger">有事件放不下，這個比例不能下載（原因見預覽上方）</p>}
+            {blocked && (
+              <p className="text-sm text-danger">
+                {previewError !== null
+                  ? '預覽畫不出來，不能下載（原因見預覽上方）'
+                  : '有事件放不下，這個比例不能下載（原因見預覽上方）'}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => downloadPng(2)} className="btn btn-primary" disabled={blocked}>
                 下載 PNG（2×）
