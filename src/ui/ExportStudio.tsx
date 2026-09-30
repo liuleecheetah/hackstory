@@ -40,7 +40,6 @@ import { MIN_PHONE_EVENT_PX, PHONE_VIEW_W, RATIO_PRESETS } from './ratios'
 import { eventGroups, MAX_PAGES, planPages } from './splitPages'
 import {
   clearStudioSettings,
-  docsToLayerIds,
   layerIdsToDocs,
   loadStudioSettings,
   saveStudioSettings,
@@ -225,19 +224,18 @@ export function ExportStudio(props: Props) {
   const [eventScope, setEventScope] = useState<EventScope>(() => saved?.eventScope ?? 'all')
   const [showScopeNote, setShowScopeNote] = useState(() => saved?.showScopeNote ?? true)
 
-  // 圖層、軸線、標註要等拿到目前的圖層才對得上：第一次打開時從上次的設定換算回來，
-  // 之後再打開就保留使用者在工作室裡的勾選，只把「新載入、主畫面上顯示中」的圖層一併勾上
+  // 每次打開工作室，要放哪些圖層與軸線都跟主畫面一樣（主畫面顯示中的圖層、沒隱藏的軸線）。
+  // 以前會沿用上次在工作室的勾選，結果新載入的圖層沒勾、主畫面已隱藏的圖層卻還在圖上——
+  // 挑圖層的地方是主畫面，工作室裡要再調也可以，但每次打開都從「跟主畫面一樣」開始。
+  // 標註要等拿到目前的圖層才對得上：第一次打開時從上次的設定換算回來
   const initialized = useRef(false)
-  const knownLayers = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!open) return
-    const visible = layers.filter((l) => l.visible)
+    setLayerOn(new Set(layers.filter((l) => l.visible).map((l) => l.id)))
+    setTrackOff(new Set(hiddenTracks))
     if (!initialized.current) {
       initialized.current = true
-      const fromSaved = saved ? docsToLayerIds(saved.layerDocs, layers) : []
-      if (saved && fromSaved.length > 0) {
-        setLayerOn(new Set(fromSaved))
-        setTrackOff(new Set(saved.trackOffDocs.flatMap((k) => toLayerKey(k, layers) ?? [])))
+      if (saved) {
         setCalloutKeys(saved.callouts.flatMap((k) => toLayerKey(k, layers) ?? []))
         setCalloutText(
           Object.fromEntries(
@@ -247,19 +245,8 @@ export function ExportStudio(props: Props) {
             }),
           ),
         )
-      } else {
-        // 第一次用（或上次的資料都不在了）：跟目前畫面一樣
-        setLayerOn(new Set(visible.map((l) => l.id)))
-        setTrackOff(new Set(hiddenTracks))
       }
-    } else {
-      setLayerOn((prev) => {
-        const next = new Set([...prev].filter((id) => layers.some((l) => l.id === id)))
-        for (const l of visible) if (!knownLayers.current.has(l.id)) next.add(l.id)
-        return next
-      })
     }
-    knownLayers.current = new Set(layers.map((l) => l.id))
     // 「目前畫面看到的那一段」要有主畫面的範圍才能用
     if (!viewDomain) setRangeKind((k) => (k === 'view' ? 'all' : k))
     // eslint-disable-next-line react-hooks/exhaustive-deps
