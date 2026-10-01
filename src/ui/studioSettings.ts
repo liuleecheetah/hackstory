@@ -44,6 +44,8 @@ export interface StoredStudioSettings {
   /** 後來才加的欄位：舊的存檔沒有，讀回來時當成「不寫時間」 */
   dateTime?: boolean
   showRelations: boolean
+  /** 後來才加：關係線上自己寫的說明要不要畫 */
+  relationLabels?: boolean
   collapseGaps: boolean
   ordinal: boolean
   compact: boolean

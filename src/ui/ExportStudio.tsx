@@ -204,6 +204,8 @@ export function ExportStudio(props: Props) {
   const [dateTime, setDateTime] = useState(() => saved?.dateTime ?? false)
   // 出圖預設不畫關係線：簡報圖要乾淨，需要時再勾
   const [showRelations, setShowRelations] = useState(() => saved?.showRelations ?? false)
+  // 關係線上自己寫的說明（例如「選舉中止，黨外改以辦雜誌集結」）要不要畫出來
+  const [relationLabels, setRelationLabels] = useState(() => saved?.relationLabels ?? true)
   // 出圖預設不摺疊：圖是給外人看的，時間感要誠實（摺疊會把長段空白壓成一小段），需要時再勾
   const [collapseGaps, setCollapseGaps] = useState(() => saved?.collapseGaps ?? false)
   // 順序等距：事件依先後等距排列（圖上固定標「非等比」）；卡片大事記本來就依先後排，不適用
@@ -281,6 +283,7 @@ export function ExportStudio(props: Props) {
     setDateDay(props.showDates)
     setDateTime(false)
     setShowRelations(false)
+    setRelationLabels(true)
     setCollapseGaps(false)
     setOrdinal(false)
     setCompact(props.compact)
@@ -723,6 +726,7 @@ export function ExportStudio(props: Props) {
       showYears: true,
       dateParts: { year: dateYear, month: dateMonth, day: dateDay, time: dateTime },
       showRelations,
+      relationLabels,
       collapseGaps,
       ordinal: useOrdinal,
       title: titleText,
@@ -766,13 +770,18 @@ export function ExportStudio(props: Props) {
       }
     }
     if (horizontal) {
-      const { svg, overflow, clipped, height, calloutsDropped } = await run(
+      const { svg, overflow, clipped, height, calloutsDropped, relationLabelsDropped } = await run(
         renderHorizontalExportSvg,
         { ...common, compact, swimlane: true, centerAxis: layout === 'B', callouts: pageCallouts },
         // 試算畫布要夠長：標註框放不進軸線之間的空白時，才有地方往下放
         calloutSpecs.length > 0 ? 200_000 : 600,
       )
       warnDroppedCallouts(calloutsDropped, warnings)
+      if (relationLabelsDropped > 0) {
+        warnings.push(
+          `有 ${relationLabelsDropped} 則關係線說明找不到不蓋到事件文字的位置，已省略（線還在）——可以選較寬的比例、縮短時間範圍或減少軸線；不需要說明文字也可以在「關係線」下面取消勾選`,
+        )
+      }
       const lost = overflow
         ? '軸線與事件太多，超出畫面'
         : clipped > 0
@@ -845,7 +854,7 @@ export function ExportStudio(props: Props) {
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
     layout, bDir, ratioId, themeId, fontScale, titleText, subtitleText, footerText, [...layerOn], [...trackOff],
-    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, collapseGaps, compact,
+    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, relationLabels, collapseGaps, compact,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
     eventScope, showScopeNote, overflowMode, ordinal, perPage, storySafe, coverOn, closingOn, callToAction,
     logo ? `${logo.name}:${logo.dataUrl.length}` : '',
@@ -885,6 +894,7 @@ export function ExportStudio(props: Props) {
       dateDay,
       dateTime,
       showRelations,
+      relationLabels,
       collapseGaps,
       ordinal,
       compact,
@@ -1546,6 +1556,11 @@ export function ExportStudio(props: Props) {
                 ) : (
                   <>
                     {checkbox('關係線', showRelations, setShowRelations)}
+                    {showRelations && (
+                      <div className="-mt-1 ml-6">
+                        {checkbox('線上的說明文字（自己寫的說明，放不下的會省略）', relationLabels, setRelationLabels)}
+                      </div>
+                    )}
                     {checkbox('事件平均排開（不照時間比例）', ordinal, setOrdinal)}
                     <p className="-mt-1 ml-6 text-sm text-ink-faint">
                       依先後平均排開，適合事件少的圖；圖上會固定標示「不照時間比例」

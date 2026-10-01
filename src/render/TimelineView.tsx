@@ -75,6 +75,8 @@ interface Props {
   swimlane?: boolean
   /** 標註框：挑出來加「標題＋摘要」說明的事件（只在匯出時畫） */
   callouts?: CalloutSpec[]
+  /** 出圖時要不要畫關係線上使用者自己寫的說明（預設畫） */
+  relationLabels?: boolean
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
@@ -142,6 +144,7 @@ export function TimelineView({
   theme = THEMES.screen,
   swimlane = false,
   callouts,
+  relationLabels = true,
   selectedKey,
   onEventSelect,
   onEventCreate,
@@ -571,6 +574,9 @@ export function TimelineView({
           : `M ${from.x} ${from.y} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y}`
 
         const label = rel.label ?? RELATION_LABELS[rel.type] ?? rel.type
+        // 使用者自己寫的說明（例如「選舉中止，黨外改以辦雜誌集結」）：出圖時一律畫出來；
+        // 只有類型名稱（導致、回應…）的交給圖例，不必每條線都標
+        const custom = (rel.label ?? '').trim() !== ''
         // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
         const labelW = estimateTextWidth(label, F.date) + 18 * S
         const clampX = (x: number) => Math.min(Math.max(x, plotL + labelW / 2 + 4), width - labelW / 2 - 4)
@@ -586,6 +592,8 @@ export function TimelineView({
         }
         let labelX = clampX((from.x + to.x) / 2)
         let labelY = midY
+        // 找到不蓋字的位置沒有（出圖時找不到就不畫，並告訴出圖工作室省略了幾則）
+        let labelFits = false
         // 事件文字多半往圓點右邊長，所以也試「貼在線的左側」；再不行試右側
         const shifts = [0, -(labelW / 2 + 6 * S), labelW / 2 + 6 * S]
         search: for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
@@ -595,6 +603,7 @@ export function TimelineView({
             if (!hitsEvent(x, pt.y, labelW)) {
               labelX = x
               labelY = pt.y
+              labelFits = true
               break search
             }
           }
@@ -605,11 +614,14 @@ export function TimelineView({
               if (!hitsEvent(leftX, y, labelW)) {
                 labelX = leftX
                 labelY = y
+                labelFits = true
                 break search
               }
             }
           }
         }
+        // 出圖時會畫出來的說明框也算障礙物：下一個說明框不要疊在它上面
+        if (isExport && custom && labelFits) eventBoxes.push({ l: labelX - labelW / 2, r: labelX + labelW / 2, t: labelY - labelH / 2, b: labelY + labelH / 2 })
         return [
           {
             id: `${source.id}/rel-${i}`,
@@ -618,6 +630,8 @@ export function TimelineView({
             toKey,
             type: rel.type,
             label,
+            custom,
+            labelFits,
             labelW,
             labelX,
             labelY,
@@ -921,6 +935,12 @@ export function TimelineView({
         data-clipped={exportMode ? layout.clippedLabels : undefined}
         // 放不下而省略的標註（事件 key，以 | 分隔），讓出圖工作室能告訴使用者
         data-callouts-dropped={calloutLayout ? calloutLayout.dropped.join('|') : undefined}
+        // 放不下而省略的關係說明數（出圖工作室據此提醒）
+        data-relation-labels-dropped={
+          isExport && showRelations && relationLabels
+            ? layout.relationLines.filter((r) => r.custom && !r.labelFits).length
+            : undefined
+        }
         // 全部軸線都放得下需要的高度（出圖工作室「自動長度」用）
         // 標題、副標兩行還放不下被截短了（出圖工作室在輸入框下提醒）
         data-title-truncated={header?.titleTruncated ? '1' : undefined}
@@ -1381,12 +1401,14 @@ export function TimelineView({
           </g>
         ))}
 
-        {/* 亮起的關係說明標籤：畫在最上層，白底圓角框，不與事件文字交疊 */}
+        {/* 關係說明標籤：畫在最上層，白底圓角框，不與事件文字交疊。
+            畫面上點選／滑過事件時亮起；出圖時自己寫的說明一律畫出來 */}
         {showRelations && (
           <g pointerEvents="none">
             {layout.relationLines
               .filter(
-                ({ fromKey, toKey }) =>
+                ({ fromKey, toKey, custom, labelFits }) =>
+                  (isExport && relationLabels && custom && labelFits) ||
                   selectedKey === fromKey ||
                   selectedKey === toKey ||
                   hoveredKey === fromKey ||

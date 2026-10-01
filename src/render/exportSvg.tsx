@@ -27,6 +27,8 @@ export interface ExportRequestBase {
   domain?: [number, number]
   /** 用真實時間（毫秒）指定範圍，例如「1980 到 2020 年」。優先於 domain */
   timeRange?: [number, number]
+  /** 關係線上使用者自己寫的說明要不要畫出來（預設畫；放不下的會省略並回報） */
+  relationLabels?: boolean
   /** 邏輯尺寸（像素） */
   width: number
   height: number
@@ -108,6 +110,8 @@ export interface HorizontalExportResult extends ContentHeight, CalloutsDropped {
   overflow: boolean
   /** 標題連一個字都放不下、只剩圓點的事件數（出圖時標題不會被切出圖外，改成截短；截到沒字才算） */
   clipped: number
+  /** 找不到不蓋字的位置而省略的關係說明數 */
+  relationLabelsDropped: number
 }
 
 /** 離屏渲染時用的 id，避免與畫面上的時間軸 SVG 撞名 */
@@ -183,6 +187,7 @@ export function renderVerticalExportSvg(
       collapseGaps={req.collapseGaps}
       ordinal={req.ordinal}
       callouts={req.callouts}
+      relationLabels={req.relationLabels}
       exportMode={{
         width: req.width,
         height: req.height,
@@ -267,6 +272,7 @@ export function renderHorizontalExportSvg(
       swimlane={req.swimlane}
       centerAxis={req.centerAxis}
       callouts={req.callouts}
+      relationLabels={req.relationLabels}
       exportMode={{
         width: req.width,
         height: req.height,
@@ -281,6 +287,7 @@ export function renderHorizontalExportSvg(
       svg: detach(svg),
       overflow: svg.dataset.overflow === '1',
       clipped: Number(svg.dataset.clipped ?? 0),
+      relationLabelsDropped: Number(svg.dataset.relationLabelsDropped ?? 0),
       contentHeight: contentHeightOf(svg),
       calloutsDropped: calloutsDroppedOf(svg),
     }),

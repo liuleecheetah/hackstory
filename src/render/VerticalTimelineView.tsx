@@ -98,6 +98,8 @@ interface Props {
   theme?: RenderTheme
   /** 標註框：挑出來加「標題＋摘要」說明的事件（只在匯出時畫） */
   callouts?: CalloutSpec[]
+  /** 出圖時要不要畫關係線上使用者自己寫的說明（預設畫） */
+  relationLabels?: boolean
   /** ui 層下的指令：「切到某個尺度」 */
   scaleRequest?: ScaleRequest | null
   /** 縮放後回報目前落在哪個尺度，讓 ui 層的按鈕高亮 */
@@ -209,6 +211,7 @@ export function VerticalTimelineView({
   bigYears = false,
   theme = THEMES.screen,
   callouts,
+  relationLabels = true,
   scaleRequest,
   onScaleModeChange,
   selectedKey,
@@ -635,6 +638,8 @@ export function VerticalTimelineView({
           : `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`
 
         const label = rel.label ?? RELATION_LABELS[rel.type] ?? rel.type
+        // 使用者自己寫的說明：出圖時一律畫出來（只有類型名稱的交給圖例）
+        const custom = (rel.label ?? '').trim() !== ''
         // 標籤底框的尺寸與位置（夾在畫面內，不被切出去）
         const labelW = estimateTextWidth(label, F.date) + 18 * S
         const labelX = Math.min(Math.max(midX, labelW / 2 + 4), width - labelW / 2 - 4)
@@ -646,6 +651,7 @@ export function VerticalTimelineView({
             toKey,
             type: rel.type,
             label,
+            custom,
             labelW,
             labelX,
             labelY: (from.y + to.y) / 2,
@@ -1456,7 +1462,8 @@ export function VerticalTimelineView({
             <g pointerEvents="none">
               {layout.relationLines
                 .filter(
-                  ({ fromKey, toKey }) =>
+                  ({ fromKey, toKey, custom }) =>
+                    (exportMode != null && relationLabels && custom) ||
                     selectedKey === fromKey ||
                     selectedKey === toKey ||
                     hoveredKey === fromKey ||
