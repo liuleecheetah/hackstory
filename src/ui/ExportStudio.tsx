@@ -952,7 +952,10 @@ export function ExportStudio(props: Props) {
   type MessageTone = 'busy' | 'ok' | 'warn' | 'error'
   const [message, setMessage] = useState<{ text: string; tone: MessageTone } | null>(null)
   const msgTimer = useRef<number | undefined>(undefined)
+  // 複製失敗時備好的那張圖：不自動下載，等使用者按「下載這一張」
+  const [pendingDownload, setPendingDownload] = useState<{ name: string; blob: Blob } | null>(null)
   const say = (text: string, tone: MessageTone = 'busy', ms = tone === 'busy' ? 60_000 : 8000) => {
+    setPendingDownload(null)
     setMessage({ text, tone })
     window.clearTimeout(msgTimer.current)
     msgTimer.current = window.setTimeout(() => setMessage(null), ms)
@@ -1039,11 +1042,15 @@ export function ExportStudio(props: Props) {
         say(`✓ 已複製${which}到剪貼簿，可以直接貼進簡報或社群貼文${notes.map((x) => '；' + x).join('')}`, 'ok')
         return
       }
-      // 瀏覽器不讓複製圖片：退回下載，並說清楚
+      // 瀏覽器不讓複製圖片：說清楚，並備好「下載這一張」按鈕——不經同意就下載檔案會嚇到人
       try {
         const { blob, i, n } = await png
-        downloadBlob(pageFile(i, n, '@2x.png'), blob)
-        say(`這個瀏覽器不讓網頁複製圖片，已改成下載 PNG（${n > 1 ? `第 ${i + 1}／${n} 張` : '圖片'}）`, 'warn')
+        say(
+          `這個瀏覽器不讓網頁複製圖片。要改成下載${n > 1 ? `第 ${i + 1}／${n} 張` : '這張圖'}（PNG）嗎？`,
+          'warn',
+          30_000,
+        )
+        setPendingDownload({ name: pageFile(i, n, '@2x.png'), blob })
       } catch (e) {
         say(`✕ 複製失敗：${(e as Error).message}`, 'error')
       }
@@ -1725,6 +1732,18 @@ export function ExportStudio(props: Props) {
                 }
               >
                 {message.text}
+                {pendingDownload && (
+                  <button
+                    type="button"
+                    className="btn ml-2 text-sm"
+                    onClick={() => {
+                      downloadBlob(pendingDownload.name, pendingDownload.blob)
+                      say('✓ 已下載', 'ok')
+                    }}
+                  >
+                    下載這一張
+                  </button>
+                )}
               </p>
             )}
             {blocked && (
@@ -1745,7 +1764,8 @@ export function ExportStudio(props: Props) {
                 下載 SVG
               </button>
               <button type="button" onClick={copyToClipboard} className="btn" disabled={blocked}>
-                複製到剪貼簿
+                {/* 切成多張時只複製正在看的那一張，按鈕上就講清楚 */}
+                {pageCount > 1 ? '複製這一張到剪貼簿' : '複製到剪貼簿'}
               </button>
             </div>
             <label
