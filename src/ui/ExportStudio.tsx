@@ -860,8 +860,8 @@ export function ExportStudio(props: Props) {
     logo ? `${logo.name}:${logo.dataUrl.length}` : '',
     calloutText,
   ])
-  // 設定一改，切出來的張數與內容都可能不同：預覽回到第 1 張
-  useEffect(() => setPageIdx(0), [settingsKey])
+  // 上一次預覽共幾張：設定改了以後，預覽停在使用者正在看的那一張（而不是跳回第 1 張）
+  const lastPageCount = useRef(1)
 
   // 記住設定（存在這個瀏覽器）：圖層、軸線、標註換成文件 id，重新載入後才對得回來
   useEffect(() => {
@@ -924,6 +924,12 @@ export function ExportStudio(props: Props) {
       renderCurrent()
         .then((r) => {
           if (seq !== renderSeq.current) return
+          // 原本在看多張中的最後一張（例如收尾頁）就繼續看最後一張；其餘停在同一張，張數變少時停在新的最後一張；
+          // 從一張變成多張時從第 1 張開始
+          const prevCount = lastPageCount.current
+          const nextCount = r.pages.length
+          setPageIdx((i) => (prevCount > 1 && i >= prevCount - 1 ? nextCount - 1 : Math.min(i, nextCount - 1)))
+          lastPageCount.current = nextCount
           setPreview(r)
           setPreviewError(null)
         })
