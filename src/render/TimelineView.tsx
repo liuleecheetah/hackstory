@@ -199,7 +199,9 @@ export function TimelineView({
   // 沒開時 plotL = 0、plotW = width，所有座標與以前完全相同
   const lane = swimlane && !!exportMode
   const plotL = lane ? BASE_LANE_LABEL_W * S : 0
-  const plotW = Math.max(1, width - plotL)
+  // 出圖時右邊留一點邊：範圍最後一件事（例如 1987/7/15 解除戒嚴）的圓點才不會被圖片右緣切掉一半
+  const plotR = exportMode ? 16 * S : 0
+  const plotW = Math.max(1, width - plotL - plotR)
   const M = useMemo(
     () => ({
       laneH: T.laneH,
@@ -479,9 +481,12 @@ export function TimelineView({
         // 圓點看中心、長條看有沒有重疊：切成多張圖時，分界旁的圓點才不會兩張都露出半個
         .filter((it) => {
           if (!isExport) return true
-          if (it.kind === 'bar') return it.shapeR >= plotL && it.shapeL <= width
+          // 以時間軸的右緣（不是圖片右緣）判斷：圖片右邊留的那一小段邊界裡，
+          // 是範圍以外的時間，那裡的事件不該畫出來（之前會畫出半個被切掉的圓點）
+          const plotRight = plotL + plotW
+          if (it.kind === 'bar') return it.shapeR >= plotL && it.shapeL <= plotRight
           const cx = (it.shapeL + it.shapeR) / 2
-          return cx >= plotL && cx <= width
+          return cx >= plotL && cx <= plotRight
         })
         .sort((p, q) => p.occL - q.occL)
 
@@ -1194,7 +1199,7 @@ export function TimelineView({
         {/* 軸線底色與標題 */}
         {layout.bands.map(({ key, label, color, bandTop, bandH }) => (
           <g key={`${key}-bg`}>
-            <rect x={plotL} y={bandTop} width={plotW} height={bandH} fill={color} opacity={0.05} />
+            <rect x={plotL} y={bandTop} width={width - plotL} height={bandH} fill={color} opacity={0.05} />
             {/* 泳道外觀的軸線名畫在左側色塊（最上層，見下方），這裡不重複 */}
             {!lane && (
               <>

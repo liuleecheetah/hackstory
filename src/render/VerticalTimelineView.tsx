@@ -1524,7 +1524,7 @@ export function VerticalTimelineView({
               fontSize={F.footer}
               fill={C.inkFaint}
             >
-              {formatRangeLabel(layout.tView)}
+              {formatRangeLabel(layout.tView, { yearsOnly: exportMode != null })}
             </text>
             {/* 軸被拉長之後，畫面上只看得到一小段——順手告訴讀者整條軸有多長 */}
             {!exportMode && layout.contentH > layout.baseH * 1.2 && (

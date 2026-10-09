@@ -170,7 +170,16 @@ export function ChronicleView({
 
         {/* 範圍，以及「間距不代表時間長短」的固定說明（誠實原則，不可省略） */}
         <text x={padX} y={TITLE_H + 16 * S} fontSize={F.footer} fill={C.inkFaint}>
-          {formatRangeLabel(tView)}
+          {/* 寫這張圖上真的有的事件的年份——切成多張時，分界點的日期不是任何事件的日期，寫出來會讓人以為那天發生了什麼事 */}
+          {layout.rows.length > 0
+            ? formatRangeLabel(
+                [
+                  Math.min(...layout.rows.map((r) => (r.entry as ChronicleEntry & { t: number }).t)),
+                  Math.max(...layout.rows.map((r) => (r.entry as ChronicleEntry & { t: number }).t)) + 1,
+                ],
+                { yearsOnly: true },
+              )
+            : formatRangeLabel(tView, { yearsOnly: true })}
         </text>
         <text x={width - padX} y={TITLE_H + 16 * S} textAnchor="end" fontSize={F.footer} fill={C.inkFaint}>
           依先後排列・卡片間距不代表時間長短

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AbsoluteTimePoint } from '../core'
-import { formatPointParts } from './timeScale'
+import { formatPointParts, formatRangeLabel } from './timeScale'
 
 const day: AbsoluteTimePoint = { value: '2019-05-24', precision: 'day' }
 const month: AbsoluteTimePoint = { value: '1987-07', precision: 'month' }
@@ -39,5 +39,22 @@ describe('formatPointParts：時間（分鐘精度）', () => {
   })
   it('出圖工作室關掉「時間」就只寫日期', () => {
     expect(formatPointParts(p, { ...all, time: false })).toBe('2016/12/10')
+  })
+})
+
+describe('formatRangeLabel：範圍的年份', () => {
+  const t = (y: number, m = 0, d = 1) => new Date(y, m, d).getTime()
+
+  it('結尾不含那一刻：1945 到 2000 年（到 2001-01-01 為止）寫成 1945 – 2000', () => {
+    expect(formatRangeLabel([t(1945), t(2001)])).toBe('1945 – 2000')
+  })
+
+  it('只寫年份時，同一年就只寫一個年份', () => {
+    expect(formatRangeLabel([t(1947, 1, 27), t(1947, 4, 16)], { yearsOnly: true })).toBe('1947')
+    expect(formatRangeLabel([t(1947, 2, 12), t(1948, 3, 21)], { yearsOnly: true })).toBe('1947 – 1948')
+  })
+
+  it('短範圍（兩年內）照舊寫到日', () => {
+    expect(formatRangeLabel([t(1947, 1, 27), t(1947, 2, 1)])).toBe('1947/2/27 – 1947/2/28')
   })
 })

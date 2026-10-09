@@ -133,11 +133,13 @@ export function formatPointLong(point: AbsoluteTimePoint): string {
 }
 
 /** 目前可視範圍的文字說明（畫在左上角，讓使用者知道自己在哪個年代） */
-export function formatRangeLabel(domain: [number, number]): string {
+export function formatRangeLabel(domain: [number, number], opts: { yearsOnly?: boolean } = {}): string {
   const a = new Date(domain[0])
-  const b = new Date(domain[1])
+  // 範圍的結尾不含那一刻：1945 到 2000 年是到「2001-01-01」為止，要寫成 2000 而不是 2001
+  const b = new Date(Math.max(domain[0], domain[1] - 1))
   const spanDays = (domain[1] - domain[0]) / 86_400_000
-  if (spanDays > 365 * 2) {
+  if (opts.yearsOnly || spanDays > 365 * 2) {
+    if (a.getFullYear() === b.getFullYear()) return String(a.getFullYear())
     return `${a.getFullYear()} – ${b.getFullYear()}`
   }
   return `${a.getFullYear()}/${a.getMonth() + 1}/${a.getDate()} – ${b.getFullYear()}/${b.getMonth() + 1}/${b.getDate()}`
