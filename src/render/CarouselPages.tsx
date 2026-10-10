@@ -73,6 +73,7 @@ export function CoverPage({
   subtitle,
   rangeText,
   pageCount,
+  print = false,
 }: Common & {
   title: string
   subtitle?: string
@@ -80,6 +81,8 @@ export function CoverPage({
   rangeText?: string
   /** 整組輪播共幾張（含封面與收尾頁） */
   pageCount: number
+  /** 列印用（A4）：寫「共 N 頁」，不寫「往後滑」 */
+  print?: boolean
 }) {
   const C = theme.colors
   const S = theme.scale
@@ -145,7 +148,7 @@ export function CoverPage({
       )}
       {pageCount > 1 && (
         <text x={width - pad} y={hintY} textAnchor="end" fontSize={hintFont} fill={C.inkMuted}>
-          共 {pageCount} 張，往後滑 →
+          {print ? `共 ${pageCount} 頁` : `共 ${pageCount} 張，往後滑 →`}
         </text>
       )}
       <ExportFooter footer={footer} width={width} height={height} noteX={12 * S} theme={theme} />

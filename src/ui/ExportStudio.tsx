@@ -313,6 +313,9 @@ export function ExportStudio(props: Props) {
   const preset = RATIO_PRESETS.find((r) => r.id === ratioId) ?? RATIO_PRESETS[5]
   // 社群圖（臉書、限時動態等）在手機上看：不自動縮小文字，放不下就請使用者刪減或切多張
   const social = !auto && preset.social
+  // 列印用（A4）：圖上寫「第幾頁」「共 N 頁」，不寫「往後滑」
+  const print = !auto && preset.print
+  const pageUnit = print ? '頁' : '張'
   // 限時動態的遮擋區：圖畫在中間那段，上下留空
   const safe = !auto && ratioId === '9-16' && storySafe ? STORY_SAFE : null
   const drawH = preset.h - (safe ? safe.top + safe.bottom : 0)
@@ -600,7 +603,7 @@ export function ExportStudio(props: Props) {
     const offset = coverOn ? 1 : 0
     const drawn: Drawn[] = []
     for (const [i, domain] of plan.pages.entries()) {
-      drawn.push(await renderWith(theme, { domain, label: `第 ${i + 1 + offset}／${total} 張`, first: i === 0 }))
+      drawn.push(await renderWith(theme, { domain, label: `第 ${i + 1 + offset}／${total} ${pageUnit}`, first: i === 0 }))
     }
     const lostAt = drawn.findIndex((d) => d.lost)
     const pages: Page[] = drawn.map(({ svg, w, h }) => ({ svg, w, h }))
@@ -659,6 +662,7 @@ export function ExportStudio(props: Props) {
       subtitle: subtitleText || undefined,
       rangeText: coverRangeText(),
       pageCount: total,
+      print,
     })
     return { svg: padSafe(svg), w: drawW, h: preset.h }
   }
@@ -1302,7 +1306,11 @@ export function ExportStudio(props: Props) {
                   {overflowMode === 'split' && (
                     <div className="ml-6 mt-2 space-y-1.5 rounded border border-line p-2">
                       <p className="text-sm font-medium text-ink">輪播的封面與收尾頁</p>
-                      {checkbox('加封面（大標題、時間範圍、「共 N 張，往後滑 →」）', coverOn, setCoverOn)}
+                      {checkbox(
+                        print ? '加封面（大標題、時間範圍、「共 N 頁」）' : '加封面（大標題、時間範圍、「共 N 張，往後滑 →」）',
+                        coverOn,
+                        setCoverOn,
+                      )}
                       {checkbox('加收尾頁（行動呼籲、資料來源清單）', closingOn, setClosingOn)}
                       {closingOn && (
                         <label className="block text-sm text-ink-muted">

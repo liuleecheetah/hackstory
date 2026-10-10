@@ -362,7 +362,7 @@ export interface CarouselPageRequest {
 
 /** 畫一張輪播封面 */
 export function renderCoverExportSvg(
-  req: CarouselPageRequest & { subtitle?: string; rangeText?: string; pageCount: number },
+  req: CarouselPageRequest & { subtitle?: string; rangeText?: string; pageCount: number; print?: boolean },
 ): Promise<{ svg: SVGSVGElement }> {
   return renderOffscreen(<CoverPage {...req} svgId={OFFSCREEN_ID} />, (svg) => ({ svg: detach(svg) }))
 }
