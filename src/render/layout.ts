@@ -68,12 +68,34 @@ export function truncate(text: string, maxChars: number): string {
 /** 行首不該出現的標點（中文排版的「避頭」）：遇到就掛在上一行行尾 */
 const NO_LINE_START = /^[，。、；：！？」』）〉》】,.;:!?)\]}…]/u
 
+/** 中文斷詞（瀏覽器內建）：沒有這個功能的環境就退回一字一段 */
+const segmenter: { segment(text: string): Iterable<{ segment: string }> } | null =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? new (Intl as unknown as { Segmenter: new (l: string, o: object) => { segment(t: string): Iterable<{ segment: string }> } }).Segmenter('zh-Hant', { granularity: 'word' })
+    : null
+
 /**
- * 切成排版用的小段：英文單字、數字（含 . - ' 等）連在一起不拆；空白一段；其餘一字一段。
- * 這樣「Ryan × Righ」不會在 Righ 中間斷開，「2026/9/26」也不會拆成兩行
+ * 切成排版用的小段：
+ * - 英文單字、數字、帳號與網址（含 @ # _ . - / 等）連在一起不拆——「Righteous」「2026/9/26」「@oo_humanrights」不會斷開
+ * - 空白一段
+ * - 中文依詞切（「戒嚴時期」「什麼」不會拆成「戒嚴時／期」「什／麼」）；沒有斷詞功能時一字一段
  */
 function tokenize(text: string): string[] {
-  return text.match(/[A-Za-z0-9][A-Za-z0-9.'’\-/]*|\s+|./gsu) ?? []
+  const parts = text.match(/[@#]?[A-Za-z0-9_][A-Za-z0-9_.'’\-/@:%?=&+#~]*|\s+|[^A-Za-z0-9_@#\s]+|./gsu) ?? []
+  const out: string[] = []
+  for (const part of parts) {
+    if (/^[A-Za-z0-9_@#]/.test(part) || /^\s+$/.test(part) || !segmenter) {
+      if (!segmenter && !/^[A-Za-z0-9_@#]/.test(part) && !/^\s+$/.test(part)) out.push(...[...part])
+      else out.push(part)
+      continue
+    }
+    for (const { segment } of segmenter.segment(part)) out.push(segment)
+  }
+  // 「#」「@」黏著後面的字（中文主題標籤「#解嚴紀念日」不會把 # 留在上一行行尾）
+  for (let i = out.length - 2; i >= 0; i--) {
+    if (out[i] === '#' || out[i] === '@') out.splice(i, 2, out[i] + out[i + 1])
+  }
+  return out
 }
 
 /**
@@ -105,7 +127,7 @@ export function wrapLines(text: string, maxW: number, fontSize: number, maxLines
       push()
       if (/^\s+$/.test(token)) continue
     }
-    // 單字本身就比一行還寬（很長的網址）：只好逐字拆
+    // 單字（或一個詞）本身就比一行還寬（很長的網址、很長的專有名詞）：只好逐字拆
     if (!line && estimateTextWidth(token, fontSize) > maxW) {
       for (const ch of token) {
         if (line && estimateTextWidth(line + ch, fontSize) > maxW) push()

@@ -6,11 +6,11 @@ describe('wrapLines：把文字折進固定寬度', () => {
     expect(wrapLines('立法進程', 100, 12, 3)).toEqual(['立法進程'])
   })
 
-  it('中文依寬度折行，每行都不超寬', () => {
+  it('中文依寬度折行，每行都不超寬，而且依詞斷開（不把「政府」「軍事」拆成兩半）', () => {
     const lines = wrapLines('國民政府與軍事行動', 40, 12, 5)
     expect(lines.join('')).toBe('國民政府與軍事行動')
     expect(lines.every((l) => estimateTextWidth(l, 12) <= 40)).toBe(true)
-    expect(lines.length).toBe(3)
+    expect(lines).toEqual(['國民', '政府與', '軍事', '行動'])
   })
 
   it('超過行數上限時，最後一行以刪節號收尾且不超寬', () => {
@@ -34,6 +34,19 @@ describe('wrapLines：排版細節', () => {
     expect(lines.every((l) => !/^[，。、」）]/.test(l))).toBe(true)
     expect(lines.every((l) => estimateTextWidth(l, 12) <= 72)).toBe(true)
     expect(lines.join('')).toBe('一二三四五六」音樂會在立法院外')
+  })
+
+  it('封面標題不在詞中間斷開（試用員回報：「戒嚴時／期」「什／麼事？」）', () => {
+    const lines = wrapLines('解嚴 39 年：戒嚴時期的台灣，發生了什麼事？', 12 * 9, 12, 4)
+    expect(lines.join('').replace(/\s/g, '')).toBe('解嚴39年：戒嚴時期的台灣，發生了什麼事？')
+    expect(lines.some((l) => l.endsWith('戒嚴時') || l.startsWith('期'))).toBe(false)
+    expect(lines.some((l) => l.endsWith('什') || l.startsWith('麼'))).toBe(false)
+  })
+
+  it('社群帳號、主題標籤不拆開', () => {
+    const lines = wrapLines('追蹤我們 @oo_humanrights #解嚴紀念日', 12 * 9, 12, 4)
+    expect(lines.some((l) => l.includes('@oo_humanrights'))).toBe(true)
+    expect(lines.every((l) => !l.endsWith('#'))).toBe(true)
   })
 
   it('比一行還長的網址只好逐字拆開', () => {
