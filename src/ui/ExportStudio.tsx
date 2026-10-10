@@ -269,7 +269,9 @@ export function ExportStudio(props: Props) {
     setCoverOn(true)
     setClosingOn(true)
     setCallToAction('')
-    // logo 是使用者上傳的素材、不是版面設定：恢復預設時保留，不必重傳
+    // logo 也一併清掉：留著上一個人（或上一個專案）的 logo，很容易交出帶錯 logo 的圖
+    setLogo(null)
+    setLogoNote(null)
     setCustomTitle(null)
     setCustomSubtitle(null)
     setCustomFooter(null)
