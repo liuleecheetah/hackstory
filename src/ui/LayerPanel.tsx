@@ -38,7 +38,7 @@ interface Props {
   onRemoveTrack: (layerId: string, trackId: string) => void
   /** 時期（底色帶）管理 */
   onAddPeriod: (layerId: string, draft: PeriodDraft) => void
-  onRenamePeriod: (layerId: string, index: number, title: string) => void
+  onUpdatePeriod: (layerId: string, index: number, draft: PeriodDraft) => void
   onRemovePeriod: (layerId: string, index: number) => void
   /** 面板收起來了（只剩一條窄邊，把寬度讓給時間軸） */
   collapsed?: boolean
@@ -69,7 +69,7 @@ export function LayerPanel({
   onRenameTrack,
   onRemoveTrack,
   onAddPeriod,
-  onRenamePeriod,
+  onUpdatePeriod,
   onRemovePeriod,
   collapsed = false,
   onToggleCollapsed,
@@ -371,7 +371,7 @@ export function LayerPanel({
               periods={layer.doc.periods ?? []}
               readOnly={readOnly}
               onAdd={(draft) => onAddPeriod(layer.id, draft)}
-              onRename={(index, title) => onRenamePeriod(layer.id, index, title)}
+              onUpdate={(index, draft) => onUpdatePeriod(layer.id, index, draft)}
               onRemove={(index) => onRemovePeriod(layer.id, index)}
             />
           </li>

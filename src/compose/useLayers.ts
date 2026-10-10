@@ -9,7 +9,7 @@ import { nextRelationId, removeEventFromDocument, removeRelationFrom } from '../
 import { DEFAULT_PALETTE } from '../render/theme'
 import type { TimelineSource } from '../render/types'
 import type { PeriodDraft } from './periods'
-import { addPeriodToDoc, removePeriodFromDoc, renamePeriodInDoc } from './periods'
+import { addPeriodToDoc, removePeriodFromDoc, renamePeriodInDoc, updatePeriodInDoc } from './periods'
 
 export interface Layer {
   /** 執行期識別碼（同一份文件可被載入多次，所以不能直接用文件 id） */
@@ -282,6 +282,11 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     (layerId: string, draft: PeriodDraft) => editPeriods(layerId, (doc) => addPeriodToDoc(doc, draft)),
     [editPeriods],
   )
+  const updatePeriod = useCallback(
+    (layerId: string, index: number, draft: PeriodDraft) =>
+      editPeriods(layerId, (doc) => updatePeriodInDoc(doc, index, draft)),
+    [editPeriods],
+  )
   const renamePeriod = useCallback(
     (layerId: string, index: number, title: string) =>
       editPeriods(layerId, (doc) => renamePeriodInDoc(doc, index, title)),
@@ -401,6 +406,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     removeTrack,
     addPeriod,
     renamePeriod,
+    updatePeriod,
     removePeriod,
     undo,
     redo,

@@ -77,6 +77,31 @@ export function addPeriodToDoc(doc: TimelineDocument, draft: PeriodDraft): Timel
   return withPeriodVersion({ ...doc, periods })
 }
 
+/**
+ * 修改一個時期的名稱與起訖時間（依在清單中的位置指認）。
+ * id、顏色、說明照舊保留；改完依起始時間重新排序。讀不懂的時間不改文件（表單已用 periodDraftError 擋過）
+ */
+export function updatePeriodInDoc(doc: TimelineDocument, index: number, draft: PeriodDraft): TimelineDocument {
+  const periods = doc.periods ?? []
+  const old = periods[index]
+  if (!old || periodDraftError(draft)) return doc
+  const start = readPoint(draft.start)
+  const end = draft.end.trim() === '' ? null : readPoint(draft.end)
+  if ('error' in start || (end && 'error' in end)) return doc
+  const { end: _oldEnd, ...rest } = old
+  void _oldEnd
+  const next: Period = { ...rest, title: draft.title.trim(), start, ...(end ? { end } : {}) }
+  const updated = periods
+    .map((p, i) => (i === index ? next : p))
+    .sort((a, b) => absolutePointRange(a.start).start - absolutePointRange(b.start).start)
+  return { ...doc, periods: updated }
+}
+
+/** 把時期換回表單上的文字（修改時預先填好）：1949-05-20 → 1949/5/20，沒有結束＝空白（至今） */
+export function periodToDraft(p: Period): PeriodDraft {
+  return { title: p.title, start: showPoint(p.start.value), end: p.end ? showPoint(p.end.value) : '' }
+}
+
 /** 改名（依在清單中的位置指認：檔案裡的時期不一定有 id） */
 export function renamePeriodInDoc(doc: TimelineDocument, index: number, title: string): TimelineDocument {
   const periods = doc.periods ?? []
@@ -97,11 +122,13 @@ export function removePeriodFromDoc(doc: TimelineDocument, index: number): Timel
 
 /** 面板上顯示的時間範圍，例如「1949–1987」「1949/5/20–1987/7/15」「2000–至今」 */
 export function periodYears(p: Period): string {
-  // 1949-05-20 → 1949/5/20（去掉月、日前面的 0）
-  const show = (v: string) =>
-    v
-      .split('-')
-      .map((part, i) => (i === 0 ? part : String(Number(part))))
-      .join('/')
-  return `${show(p.start.value)}–${p.end ? show(p.end.value) : '至今'}`
+  return `${showPoint(p.start.value)}–${p.end ? showPoint(p.end.value) : '至今'}`
+}
+
+/** 1949-05-20 → 1949/5/20（去掉月、日前面的 0） */
+function showPoint(v: string): string {
+  return v
+    .split('-')
+    .map((part, i) => (i === 0 ? part : String(Number(part))))
+    .join('/')
 }

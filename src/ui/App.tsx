@@ -178,7 +178,7 @@ export default function App() {
     renameTrack,
     removeTrack,
     addPeriod,
-    renamePeriod,
+    updatePeriod,
     removePeriod,
     undo,
     redo,
@@ -862,7 +862,7 @@ export default function App() {
           onRenameTrack={renameTrack}
           onRemoveTrack={removeTrack}
           onAddPeriod={addPeriod}
-          onRenamePeriod={renamePeriod}
+          onUpdatePeriod={updatePeriod}
           onRemovePeriod={removePeriod}
           collapsed={panelCollapsed}
           onToggleCollapsed={() => setPanelCollapsed((v) => !v)}

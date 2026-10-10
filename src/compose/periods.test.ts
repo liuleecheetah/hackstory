@@ -4,9 +4,11 @@ import { validateDocument } from '../core'
 import {
   addPeriodToDoc,
   periodDraftError,
+  periodToDraft,
   periodYears,
   removePeriodFromDoc,
   renamePeriodInDoc,
+  updatePeriodInDoc,
   withPeriodVersion,
 } from './periods'
 
@@ -110,5 +112,31 @@ describe('時期可以填到月、日', () => {
   it('面板顯示去掉月日前面的 0', () => {
     const doc = addPeriodToDoc(baseDoc(), draft('戒嚴時期', '1949/5/20', '1987/7/15'))
     expect(periodYears(doc.periods![0])).toBe('1949/5/20–1987/7/15')
+  })
+})
+
+describe('updatePeriodInDoc：修改時期的名稱與日期', () => {
+  it('改日期後重新排序，id 照舊、通過 SPEC 驗證', () => {
+    let doc = addPeriodToDoc(baseDoc(), draft('戒嚴時期', '1949', '1987'))
+    doc = addPeriodToDoc(doc, draft('解嚴後', '1987'))
+    const id = doc.periods![0].id
+    // 打錯的年份改正，並改到比「解嚴後」還晚，順序要跟著換
+    doc = updatePeriodInDoc(doc, 0, draft('戒嚴時期', '1949/5/20', '1987/7/15'))
+    expect(doc.periods![0]).toMatchObject({ id, start: { value: '1949-05-20', precision: 'day' } })
+    doc = updatePeriodInDoc(doc, 1, draft('解嚴後（改）', '1940'))
+    expect(doc.periods!.map((p) => p.title)).toEqual(['解嚴後（改）', '戒嚴時期'])
+    expect(validateDocument(doc).errors).toEqual([])
+  })
+
+  it('結束改成留白＝至今；讀不懂的時間不改文件', () => {
+    let doc = addPeriodToDoc(baseDoc(), draft('A', '1949', '1987'))
+    doc = updatePeriodInDoc(doc, 0, draft('A', '1949', ''))
+    expect(doc.periods![0].end).toBeUndefined()
+    expect(updatePeriodInDoc(doc, 0, draft('A', 'abc'))).toBe(doc)
+  })
+
+  it('periodToDraft 把時期換回表單文字', () => {
+    const doc = addPeriodToDoc(baseDoc(), draft('戒嚴時期', '1949/5/20', '1987/7'))
+    expect(periodToDraft(doc.periods![0])).toEqual({ title: '戒嚴時期', start: '1949/5/20', end: '1987/7' })
   })
 })
