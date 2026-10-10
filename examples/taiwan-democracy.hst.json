@@ -4,7 +4,7 @@
   "meta": {
     "title": "台灣民主運動史",
     "subtitle": "從二二八到 2000 年首次政黨輪替",
-    "description": "以五條軸線並排整理台灣的民主化歷程——二二八事件、白色恐怖、黨外與社會運動、體制變革、政黨與選舉，並以跨軸關係線串起壓迫、反抗與改革的因果。內容主軸為 1947 年二二八事件至 2000 年首次政黨輪替；2000 年之後僅以歷次政黨輪替等少數里程碑略作延續，尚未詳盡整理。",
+    "description": "以五條軸線並排整理台灣的民主化歷程——二二八事件、白色恐怖、黨外與社會運動、體制變革、政黨與選舉，並以跨軸關係線串起壓迫、反抗與改革的因果。範圍為 1945 年國民政府接收臺灣至 2000 年首次政黨輪替；2000 年之後尚待補充。",
     "authors": [
       {
         "name": "HackStory 專案",
@@ -20,8 +20,8 @@
       "人權"
     ],
     "created": "2026-07-22",
-    "updated": "2026-07-22",
-    "revision": 1
+    "updated": "2026-10-11",
+    "revision": 2
   },
   "tracks": [
     {
@@ -65,13 +65,13 @@
       "id": "evt-g01",
       "track": "228",
       "title": "國民政府接收臺灣，陳儀出任臺灣省行政長官",
-      "description": "二戰結束後，國民政府於 1945 年 10 月接收臺灣，設臺灣省行政長官公署，陳儀任行政長官兼警備總司令。接收後一年多間，通貨膨脹、米糧短缺、官員貪腐與本省人受排擠的問題不斷累積，成為二二八事件爆發的結構背景。",
+      "description": "二戰結束後，國民政府於 1945 年 10 月接收臺灣，設臺灣省行政長官公署，陳儀任行政長官兼警備總司令。接收後一年多間，通貨膨脹、米糧短缺、官員貪腐與本省人受排擠的問題不斷累積，成為二二八事件爆發的結構背景。（來源待補）",
       "start": {
         "value": "1945-10-25",
         "precision": "day",
         "raw": "1945/10/25"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "接收",
         "陳儀",
@@ -108,7 +108,7 @@
       "id": "evt-g03",
       "track": "228",
       "title": "民眾赴行政長官公署請願，遭衛兵開槍掃射",
-      "description": "2 月 28 日台北罷市罷工，民眾遊行至專賣局抗議，再赴行政長官公署請願，卻遭公署衛兵以機槍掃射，造成傷亡。消息傳開後，抗爭迅速蔓延全島。",
+      "description": "2 月 28 日台北罷市罷工，民眾遊行至專賣局抗議，再赴行政長官公署請願，卻遭公署衛兵以機槍掃射，造成傷亡。消息傳開後，抗爭迅速蔓延全島。（來源待補）",
       "start": {
         "value": "1947-02-28",
         "precision": "day",
@@ -118,7 +118,7 @@
         "name": "臺灣省行政長官公署，台北"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "長官公署",
         "開槍",
@@ -129,7 +129,7 @@
       "id": "evt-g04",
       "track": "228",
       "title": "高雄要塞司令彭孟緝出兵鎮壓（高雄大屠殺）",
-      "description": "高雄要塞司令彭孟緝率軍下山，殺害前來交涉的高雄二二八事件處理委員會代表，並派兵向高雄市政府、火車站一帶開會與聚集的民眾掃射，造成慘重傷亡。這是全島軍事鎮壓中最早、最血腥的行動之一。",
+      "description": "高雄要塞司令彭孟緝率軍下山，殺害前來交涉的高雄二二八事件處理委員會代表，並派兵向高雄市政府、火車站一帶開會與聚集的民眾掃射，造成慘重傷亡。這是全島軍事鎮壓中最早、最血腥的行動之一。（來源待補）",
       "start": {
         "value": "1947-03-06",
         "precision": "day",
@@ -138,8 +138,7 @@
       "location": {
         "name": "高雄市"
       },
-      "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "高雄",
         "彭孟緝",
@@ -150,7 +149,7 @@
       "id": "evt-g05",
       "track": "228",
       "title": "蔣介石派整編第 21 師由基隆登陸鎮壓",
-      "description": "應陳儀請求，蔣介石自中國調派軍隊來台。3 月 8 日中午起，劉雨卿所率整編第 21 師與憲兵第 4 團約七千兵力陸續自基隆港登陸，另有約三千兵力自高雄港登陸，全台隨即進入大規模軍事鎮壓。",
+      "description": "應陳儀請求，蔣介石自中國調派軍隊來台。3 月 8 日中午起，劉雨卿所率整編第 21 師與憲兵第 4 團約七千兵力陸續自基隆港登陸，另有約三千兵力自高雄港登陸，全台隨即進入大規模軍事鎮壓。（來源待補）",
       "start": {
         "value": "1947-03-08",
         "precision": "day",
@@ -160,7 +159,7 @@
         "name": "基隆港"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "整編21師",
         "登陸",
@@ -171,14 +170,14 @@
       "id": "evt-g06",
       "track": "228",
       "title": "陳儀宣布全臺戒嚴，解散處理委員會",
-      "description": "軍隊登陸後，3 月 10 日陳儀宣布全臺戒嚴，下令解散二二八事件處理委員會等民間團體，並展開全面的綏靖與清鄉，逮捕與處決行動大量發生。",
+      "description": "軍隊登陸後，3 月 10 日陳儀宣布全臺戒嚴，下令解散二二八事件處理委員會等民間團體，並展開全面的綏靖與清鄉，逮捕與處決行動大量發生。（來源待補）",
       "start": {
         "value": "1947-03-10",
         "precision": "day",
         "raw": "1947/3/10"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "戒嚴",
         "解散處委會"
@@ -188,7 +187,7 @@
       "id": "evt-g07",
       "track": "228",
       "title": "綏靖與清鄉（大規模逮捕與處決）",
-      "description": "軍隊登陸後展開的「綏靖」與「清鄉」，以肅清異己為名進行逐戶清查、逮捕與處決，許多地方仕紳與知識菁英在此期間失蹤或被殺，是二二八事件死傷最慘重的階段。清鄉至 5 月中魏道明就任後才對外宣告結束。",
+      "description": "軍隊登陸後展開的「綏靖」與「清鄉」，以肅清異己為名進行逐戶清查、逮捕與處決，許多地方仕紳與知識菁英在此期間失蹤或被殺，是二二八事件死傷最慘重的階段。清鄉至 5 月中魏道明就任後才對外宣告結束。（來源待補）",
       "start": {
         "value": "1947-03-09",
         "precision": "day",
@@ -198,7 +197,7 @@
         "value": "1947-05-16",
         "precision": "day"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "綏靖",
         "清鄉"
@@ -208,13 +207,13 @@
       "id": "evt-g08",
       "track": "228",
       "title": "行政院決議撤銷行政長官公署，改設省政府",
-      "description": "4 月 22 日行政院會議決議撤銷臺灣省行政長官公署，改組為臺灣省政府，並任命魏道明為首任省主席。陳儀去職，於 5 月返回南京。",
+      "description": "4 月 22 日行政院會議決議撤銷臺灣省行政長官公署，改組為臺灣省政府，並任命魏道明為首任省主席。陳儀去職，於 5 月返回南京。（來源待補）",
       "start": {
         "value": "1947-04-22",
         "precision": "day",
         "raw": "1947/4/22"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "撤銷公署",
         "陳儀去職"
@@ -224,13 +223,13 @@
       "id": "evt-g09",
       "track": "228",
       "title": "魏道明就任省主席，宣布解除戒嚴、結束清鄉",
-      "description": "5 月 16 日首任臺灣省政府主席魏道明在台北宣誓就職，宣布解除戒嚴令、結束清鄉工作，並廢除新聞、圖書及郵電檢查。二二八事件的公開武力鎮壓階段至此告一段落，但清算與白色恐怖的陰影延續多年。",
+      "description": "5 月 16 日首任臺灣省政府主席魏道明在台北宣誓就職，宣布解除戒嚴令、結束清鄉工作，並廢除新聞、圖書及郵電檢查。二二八事件的公開武力鎮壓階段至此告一段落，但清算與白色恐怖的陰影延續多年。（來源待補）",
       "start": {
         "value": "1947-05-16",
         "precision": "day",
         "raw": "1947/5/16"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "魏道明",
         "解除戒嚴"
@@ -240,7 +239,7 @@
       "id": "evt-e01",
       "track": "228",
       "title": "林茂生（台大文學院代理院長）遭便衣帶走，從此失蹤",
-      "description": "林茂生為台灣第一位留美哲學博士、時任台灣大學文學院代理院長。3 月 11 日清晨遭數名便衣人員以「長官約談」為由帶走，此後下落不明，遺體始終未尋獲，被視為二二八事件中知識菁英遭祕密處決的代表案例。",
+      "description": "林茂生為台灣第一位留美哲學博士、時任台灣大學文學院代理院長。3 月 11 日清晨遭數名便衣人員以「長官約談」為由帶走，此後下落不明，遺體始終未尋獲，被視為二二八事件中知識菁英遭祕密處決的代表案例。（來源待補）",
       "start": {
         "value": "1947-03-11",
         "precision": "day",
@@ -249,8 +248,7 @@
       "location": {
         "name": "台北"
       },
-      "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "林茂生",
         "失蹤",
@@ -261,7 +259,7 @@
       "id": "evt-e02",
       "track": "228",
       "title": "王添灯（省參議員、處委會宣傳組長）被捕遇害",
-      "description": "王添灯為台灣省參議員、二二八事件處理委員會宣傳組長，是四十二條處理大綱的主要起草與宣讀者。3 月 11 日遭逮捕，其後遇害，遺體未還，是處理委員會核心成員遭清算的代表。",
+      "description": "王添灯為台灣省參議員、二二八事件處理委員會宣傳組長，是四十二條處理大綱的主要起草與宣讀者。3 月 11 日遭逮捕，其後遇害，遺體未還，是處理委員會核心成員遭清算的代表。（來源待補）",
       "start": {
         "value": "1947-03-11",
         "precision": "day",
@@ -270,8 +268,7 @@
       "location": {
         "name": "台北"
       },
-      "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "王添灯",
         "處委會",
@@ -291,8 +288,7 @@
       "location": {
         "name": "台南，民生綠園（今湯德章紀念公園）"
       },
-      "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "湯德章",
         "台南",
@@ -337,7 +333,7 @@
       "id": "evt-e05",
       "track": "228",
       "title": "張七郎與二子在花蓮遭殺害",
-      "description": "張七郎為花蓮縣參議會議長、制憲國民大會代表。4 月 4 日夜，張七郎與兒子張宗仁、張果仁一同被軍隊帶走殺害，父子三人同日罹難，是東部菁英受難的代表案例。",
+      "description": "張七郎為花蓮縣參議會議長、制憲國民大會代表。4 月 4 日夜，張七郎與兒子張宗仁、張果仁一同被軍隊帶走殺害，父子三人同日罹難，是東部菁英受難的代表案例。（來源待補）",
       "start": {
         "value": "1947-04-04",
         "precision": "day",
@@ -346,7 +342,7 @@
       "location": {
         "name": "花蓮"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "張七郎",
         "花蓮",
@@ -357,7 +353,7 @@
       "id": "evt-r01",
       "track": "228",
       "title": "台中市民大會，謝雪紅號召接收官署、組織民兵",
-      "description": "3 月 2 日謝雪紅在台中召開市民大會，民眾接收縣市機關、警局與武器，組成民兵維持秩序，台中一度由民間掌控，是各地民眾自組武裝反應的代表。",
+      "description": "3 月 2 日謝雪紅在台中召開市民大會，民眾接收縣市機關、警局與武器，組成民兵維持秩序，台中一度由民間掌控，是各地民眾自組武裝反應的代表。（來源待補）",
       "start": {
         "value": "1947-03-02",
         "precision": "day",
@@ -366,7 +362,7 @@
       "location": {
         "name": "台中"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "台中",
         "謝雪紅",
@@ -377,7 +373,7 @@
       "id": "evt-r02",
       "track": "228",
       "title": "二二八事件處理委員會成立",
-      "description": "由台北的緝菸血案調查委員會改組擴大，各地仕紳、議員與民意代表組成二二八事件處理委員會，作為民間與官方交涉、恢復秩序並提出政治改革的自治性組織。3 月 10 日遭陳儀下令解散。",
+      "description": "由台北的緝菸血案調查委員會改組擴大，各地仕紳、議員與民意代表組成二二八事件處理委員會，作為民間與官方交涉、恢復秩序並提出政治改革的自治性組織。3 月 10 日遭陳儀下令解散。（來源待補）",
       "start": {
         "value": "1947-03-02",
         "precision": "day",
@@ -386,7 +382,7 @@
       "location": {
         "name": "台北"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "處理委員會",
         "民間自治"
@@ -396,7 +392,7 @@
       "id": "evt-r03",
       "track": "228",
       "title": "嘉義民軍圍攻水上機場",
-      "description": "嘉義民眾與各地趕來支援的民軍（含原住民與學生），自 3 月初起包圍國軍據守的水上機場，雙方對峙近半月。後由市參議員等出面與國軍和談，多位談判代表卻反遭逮捕、槍決。",
+      "description": "嘉義民眾與各地趕來支援的民軍（含原住民與學生），自 3 月初起包圍國軍據守的水上機場，雙方對峙近半月。後由市參議員等出面與國軍和談，多位談判代表卻反遭逮捕、槍決。（來源待補）",
       "start": {
         "value": "1947-03-02",
         "precision": "day",
@@ -420,7 +416,7 @@
       "id": "evt-r04",
       "track": "228",
       "title": "謝雪紅、鍾逸人在台中組成二七部隊",
-      "description": "3 月 6 日，謝雪紅、鍾逸人等人糾集台灣中部青年與學生約四百餘人組成武裝部隊，以事件導火線之日命名為「二七部隊」，謝雪紅任總指揮、鍾逸人任部隊長，是二二八事件中組織最完整的民間武裝。",
+      "description": "3 月 6 日，謝雪紅、鍾逸人等人糾集台灣中部青年與學生約四百餘人組成武裝部隊，以事件導火線之日命名為「二七部隊」，謝雪紅任總指揮、鍾逸人任部隊長，是二二八事件中組織最完整的民間武裝。（來源待補）",
       "start": {
         "value": "1947-03-06",
         "precision": "day",
@@ -429,8 +425,7 @@
       "location": {
         "name": "台中"
       },
-      "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "二七部隊",
         "台中",
@@ -441,7 +436,7 @@
       "id": "evt-r05",
       "track": "228",
       "title": "處理委員會通過四十二條處理大綱",
-      "description": "3 月 7 日，二二八事件處理委員會通過《四十二條處理大綱》，提出撤銷行政長官公署改設省政府、各處長由本省人擔任、縣市長民選、軍警職位優先任用本省人等政治改革要求。隔日國軍即登陸鎮壓。",
+      "description": "3 月 7 日，二二八事件處理委員會通過《四十二條處理大綱》，提出撤銷行政長官公署改設省政府、各處長由本省人擔任、縣市長民選、軍警職位優先任用本省人等政治改革要求。隔日國軍即登陸鎮壓。（來源待補）",
       "start": {
         "value": "1947-03-07",
         "precision": "day",
@@ -450,7 +445,7 @@
       "location": {
         "name": "台北"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "四十二條",
         "政治改革"
@@ -460,7 +455,7 @@
       "id": "evt-r06",
       "track": "228",
       "title": "二七部隊撤往埔里",
-      "description": "面對國軍南下壓境，二七部隊為避免台中市區遭波及、保存實力，於 3 月 12 日決定轉進埔里，抵達時只剩不到兩百人，並嘗試爭取原住民族支援。",
+      "description": "面對國軍南下壓境，二七部隊為避免台中市區遭波及、保存實力，於 3 月 12 日決定轉進埔里，抵達時只剩不到兩百人，並嘗試爭取原住民族支援。（來源待補）",
       "start": {
         "value": "1947-03-12",
         "precision": "day",
@@ -469,7 +464,7 @@
       "location": {
         "name": "埔里"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "tags": [
         "二七部隊",
         "埔里",
@@ -489,7 +484,6 @@
       "location": {
         "name": "埔里，烏牛欄橋"
       },
-      "featured": true,
       "confidence": "verified",
       "tags": [
         "烏牛欄之役",
@@ -514,7 +508,7 @@
         "raw": "1949/5/19"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣省戒嚴令",
@@ -532,13 +526,14 @@
         "precision": "day",
         "raw": "1949/5/24"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣白色恐怖時期",
           "url": "https://zh.wikipedia.org/zh-tw/臺灣白色恐怖時期"
         }
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "wt-03",
@@ -550,7 +545,7 @@
         "precision": "day",
         "raw": "1950/6/13"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣白色恐怖時期",
@@ -568,7 +563,7 @@
         "precision": "year",
         "raw": "1950"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣白色恐怖時期",
@@ -586,13 +581,14 @@
         "precision": "month",
         "raw": "1952/12"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：鹿窟事件",
           "url": "https://zh.wikipedia.org/zh-tw/鹿窟事件"
         }
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "wt-06",
@@ -604,7 +600,7 @@
         "precision": "day",
         "raw": "1970/2/8"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：泰源事件",
@@ -622,7 +618,7 @@
         "precision": "day",
         "raw": "1979/1/21"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：橋頭事件",
@@ -641,7 +637,7 @@
         "raw": "1980/2/28"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：林宅血案",
@@ -659,13 +655,14 @@
         "precision": "day",
         "raw": "1981/7/3"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：陳文成事件",
           "url": "https://zh.wikipedia.org/zh-tw/陳文成事件"
         }
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "wt-10",
@@ -677,7 +674,7 @@
         "precision": "day",
         "raw": "1984/10/15"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：江南案",
@@ -695,7 +692,7 @@
         "precision": "day",
         "raw": "1991/5/9"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：獨立台灣會案",
@@ -713,13 +710,14 @@
         "precision": "day",
         "raw": "1991/5/17"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣白色恐怖時期",
           "url": "https://zh.wikipedia.org/zh-tw/臺灣白色恐怖時期"
         }
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "dw-01",
@@ -732,7 +730,7 @@
         "raw": "1979/1/22"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：橋頭事件",
@@ -751,7 +749,7 @@
         "raw": "1989/4/7"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：鄭南榕",
@@ -769,7 +767,7 @@
         "precision": "day",
         "raw": "1960/9/4"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：雷震事件",
@@ -787,7 +785,7 @@
         "precision": "month",
         "raw": "1975/8"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：台灣政論",
@@ -806,7 +804,7 @@
         "raw": "1977/11/19"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：中壢事件",
@@ -824,7 +822,7 @@
         "precision": "month",
         "raw": "1979/8"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：美麗島事件",
@@ -843,7 +841,7 @@
         "raw": "1979/12/10"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：美麗島事件",
@@ -862,7 +860,7 @@
         "raw": "1980/3/18"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：美麗島事件",
@@ -880,7 +878,7 @@
         "precision": "day",
         "raw": "1986/6/24"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：鹿港居民反杜邦設廠事件",
@@ -898,7 +896,7 @@
         "precision": "month",
         "raw": "1986/10"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：綠色小組",
@@ -916,7 +914,7 @@
         "precision": "day",
         "raw": "1987/1/10"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：華西街大遊行",
@@ -935,7 +933,7 @@
         "raw": "1988/5/20"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：1988年臺灣農民運動",
@@ -953,7 +951,7 @@
         "precision": "day",
         "raw": "1988/8/25"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "新台灣和平基金會：原住民族還我土地大遊行",
@@ -971,7 +969,7 @@
         "precision": "day",
         "raw": "1988/12/28"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：還我母語運動",
@@ -989,7 +987,7 @@
         "precision": "month",
         "raw": "1989/5"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：1989年遠東化纖罷工事件",
@@ -1025,7 +1023,7 @@
         "precision": "day",
         "raw": "1986/5/19"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：519綠色行動",
@@ -1043,7 +1041,7 @@
         "precision": "day",
         "raw": "1988/3/6"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣反核遊行",
@@ -1062,7 +1060,7 @@
         "raw": "1990/3/16"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：野百合學運",
@@ -1098,7 +1096,7 @@
         "precision": "month",
         "raw": "1986/3"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：祁家威",
@@ -1117,7 +1115,7 @@
         "raw": "1989/8/26"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：無殼蝸牛運動",
@@ -1135,7 +1133,7 @@
         "precision": "day",
         "raw": "1990/2/23"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：台灣LGBT歷史",
@@ -1153,7 +1151,7 @@
         "precision": "day",
         "raw": "1990/6/30"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：中華民國身心障礙聯盟",
@@ -1172,7 +1170,7 @@
         "raw": "1987/7/15"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：臺灣省戒嚴令",
@@ -1190,7 +1188,7 @@
         "precision": "day",
         "raw": "1987/11/2"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "觀察雜誌：開放大陸探親大事記",
@@ -1208,7 +1206,7 @@
         "precision": "day",
         "raw": "1988/1/1"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：報禁",
@@ -1227,7 +1225,7 @@
         "raw": "1988/1/13"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：李登輝",
@@ -1245,7 +1243,7 @@
         "precision": "day",
         "raw": "1990/6/28"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：國是會議",
@@ -1264,7 +1262,7 @@
         "raw": "1991/5/1"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：動員戡亂時期臨時條款",
@@ -1282,7 +1280,7 @@
         "precision": "day",
         "raw": "1991/12/31"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：萬年國會",
@@ -1300,7 +1298,7 @@
         "precision": "day",
         "raw": "1992/5/15"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：中華民國刑法第一百條",
@@ -1319,7 +1317,7 @@
         "raw": "1992/12/19"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：1992年中華民國立法委員選舉",
@@ -1337,7 +1335,7 @@
         "precision": "day",
         "raw": "1994/12/3"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：1994年中華民國省市長選舉",
@@ -1356,7 +1354,7 @@
         "raw": "1996/3/23"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：1996年中華民國總統選舉",
@@ -1374,29 +1372,11 @@
         "precision": "day",
         "raw": "1997/7/18"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：中華民國憲法增修條文",
           "url": "https://zh.wikipedia.org/zh-tw/中華民國憲法增修條文"
-        }
-      ]
-    },
-    {
-      "id": "sys-13",
-      "track": "reform",
-      "title": "廢除國民大會（第七次修憲）",
-      "description": "任務型國民大會複決通過第七次修憲：立委席次減半、改採單一選區兩票制、任期改四年，並廢除國民大會、將修憲複決權交由公民。延續近一世紀的國民大會走入歷史。",
-      "start": {
-        "value": "2005-06-07",
-        "precision": "day",
-        "raw": "2005/6/7"
-      },
-      "confidence": "verified",
-      "sources": [
-        {
-          "title": "維基百科：中華民國國民大會",
-          "url": "https://zh.wikipedia.org/zh-tw/國民大會"
         }
       ]
     },
@@ -1411,7 +1391,7 @@
         "raw": "1986/9/28"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：民主進步黨",
@@ -1429,7 +1409,7 @@
         "precision": "day",
         "raw": "1991/10/13"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "新台灣和平基金會：台獨綱領通過日",
@@ -1447,7 +1427,7 @@
         "precision": "day",
         "raw": "1993/8/10"
       },
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：新黨歷史",
@@ -1466,66 +1446,11 @@
         "raw": "2000/3/18"
       },
       "featured": true,
-      "confidence": "verified",
+      "confidence": "reported",
       "sources": [
         {
           "title": "維基百科：2000年中華民國總統選舉",
           "url": "https://zh.wikipedia.org/zh-tw/2000年中華民國總統選舉"
-        }
-      ]
-    },
-    {
-      "id": "el-05",
-      "track": "election",
-      "title": "二次政黨輪替（馬英九當選）",
-      "description": "第十二任總統選舉，中國國民黨籍馬英九當選，民進黨交出政權，台灣完成第二次政黨輪替，政黨輪替趨於常態。",
-      "start": {
-        "value": "2008-03-22",
-        "precision": "day",
-        "raw": "2008/3/22"
-      },
-      "confidence": "verified",
-      "sources": [
-        {
-          "title": "維基百科：2008年中華民國總統選舉",
-          "url": "https://zh.wikipedia.org/zh-tw/2008年中華民國總統選舉"
-        }
-      ]
-    },
-    {
-      "id": "el-06",
-      "track": "election",
-      "title": "第三次政黨輪替（蔡英文當選，首位女總統）",
-      "description": "第十四任總統選舉，民進黨籍蔡英文當選，成為中華民國首位女性總統；民進黨同時首次取得立法院過半，達成第三次政黨輪替與首次「完全執政」。",
-      "start": {
-        "value": "2016-01-16",
-        "precision": "day",
-        "raw": "2016/1/16"
-      },
-      "featured": true,
-      "confidence": "verified",
-      "sources": [
-        {
-          "title": "維基百科：2016年中華民國總統選舉",
-          "url": "https://zh.wikipedia.org/zh-tw/2016年中華民國總統選舉"
-        }
-      ]
-    },
-    {
-      "id": "el-07",
-      "track": "election",
-      "title": "賴清德當選（民進黨連三任）",
-      "description": "第十六任總統選舉，民進黨籍賴清德當選，民進黨連續第三屆執政，惟立法院未過半，形成朝小野大格局。",
-      "start": {
-        "value": "2024-01-13",
-        "precision": "day",
-        "raw": "2024/1/13"
-      },
-      "confidence": "verified",
-      "sources": [
-        {
-          "title": "維基百科：2024年中華民國總統選舉",
-          "url": "https://zh.wikipedia.org/zh-tw/2024年中華民國總統選舉"
         }
       ]
     }
@@ -1665,7 +1590,7 @@
       "id": "post-transfer",
       "title": "首次政黨輪替後",
       "start": { "value": "2000-05-20", "precision": "day" },
-      "description": "2000 年首次中央政府政黨輪替之後（本文件在此之後只收少數里程碑）"
+      "description": "2000 年首次中央政府政黨輪替之後（本文件尚未整理此後的事件，待補）"
     }
   ],
   "display": {
@@ -1673,7 +1598,7 @@
     "defaultScale": "year",
     "range": {
       "start": "1945",
-      "end": "2024"
+      "end": "2000"
     },
     "collapseGaps": false
   }
