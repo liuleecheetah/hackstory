@@ -14,7 +14,7 @@ import { ordinalTicks, ORDINAL_STEP } from './ordinal'
 import type { CalloutSpec } from './callouts'
 import { placeCallouts } from './callouts'
 import { CalloutLayer, calloutMetrics } from './CalloutLayer'
-import { assignLanesByTime, estimateTextWidth, wrapLines } from './layout'
+import { assignLanes, assignLanesByTime, estimateTextWidth, wrapLines } from './layout'
 import { fitText } from './verticalLayout'
 import { buildBands, buildTimelineBase, RELATION_LABELS, relationDash, relationTypesIn } from './timelineData'
 import type { RenderTheme } from './theme'
@@ -273,9 +273,24 @@ export function TimelineView({
   }, [sources, warp, C.periodFills, C.inkFaint])
   // 其他圖層的時期：刻度下方各佔一列（圖層色的淡底＋名稱），誰是誰一眼看得出來
   const STRIP_ROW_H = F.footer + 8 * S
+  // 主要時期的名稱也在表頭裡自成一列（以前寫在表頭下方，會蓋到底下事件的字）；
+  // 時間互相重疊的時期（例如「外交孤立期」在「戒嚴時期」裡面）分到不同列，名稱才不會擠在一起。
+  // 分列只看時間是否重疊，跟縮放無關，縮放時表頭高度不會跳動
+  // 出圖不加這一列：圖不會捲動，而且臉書這種矮圖每一排都很寶貴——名稱照舊寫在時期帶的頂端
+  const primaryRows = useMemo(() => {
+    if (center || isExport) return { lanes: new Map<string, number>(), count: 0 }
+    const sorted = [...periodLayout.bands].sort((a, b) => a.u0 - b.u0)
+    // 前一段結束當天、下一段開始（例如解嚴當天）算接續，不算重疊：容許兩天的誤差
+    const lanes = assignLanes(sorted.map((pb) => ({ left: pb.u0, right: pb.u1 })), -2 * 86_400_000)
+    return {
+      lanes: new Map(sorted.map((pb, i) => [pb.key, lanes[i]])),
+      count: sorted.length ? Math.max(...lanes) + 1 : 0,
+    }
+  }, [periodLayout.bands, center, isExport])
+  const primaryH = primaryRows.count * STRIP_ROW_H
   const stripsH = center ? 0 : periodLayout.strips.length * STRIP_ROW_H
-  /** 頂部表頭（刻度列＋其他圖層的時期列）的高度；畫面上往下捲時表頭固定在頂端 */
-  const HEADER_H = AXIS_H + stripsH
+  /** 頂部表頭（刻度列＋時期列）的高度；畫面上往下捲時表頭固定在頂端 */
+  const HEADER_H = AXIS_H + primaryH + stripsH
   const headerRef = useRef<SVGGElement>(null)
 
   // domainState 為 null 代表「跟著初始範圍走」（尚未縮放，或按了「年」回到全貌）。
@@ -873,7 +888,7 @@ export function TimelineView({
 
           {/* 其他圖層的時期：刻度下方各一列，圖層色淡底＋名稱 */}
         {periodLayout.strips.map((strip) => {
-          const rowY = AXIS_H + strip.row * STRIP_ROW_H
+          const rowY = AXIS_H + primaryH + strip.row * STRIP_ROW_H
           return (
             <g key={strip.key} data-period-strip={strip.key}>
               <line x1={0} x2={width} y1={rowY + STRIP_ROW_H} y2={rowY + STRIP_ROW_H} stroke={C.grid} />
@@ -898,27 +913,24 @@ export function TimelineView({
             </g>
           )
         })}
-        {/* 主要時期的名稱：寫在帶子起點、表頭正下方 */}
-        {periodLayout.bands.map((pb) => {
+        {/* 主要時期：刻度正下方自成一列（時期的底色＋名稱），重疊的時期分到下一列（只在畫面上） */}
+        {!isExport && periodLayout.bands.map((pb) => {
           const x0 = Math.max(plotL, xOfU(pb.u0))
           const x1 = Math.min(width, xOfU(pb.u1))
           if (x1 - x0 < 1) return null
-          const name = fitText(pb.title, x1 - x0 - 8 * S, F.date)
-          if (!name) return null
+          const rowY = AXIS_H + (primaryRows.lanes.get(pb.key) ?? 0) * STRIP_ROW_H
+          const name = fitText(pb.title, x1 - x0 - 8 * S, F.footer)
           return (
-            <text
-              key={`${pb.key}-name`}
-              x={x0 + 4 * S}
-              y={HEADER_H + F.date + 3 * S}
-              fontSize={F.date}
-              fontWeight={600}
-              fill={C.inkMuted}
-              stroke={C.bg}
-              strokeWidth={3 * S}
-              paintOrder="stroke"
-            >
-              {name}
-            </text>
+            <g key={`${pb.key}-name`} data-period-name={pb.key}>
+              <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
+              <rect x={x0} y={rowY + 2 * S} width={x1 - x0} height={STRIP_ROW_H - 4 * S} fill={pb.fill} opacity={Math.min(1, pb.opacity * 1.6)} />
+              <rect x={x0} y={rowY + 2 * S} width={2 * S} height={STRIP_ROW_H - 4 * S} fill={C.inkFaint} />
+              {name && (
+                <text x={x0 + 6 * S} y={rowY + STRIP_ROW_H / 2 + F.footer * 0.36} fontSize={F.footer} fontWeight={600} fill={C.inkMuted}>
+                  {name}
+                </text>
+              )}
+            </g>
           )
         })}
           </g>
@@ -1061,11 +1073,12 @@ export function TimelineView({
             <g key={pb.key} data-period={pb.key}>
               <title>{pb.description ? `${pb.title}：${pb.description}` : pb.title}</title>
               <rect x={x0} y={top} width={x1 - x0} height={layout.height - top} fill={pb.fill} opacity={pb.opacity} />
-              {/* 名稱：版型 B 畫在這裡；一般檢視畫在頂部表頭裡（往下捲也看得到） */}
-              {name && center && (
+              {/* 名稱：出圖（含版型 B）畫在這裡；畫面上畫在頂部表頭自己的那一列（往下捲也看得到、不蓋事件） */}
+              {name && (center || isExport) && (
                 <text
                   x={x0 + 4 * S}
-                  y={top + F.date + 3 * S}
+                  // 出圖時寫在表頭（刻度、其他圖層時期列）正下方，不被表頭的底色蓋住
+                  y={(center ? top : HEADER_H) + F.date + 3 * S}
                   fontSize={F.date}
                   fontWeight={600}
                   fill={C.inkMuted}
