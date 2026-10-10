@@ -16,7 +16,8 @@ export function parseHstJson(text: string): ParseHstResult {
   } catch (e) {
     return {
       ok: false,
-      errors: [{ path: '', message: `這不是合法的 JSON 檔：${(e as Error).message}` }],
+      // 不把瀏覽器的英文錯誤（Unexpected token…）丟給使用者：講清楚是什麼情況、該怎麼辦
+      errors: [{ path: '', message: '檔案內容不是時間軸檔的格式，可能選錯檔案了（時間軸檔的檔名結尾是 .hst.json）' }],
       warnings: [],
     }
   }

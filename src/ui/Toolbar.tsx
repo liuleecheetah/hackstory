@@ -159,7 +159,7 @@ export function Toolbar(props: ToolbarProps) {
           onChange={(e) => display.setShowYears(e.target.checked)}
           className="accent-accent"
         />
-        含年份
+        日期寫出年份
       </label>
       <label className="flex items-center gap-1.5 text-base text-ink-muted">
         <input

@@ -7,6 +7,7 @@ import { useState } from 'react'
 import type { PeriodDraft } from '../compose/periods'
 import { periodDraftError, periodYears } from '../compose/periods'
 import type { Period } from '../core'
+import { selectAllOnMount } from './selectAll'
 
 interface Props {
   periods: Period[]
@@ -70,6 +71,7 @@ export function PeriodEditor({ periods, readOnly, onAdd, onRename, onRemove }: P
             {editing === i ? (
               <input
                 autoFocus
+                ref={selectAllOnMount}
                 type="text"
                 value={draftTitle}
                 onChange={(e) => setDraftTitle(e.target.value)}

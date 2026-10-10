@@ -7,11 +7,15 @@ import type { Layer } from '../compose/useLayers'
 import type { PeriodDraft } from '../compose/periods'
 import { isCrossDocument } from '../core'
 import { PeriodEditor } from './PeriodEditor'
+import { selectAllOnMount } from './selectAll'
+
 
 interface Props {
   layers: Layer[]
   /** 載入失敗的訊息（顯示給使用者，不靜默） */
   errors: string[]
+  /** 關掉錯誤訊息（看過了就不必一直掛著） */
+  onClearErrors?: () => void
   /** 唯讀檢視（分享連結）：隱藏所有編輯入口，只留檢視類操作 */
   readOnly?: boolean
   /** 暫時被隱藏的軸線（key = `圖層id/軸線id`），用來決定軸線勾選框的狀態 */
@@ -49,6 +53,7 @@ function crossDocCount(layer: Layer): number {
 export function LayerPanel({
   layers,
   errors,
+  onClearErrors,
   readOnly = false,
   hiddenTracks,
   onToggle,
@@ -173,6 +178,7 @@ export function LayerPanel({
               {editingId === layer.id ? (
                 <input
                   autoFocus
+                  ref={selectAllOnMount}
                   type="text"
                   value={draftTitle}
                   onChange={(e) => setDraftTitle(e.target.value)}
@@ -293,6 +299,7 @@ export function LayerPanel({
                     {editingTrack === trackKey ? (
                       <input
                         autoFocus
+                        ref={selectAllOnMount}
                         type="text"
                         value={draftTrackTitle}
                         onChange={(e) => setDraftTrackTitle(e.target.value)}
@@ -371,13 +378,23 @@ export function LayerPanel({
         ))}
         {layers.length === 0 && (
           <li className="px-3 py-6 text-center text-sm text-ink-faint">
-            還沒有圖層，點右上「＋載入 .hst.json」
+            還沒有圖層：點上方的「＋載入 .hst.json」，或從工具列的「共用庫」挑一份
           </li>
         )}
       </ul>
 
       {errors.length > 0 && (
         <div className="max-h-40 overflow-y-auto border-t border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {onClearErrors && (
+            <button
+              type="button"
+              onClick={onClearErrors}
+              title="關閉這些訊息"
+              className="float-right ml-2 px-1 text-red-700 hover:text-red-900"
+            >
+              ✕ 關閉
+            </button>
+          )}
           {errors.map((msg, i) => (
             <p key={i} className="py-0.5">
               {msg}

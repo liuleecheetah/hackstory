@@ -697,6 +697,21 @@ export default function App() {
   const handleAddFiles = useCallback(
     (files: FileList) => {
       for (const file of Array.from(files)) {
+        // 常見的選錯檔：圖片（以為這裡能放 logo）、試算表（該用「匯入」）——直接說要去哪裡
+        if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name)) {
+          setLoadErrors((prev) => [
+            ...prev,
+            `「${file.name}」是圖片，不是時間軸檔（.hst.json）。要放 logo，請到「出圖工作室」選「切分成多張圖」，在「輪播的封面與收尾頁」上傳`,
+          ])
+          continue
+        }
+        if (/\.(csv|tsv|xlsx?|ods)$/i.test(file.name)) {
+          setLoadErrors((prev) => [
+            ...prev,
+            `「${file.name}」是試算表，不是時間軸檔（.hst.json）。試算表請用工具列的「匯入」`,
+          ])
+          continue
+        }
         void file.text().then((text) => {
           const result = parseHstJson(text)
           if (result.ok) {
@@ -831,6 +846,7 @@ export default function App() {
         <LayerPanel
           layers={layers}
           errors={loadErrors}
+          onClearErrors={() => setLoadErrors([])}
           readOnly={readOnly}
           hiddenTracks={hiddenTracks}
           onToggle={toggleVisible}

@@ -95,7 +95,7 @@ export function RelationDialog({ fromTitle, toTitle, clientX, clientY, onCreate,
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="例：104 年後成真"
+          placeholder="例：直接導火線、引發大規模抗議"
           className="mt-0.5 w-full rounded border border-line px-2 py-1 text-base"
         />
       </label>
