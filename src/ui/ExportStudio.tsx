@@ -48,8 +48,11 @@ import {
 } from './studioSettings'
 import { StudioPreview } from './StudioPreview'
 
-/** 固定比例放不下時，文字最多自動縮到主題原本大小的多少（再小就讀不清楚） */
-const MIN_FIT_SCALE = 0.6
+/**
+ * 固定比例放不下時，事件文字最多自動縮到主題原本大小的多少（再小就讀不清楚）。
+ * 試用員回報 60% 在 16:9 上已經太小，提高到 75%；標題、副標、出處行不跟著縮
+ */
+const MIN_FIT_SCALE = 0.75
 
 /** 自動縮字要試的倍率：從使用者設定的大小開始，每次少 10%，到下限為止 */
 function fitScales(start: number): number[] {
@@ -57,6 +60,8 @@ function fitScales(start: number): number[] {
   for (let s = Math.round(start * 10 - 1) / 10; s >= MIN_FIT_SCALE - 1e-9; s = Math.round(s * 10 - 1) / 10) {
     if (s < start) out.push(s)
   }
+  // 下限不是 10% 的整數倍（例如 75%）時，最後再試一次剛好在下限
+  if (out[out.length - 1] > MIN_FIT_SCALE + 1e-9) out.push(MIN_FIT_SCALE)
   return out
 }
 
@@ -530,7 +535,7 @@ export function ExportStudio(props: Props) {
     ...extra,
   })
   // 建議的其他做法：已經在用的就不要再叫使用者去做（例如已經勾了「只放關鍵事件」）
-  const otherWays = `改選「長圖（高度自動）」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}`
+  const otherWays = `改選「長圖（高度自動）」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}${eventScope === 'linked' ? '' : '、只放有關係線的事件'}`
 
   /**
    * 固定比例：選了要呈現的事件就一定要全部出現在圖上，否則是沒用的圖。
@@ -546,13 +551,21 @@ export function ExportStudio(props: Props) {
     const base = THEMES[themeId]
     let last: Rendered | null = null
     for (const s of social ? [fontScale] : fitScales(fontScale)) {
-      const t = s === fontScale ? theme : deriveTheme(base, { scale: base.scale * s })
+      // 只縮事件、軸線、日期這些字；標題、副標、出處行維持原大小——遠看要讀得到的就是它們
+      const t =
+        s === fontScale
+          ? theme
+          : (() => {
+              const shrunk = deriveTheme(base, { scale: base.scale * s })
+              const F0 = theme.font
+              return { ...shrunk, font: { ...shrunk.font, title: F0.title, subtitle: F0.subtitle, footer: F0.footer } }
+            })()
       const d = await renderWith(t)
       if (!d.lost) {
         return single(
           d,
           s < fontScale
-            ? { info: `為了放下全部事件，文字自動縮為 ${Math.round(s * 100)}%（你設定的是 ${Math.round(fontScale * 100)}%）` }
+            ? { info: `為了放下全部事件，事件文字自動縮為 ${Math.round(s * 100)}%（你設定的是 ${Math.round(fontScale * 100)}%；標題與出處不縮）` }
             : {},
         )
       }
