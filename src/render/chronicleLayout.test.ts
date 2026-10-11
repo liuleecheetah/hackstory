@@ -53,7 +53,7 @@ describe('layoutChronicle：卡片依先後往下排', () => {
     }
   })
 
-  it('有摘要、有來源小標的卡片比較高；摘要最多兩行', () => {
+  it('有摘要、有來源小標的卡片比較高；摘要預設最多四行', () => {
     const { rows } = layoutChronicle(
       [
         entry('plain', null),
@@ -67,7 +67,7 @@ describe('layoutChronicle：卡片依先後往下排', () => {
     )
     const [plain, rich] = rows
     expect(rich.h).toBeGreaterThan(plain.h)
-    expect(rich.summaryLines.length).toBe(2)
+    expect(rich.summaryLines.length).toBe(4)
     // 來源清單最多兩行，超過以刪節號收尾
     expect(rich.sourceLines.length).toBe(2)
     expect(rich.sourceLines[1].endsWith('…')).toBe(true)
@@ -115,5 +115,18 @@ describe('查證程度與來源清單', () => {
     ).toBe('來源：司法院釋字第 748 號解釋、cna.com.tw')
     expect(sourcesText([])).toBe('')
     expect(sourcesText(undefined)).toBe('')
+  })
+})
+
+describe('layoutChronicle：放不下時先縮短摘要', () => {
+  it('最後一張放不下完整摘要，就縮短摘要（最少兩行）塞進去，而不是整張丟掉', () => {
+    const long = { summary: '很長的摘要'.repeat(30) }
+    const full = layoutChronicle([entry('a', null, long)], M)
+    const fullH = full.rows[0].h
+    // 畫布只比「兩行摘要的卡片」高一點點：完整的放不下，縮成兩行剛好放得下
+    const twoLineH = fullH - 2 * M.summaryFont * M.lineHeight
+    const tight = layoutChronicle([entry('a', null, long)], { ...M, bottom: M.top + twoLineH + 1 })
+    expect(tight.hidden).toBe(0)
+    expect(tight.rows[0].summaryLines.length).toBe(2)
   })
 })

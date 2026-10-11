@@ -49,6 +49,8 @@ export interface ChronicleMetrics {
   dateFont: number
   /** 行高倍率 */
   lineHeight: number
+  /** 摘要最多幾行（預設 4：兩行常把關鍵數字截掉，例如「此戒嚴延續至…」） */
+  summaryMaxLines?: number
 }
 
 export interface ChronicleRow {
@@ -92,19 +94,27 @@ export function layoutChronicle(entries: ChronicleEntry[], m: ChronicleMetrics):
     const showYear = entry.year !== null && entry.year !== lastYear
     const dateText = shortDate(entry)
     const titleLines = wrapLines(entry.title, textW, m.titleFont, 2)
-    const summaryLines = entry.summary ? wrapLines(entry.summary, textW, m.summaryFont, 2) : []
     // 小字區：一行「軸線 · 查證程度」，加上最多兩行來源清單
     const metaLine = entry.confidence || entry.trackLabel ? 1 : 0
     const sourceLines = entry.sourcesText ? wrapLines(entry.sourcesText, textW, m.metaFont, 2) : []
-    const cardH =
-      m.cardPad * 2 +
-      titleLines.length * lh(m.titleFont) +
-      summaryLines.length * lh(m.summaryFont) +
-      (metaLine + sourceLines.length) * lh(m.metaFont)
     // 日期欄（大字年份＋小字日期）也要放得下
     const dateColH =
       m.cardPad + (showYear ? lh(m.yearFont) : 0) + (dateText ? lh(m.dateFont) : 0)
-    const h = Math.max(cardH, dateColH)
+    const heightWith = (lines: string[]) =>
+      Math.max(
+        dateColH,
+        m.cardPad * 2 +
+          titleLines.length * lh(m.titleFont) +
+          lines.length * lh(m.summaryFont) +
+          (metaLine + sourceLines.length) * lh(m.metaFont),
+      )
+    // 摘要先給足行數；這張放不下時，先試著把摘要縮短（最少兩行）塞進去，頁面才不會下半截空白
+    const maxLines = m.summaryMaxLines ?? 4
+    let summaryLines = entry.summary ? wrapLines(entry.summary, textW, m.summaryFont, maxLines) : []
+    for (let n = maxLines - 1; y + heightWith(summaryLines) > m.bottom && n >= 2 && entry.summary; n--) {
+      summaryLines = wrapLines(entry.summary, textW, m.summaryFont, n)
+    }
+    const h = heightWith(summaryLines)
     if (y + h > m.bottom) break
 
     if (showYear) lastYear = entry.year

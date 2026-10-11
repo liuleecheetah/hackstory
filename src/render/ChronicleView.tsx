@@ -66,7 +66,8 @@ export function ChronicleView({
   // 有底部註記時（例如「僅列關鍵事件」）多留一行；出處行太長會換行，底部跟著加高
   const FOOTER_H = exportFooterHeight(26 * S, exportMode.footer, exportMode.note, width, theme)
   const padX = 20 * S
-  const dateColW = 104 * S
+  // 日期欄：窄的圖（9:16、4:5 寬 540）不能讓日期欄吃掉太多，卡片才寬得起來
+  const dateColW = Math.min(104 * S, width * 0.2)
   const spineX = padX + dateColW - 14 * S
 
   const { entries, tView } = useMemo(() => {
