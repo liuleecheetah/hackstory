@@ -33,6 +33,13 @@ interface Props {
   eventOptions?: Array<{ id: string; title: string }>
   /** 刪除前的影響預覽（受牽連的相對事件清單），附加在確認訊息裡 */
   deleteWarning?: string
+  /** 「放在哪條軸線」選單的選項：所有圖層的所有軸線 */
+  trackChoices?: Array<{ layerId: string; layerTitle: string; trackId: string; trackTitle: string }>
+  /**
+   * 把（已套用編輯的）事件搬到另一條軸線（可以是別的圖層）。
+   * 成功回傳 null；不能搬（或使用者取消）回傳要顯示的原因
+   */
+  onMove?: (next: HstEvent, toLayerId: string, toTrackId: string) => string | null
 }
 
 export interface RelationInfo {
@@ -99,7 +106,12 @@ interface FormState {
   confidence: string
   /** 資料來源：每一列一筆，名稱與網址（網址選填） */
   sources: SourceRow[]
+  /** 放在哪條軸線：「圖層 id＋換行＋軸線 id」 */
+  dest: string
 }
+
+/** 軸線選單的值：圖層 id 與軸線 id 用換行隔開（兩者都不會含換行） */
+const destOf = (layerId: string, trackId: string) => `${layerId}\n${trackId}`
 
 
 export function EventDetailCard({
@@ -114,6 +126,8 @@ export function EventDetailCard({
   onStartLink,
   eventOptions = [],
   deleteWarning = '',
+  trackChoices = [],
+  onMove,
 }: Props) {
   const { event, docTitle, trackTitle, color, clientX, clientY } = selection
 
@@ -137,6 +151,7 @@ export function EventDetailCard({
         tags: '',
         confidence: '',
         sources: [{ title: '', url: '' }],
+        dest: destOf(selection.sourceId, event.track),
       })
       setEditing(true)
     } else {
@@ -261,6 +276,7 @@ export function EventDetailCard({
         event.sources && event.sources.length > 0
           ? event.sources.map((src) => ({ title: src.title ?? '', url: src.url ?? '' }))
           : [{ title: '', url: '' }],
+      dest: destOf(selection.sourceId, event.track),
     })
     setFormError(null)
     setEditing(true)
@@ -353,6 +369,19 @@ export function EventDetailCard({
     if (parsedSources.sources.length > 0) next.sources = parsedSources.sources
     else delete next.sources
 
+    // 換了軸線：同一圖層內只是改軸線；別的圖層由 App 搬過去（會先確認要拿掉的關係線）
+    if (!createMode && onMove && form.dest !== destOf(selection.sourceId, event.track)) {
+      const [toLayerId, toTrackId] = form.dest.split('\n')
+      const problem = onMove(next, toLayerId, toTrackId)
+      if (problem) {
+        setFormError(problem)
+        return
+      }
+      setEditing(false)
+      setFormError(null)
+      return
+    }
+
     onUpdate(next)
     setEditing(false)
     setFormError(null)
@@ -411,6 +440,34 @@ export function EventDetailCard({
               className={inputCls}
             />
           </label>
+          {!createMode && onMove && trackChoices.length > 1 && (
+            <label className={labelCls}>
+              放在哪條軸線
+              <select
+                value={form.dest}
+                onChange={(e) => setField('dest', e.target.value)}
+                className={inputCls}
+              >
+                {[...new Set(trackChoices.map((c) => c.layerId))].map((layerId) => {
+                  const group = trackChoices.filter((c) => c.layerId === layerId)
+                  return (
+                    <optgroup key={layerId} label={group[0].layerTitle}>
+                      {group.map((c) => (
+                        <option key={c.trackId} value={destOf(c.layerId, c.trackId)}>
+                          {c.trackTitle}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )
+                })}
+              </select>
+              {form.dest.split('\n')[0] !== selection.sourceId && (
+                <span className="mt-0.5 block text-sm text-warn">
+                  要搬到別的圖層：這件事會從「{docTitle}」移過去（來源、查證、關鍵事件標記一起搬），連到它的關係線會拿掉
+                </span>
+              )}
+            </label>
+          )}
           <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-muted">
             <input
               type="checkbox"

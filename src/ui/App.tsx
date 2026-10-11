@@ -16,6 +16,7 @@ import {
   sameDocumentRelations,
   validateDocument,
 } from '../core'
+import { planMoveEvent } from '../compose/moveEvent'
 import { linkedOnly } from '../compose/sourceFilters'
 import { useLayers } from '../compose/useLayers'
 import type {
@@ -170,6 +171,7 @@ export default function App() {
     setKeyEvent,
     addEvent,
     replaceEvent,
+    replaceDocs,
     removeEvent,
     addRelation,
     removeRelation,
@@ -566,6 +568,62 @@ export default function App() {
       }
     },
     [selection, setKeyEvent],
+  )
+
+  // 編輯表單的「放在哪條軸線」：所有圖層的所有軸線
+  const trackChoices = useMemo(
+    () =>
+      layers.flatMap((l) =>
+        l.doc.tracks.map((t) => ({ layerId: l.id, layerTitle: l.doc.meta.title, trackId: t.id, trackTitle: t.title })),
+      ),
+    [layers],
+  )
+
+  // 把事件搬到另一條軸線：同一圖層只改 track；別的圖層照 planMoveEvent 搬（先確認要拿掉的關係線）
+  const handleMoveEvent = useCallback(
+    (next: HstEvent, toLayerId: string, toTrackId: string): string | null => {
+      if (!selection) return '沒有選取的事件'
+      const from = layers.find((l) => l.id === selection.sourceId)
+      const to = layers.find((l) => l.id === toLayerId)
+      const track = to?.doc.tracks.find((t) => t.id === toTrackId)
+      if (!from || !to || !track) return '找不到要搬去的軸線'
+      if (from.id === to.id) {
+        const moved = { ...next, track: toTrackId }
+        replaceEvent(from.id, selection.event.id, moved)
+        setSelection({ ...selection, event: moved, trackTitle: track.title })
+        return null
+      }
+      const plan = planMoveEvent(from.doc, to.doc, next, toTrackId)
+      if (!plan.ok) return plan.reason
+      if (plan.droppedRelations.length > 0) {
+        const titleOf = (id: string) => from.doc.events.find((e) => e.id === id)?.title ?? id
+        const lines = plan.droppedRelations
+          .slice(0, 5)
+          .map((r) => `・「${titleOf(r.from)}」→「${titleOf(r.to)}」`)
+          .join('\n')
+        const ok = window.confirm(
+          `搬到「${to.doc.meta.title}」後，這 ${plan.droppedRelations.length} 條關係線會拿掉（關係線還不能跨圖層）：\n${lines}${plan.droppedRelations.length > 5 ? '\n…' : ''}\n\n要搬嗎？（搬了之後可以按「↩ 復原」）`,
+        )
+        if (!ok) return '已取消，事件沒有搬'
+      }
+      replaceDocs([
+        { layerId: from.id, doc: plan.source },
+        { layerId: to.id, doc: plan.target },
+      ])
+      const movedEvent = plan.target.events.find((e) => e.id === plan.newId)!
+      setSelection({
+        ...selection,
+        key: `${to.id}/${plan.newId}`,
+        sourceId: to.id,
+        event: movedEvent,
+        docTitle: to.doc.meta.title,
+        trackTitle: track.title,
+        color: to.color,
+      })
+      // 不另跳提示（畫面上的提示框是紅色的錯誤樣式）：詳情卡底部的「圖層｜軸線」會換成新的位置
+      return null
+    },
+    [selection, layers, replaceEvent, replaceDocs],
   )
 
   // 詳情卡的「儲存編輯」：更新圖層資料，同步更新卡片顯示
@@ -976,6 +1034,8 @@ export default function App() {
           onStartLink={readOnly || createMode ? undefined : handleStartLink}
           eventOptions={eventOptions}
           deleteWarning={deleteWarning}
+          trackChoices={readOnly ? [] : trackChoices}
+          onMove={readOnly || createMode ? undefined : handleMoveEvent}
         />
       )}
 

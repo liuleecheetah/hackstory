@@ -318,6 +318,19 @@ export function useLayers(initialDocs: TimelineDocument[]) {
   }, [])
 
   /**
+   * 把兩個圖層的文件一次換掉（跨圖層搬事件用，內容由 moveEvent.ts 的 planMoveEvent 算好）。
+   * 一次改兩份，按一次復原就整個回到搬之前
+   */
+  const replaceDocs = useCallback((changes: Array<{ layerId: string; doc: TimelineDocument }>) => {
+    mutate((prev) =>
+      prev.map((l) => {
+        const c = changes.find((x) => x.layerId === l.id)
+        return c ? { ...l, doc: c.doc } : l
+      }),
+    )
+  }, [])
+
+  /**
    * 刪除事件。連鎖影響由 core 的 removeEventFromDocument 處理：
    * 關係線、相對時間參考一併清理，失去所有參考的相對事件連鎖刪除，
    * 保證刪除後的檔案仍通過 SPEC 驗證。
@@ -397,6 +410,7 @@ export function useLayers(initialDocs: TimelineDocument[]) {
     setKeyEvent,
     addEvent,
     replaceEvent,
+    replaceDocs,
     removeEvent,
     addRelation,
     removeRelation,
