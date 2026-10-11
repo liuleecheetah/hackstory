@@ -409,11 +409,18 @@ export function ExportStudio(props: Props) {
     [baseSources, eventScope, scopeCounts],
   )
 
-  // 標註框的候選事件，依軸線分組（跟圖上同一套軸線名與顏色）；
-  // 每組裡關鍵事件排前面，其餘依時間先後。時間範圍外的事件不會畫出來，不列（勾了也只會被省略）
+  // 「關鍵事件與標註」清單：依軸線分組（跟圖上同一套軸線名與顏色），每組依時間先後。
+  // 列出時間範圍內的**所有**事件（不管目前選「只放關鍵事件」或「只放有關係線的事件」）：
+  // 這樣在任何模式都能點 ☆／★ 挑關鍵事件，取消星號也不會讓那件事從清單消失。
+  // 依時間排、不把關鍵事件排前面——點星號時項目才不會跳走。
+  // 不在圖上的事件（onImage = false）不能勾標註（畫不出來）
+  const imageKeys = useMemo(
+    () => new Set(sources.flatMap((src) => src.doc.events.map((e) => `${src.id}/${e.id}`))),
+    [sources],
+  )
   const calloutGroups = useMemo(() => {
-    const base = buildTimelineBase(sources, collapseGaps)
-    return buildBands(sources, base, { showDates: false, showYears: false }, theme.palette).map((band) => ({
+    const base = buildTimelineBase(baseSources, collapseGaps)
+    return buildBands(baseSources, base, { showDates: false, showYears: false }, theme.palette).map((band) => ({
       key: band.key,
       label: band.label,
       color: band.color,
@@ -427,13 +434,14 @@ export function ExportStudio(props: Props) {
           featured: isFeatured(pe.ev),
           description: pe.ev.description,
           t: pe.tStart,
+          onImage: imageKeys.has(`${band.sourceId}/${pe.ev.id}`),
         }))
-        .sort((a, b) => Number(b.featured) - Number(a.featured) || a.t - b.t),
+        .sort((a, b) => a.t - b.t),
     })).filter((g) => g.items.length > 0)
-  }, [sources, collapseGaps, theme.palette, scopeCounts])
+  }, [baseSources, imageKeys, collapseGaps, theme.palette, scopeCounts])
   const calloutCandidates = useMemo(() => calloutGroups.flatMap((g) => g.items), [calloutGroups])
   const calloutSpecs: CalloutSpec[] = calloutKeys.flatMap((key) => {
-    const c = calloutCandidates.find((x) => x.key === key)
+    const c = calloutCandidates.find((x) => x.key === key && x.onImage)
     return c ? [{ key, title: c.title, summary: calloutText[key] ?? defaultSummary(c.description, summaryCap) }] : []
   })
 
@@ -1616,15 +1624,18 @@ export function ExportStudio(props: Props) {
               {/* 標註事件：放在「內容」的最後 */}
               <div className="mt-4 border-t border-line pt-3">
               <p className="mb-1 text-base font-bold text-ink">
-                標註事件（{calloutKeys.length}／{MAX_CALLOUTS}）
+                {layout === 'D' && cardMode ? '關鍵事件（★）' : `關鍵事件與標註（標註 ${calloutKeys.length}／${MAX_CALLOUTS}）`}
               </p>
               {calloutKeys.length > calloutSpecs.length && (
                 <p className="mb-1 text-sm text-warn">
-                  其中 {calloutKeys.length - calloutSpecs.length} 個在目前的時間範圍外，暫時不畫；範圍放寬就會回來
+                  其中 {calloutKeys.length - calloutSpecs.length} 個目前不在圖上（在時間範圍外），暫時不畫；範圍放寬就會回來
                 </p>
               )}
               <p className="mb-2 text-sm text-ink-faint">
-                勾選的事件會加上「標題＋一句摘要」的說明框，用引線連回事件。關鍵事件（★）排在前面；點 ☆／★ 可設為或取消關鍵事件
+                {layout === 'D' && cardMode
+                  ? '卡片模式不另加標註框（每張卡片已有標題與摘要）。'
+                  : '勾選的事件會加上「標題＋一句摘要」的說明框，用引線連回事件。'}
+                點 ☆／★ 設為或取消關鍵事件——<b className="font-medium text-ink-muted">會一起改到時間軸資料</b>（主畫面同步，可按 ↩ 復原）
               </p>
               {!(layout === 'D' && cardMode) && (
                 <button
@@ -1636,11 +1647,7 @@ export function ExportStudio(props: Props) {
                   全部取消勾選
                 </button>
               )}
-              {layout === 'D' && cardMode ? (
-                <p className="text-sm text-ink-faint">
-                  卡片模式每張卡片已有標題與摘要，不另加標註框。取消「卡片模式」即可使用。
-                </p>
-              ) : (
+              {(
                 <div className="max-h-80 space-y-3 overflow-y-auto rounded border border-line p-2">
                   {calloutCandidates.length === 0 && (
                     <p className="text-sm text-ink-faint">沒有可標註的事件</p>
@@ -1650,7 +1657,7 @@ export function ExportStudio(props: Props) {
                     return (
                       <div key={g.key} className="space-y-1.5">
                         {/* 軸線小標題：與圖上同一個顏色 */}
-                        <div className="sticky top-0 -mx-2 flex items-center gap-2 bg-surface px-2 py-1 text-sm font-bold text-ink">
+                        <div className="sticky top-0 z-10 -mx-2 flex items-center gap-2 bg-surface px-2 py-1 text-sm font-bold text-ink">
                           <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: g.color }} />
                           <span className="min-w-0 flex-1 truncate">{g.label}</span>
                           <span className="shrink-0 font-normal text-ink-faint">
@@ -1660,16 +1667,29 @@ export function ExportStudio(props: Props) {
                         {g.items.map((c) => {
                           const on = calloutKeys.includes(c.key)
                           const full = !on && calloutKeys.length >= MAX_CALLOUTS
+                          const cardOnly = layout === 'D' && cardMode
+                          // 不在圖上的事件（例如只放關鍵事件時的一般事件）畫不出標註框
+                          const blockedHere = !c.onImage
                           return (
                             <div key={c.key}>
                               <label
-                                className={'flex items-start gap-2 text-base ' + (full ? 'text-ink-faint' : 'text-ink-muted')}
-                                title={full ? `最多 ${MAX_CALLOUTS} 個，請先取消其他標註` : undefined}
+                                className={
+                                  'flex items-start gap-2 text-base ' +
+                                  (full || blockedHere ? 'text-ink-faint' : 'text-ink-muted')
+                                }
+                                title={
+                                  blockedHere
+                                    ? '這件事目前不在圖上（例如只放關鍵事件時，先點 ☆ 設為關鍵事件）'
+                                    : full
+                                      ? `最多 ${MAX_CALLOUTS} 個，請先取消其他標註`
+                                      : undefined
+                                }
                               >
                                 <input
                                   type="checkbox"
-                                  checked={on}
-                                  disabled={full}
+                                  checked={on && !blockedHere}
+                                  disabled={full || blockedHere}
+                                  hidden={cardOnly}
                                   onChange={(e) =>
                                     setCalloutKeys((prev) =>
                                       e.target.checked ? [...prev, c.key] : prev.filter((k) => k !== c.key),
