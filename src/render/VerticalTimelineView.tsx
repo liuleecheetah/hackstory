@@ -106,6 +106,8 @@ interface Props {
   onScaleModeChange?: (mode: ScaleMode) => void
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
+  /** 搜尋中：符合的事件（組合鍵）照常畫，其他事件淡化；null／未提供＝沒在搜尋 */
+  highlightKeys?: ReadonlySet<string> | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
   onEventSelect?: (selection: EventSelection | null) => void
   /**
@@ -215,6 +217,7 @@ export function VerticalTimelineView({
   scaleRequest,
   onScaleModeChange,
   selectedKey,
+  highlightKeys,
   onEventSelect,
   onEventCreate,
   onDomainChange,
@@ -1246,6 +1249,9 @@ export function VerticalTimelineView({
                   hoveredKey === fromKey ||
                   hoveredKey === toKey
                 if (mode === 'merged' && !active) return null
+                // 搜尋中：兩端都符合的線才照常畫，其他跟著事件一起淡化
+                const dimmed =
+                  highlightKeys != null && !(highlightKeys.has(fromKey) && highlightKeys.has(toKey))
                 return (
                   <path
                     key={id}
@@ -1255,7 +1261,7 @@ export function VerticalTimelineView({
                     strokeWidth={(active ? 2.5 : 1.25) * S}
                     strokeDasharray={relationDash(type, S)}
                     strokeLinecap={type === 'derives_from' ? 'round' : undefined}
-                    opacity={active ? 0.95 : 0.35}
+                    opacity={active ? 0.95 : dimmed ? 0.1 : 0.35}
                     markerEnd="url(#hst-rel-arrow-v)"
                   />
                 )
@@ -1270,6 +1276,7 @@ export function VerticalTimelineView({
                 const { pe } = it
                 const fill = pe.ev.color ?? it.band.color
                 const isSelected = selectedKey === it.key
+                const dimmed = highlightKeys != null && !highlightKeys.has(it.key)
                 const barH = Math.max(it.yBot - it.yTop, MIN_BAR_H)
                 const dotR = pe.isKey ? KEY_DOT_R : DOT_R
                 const cx = it.x + dotR
@@ -1277,6 +1284,7 @@ export function VerticalTimelineView({
                   <g
                     key={it.key}
                     className={onEventSelect ? 'cursor-pointer' : undefined}
+                    opacity={dimmed ? 0.25 : undefined}
                     onDoubleClick={(e) => e.stopPropagation()}
                     onMouseEnter={() => setHoveredKey(it.key)}
                     onMouseLeave={() => setHoveredKey((prev) => (prev === it.key ? null : prev))}

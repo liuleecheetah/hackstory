@@ -60,6 +60,10 @@ export interface ToolbarProps {
   activeMode: ScaleMode
   onScaleSelect: (mode: ScaleMode) => void
   display: DisplayOptionsState
+  /** 找事件：搜尋字串、改字串、符合件數（沒在搜尋時為 null） */
+  searchQuery: string
+  onSearchChange: (q: string) => void
+  searchCount: number | null
   // 編輯
   readOnly: boolean
   onMakeEditableCopy: () => void
@@ -93,6 +97,9 @@ export function Toolbar(props: ToolbarProps) {
     activeMode,
     onScaleSelect,
     display,
+    searchQuery,
+    onSearchChange,
+    searchCount,
     readOnly,
     onMakeEditableCopy,
     onOpenLibrary,
@@ -289,6 +296,30 @@ export function Toolbar(props: ToolbarProps) {
             <div className="absolute left-0 z-30 mt-1 flex w-56 flex-col gap-2 rounded-md border border-line bg-surface p-3 shadow-lg">
               {displayOptions}
             </div>
+          )}
+        </div>
+
+        {/* 找事件：符合的照常顯示，其他淡化（不藏起來，前後脈絡還看得到） */}
+        <div className="flex items-center gap-1.5">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onSearchChange('')
+            }}
+            placeholder="找事件：人物、標籤、關鍵字"
+            title="比對事件標題、說明、標籤和出處；好幾個詞用空白隔開，要全部都出現才算。按 Esc 清除"
+            className="w-56 rounded border border-line bg-surface px-2 py-1 text-base text-ink placeholder:text-ink-faint"
+          />
+          {searchCount != null && (
+            <span
+              className={
+                'whitespace-nowrap text-sm ' + (searchCount === 0 ? 'text-red-600' : 'text-ink-muted')
+              }
+            >
+              {searchCount === 0 ? '沒有符合的事件' : `符合 ${searchCount} 件`}
+            </span>
           )}
         </div>
       </div>

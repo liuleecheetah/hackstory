@@ -79,6 +79,8 @@ interface Props {
   relationLabels?: boolean
   /** 目前被選取的事件（組合鍵），該事件會畫上光環 */
   selectedKey?: string | null
+  /** 搜尋中：符合的事件（組合鍵）照常畫，其他事件淡化；null／未提供＝沒在搜尋 */
+  highlightKeys?: ReadonlySet<string> | null
   /** 點事件 → 回報選取；點空白處 → 回報 null */
   onEventSelect?: (selection: EventSelection | null) => void
   /** 在軸線空白處點兩下 → 回報新增事件的草稿資訊（未提供時停用，例如嵌入模式） */
@@ -146,6 +148,7 @@ export function TimelineView({
   callouts,
   relationLabels = true,
   selectedKey,
+  highlightKeys,
   onEventSelect,
   onEventCreate,
   onDomainChange,
@@ -1248,6 +1251,9 @@ export function TimelineView({
                 selectedKey === toKey ||
                 hoveredKey === fromKey ||
                 hoveredKey === toKey
+              // 搜尋中：兩端都符合的線才照常畫，其他跟著事件一起淡化
+              const dimmed =
+                highlightKeys != null && !(highlightKeys.has(fromKey) && highlightKeys.has(toKey))
               return (
                 <path
                   key={id}
@@ -1257,7 +1263,7 @@ export function TimelineView({
                   strokeWidth={(active ? 2.5 : 1.25) * S}
                   strokeDasharray={relationDash(type, S)}
                   strokeLinecap={type === 'derives_from' ? 'round' : undefined}
-                  opacity={active ? 0.95 : 0.4}
+                  opacity={active ? 0.95 : dimmed ? 0.1 : 0.4}
                   markerEnd="url(#hst-rel-arrow)"
                 />
               )
@@ -1272,12 +1278,14 @@ export function TimelineView({
               const fill = ev.color ?? color
               const eventKey = `${sourceId}/${ev.id}`
               const isSelected = selectedKey === eventKey
+              const dimmed = highlightKeys != null && !highlightKeys.has(eventKey)
               const dotR = isKey ? M.keyDotR : M.dotR
               const barH = isKey ? M.keyBarH : M.barH
               return (
                 <g
                   key={ev.id}
                   className="cursor-pointer"
+                  opacity={dimmed ? 0.25 : undefined}
                   // 按在事件上不啟動拖曳，讓 click 正常送達；
                   // 在事件上點兩下也不觸發「新增事件」
                   onPointerDown={(e) => e.stopPropagation()}

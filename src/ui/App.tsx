@@ -18,6 +18,7 @@ import {
 } from '../core'
 import { planMoveEvent } from '../compose/moveEvent'
 import { linkedOnly } from '../compose/sourceFilters'
+import { searchEvents } from '../compose/eventSearch'
 import { useLayers } from '../compose/useLayers'
 import type {
   EventSelection,
@@ -205,6 +206,9 @@ export default function App() {
     () => (linkedOnlyView ? linkedOnly(visibleSources) : visibleSources),
     [linkedOnlyView, visibleSources],
   )
+  // 找事件：只比對畫面上有的事件（被隱藏的圖層、軸線不算），符合的照常畫、其他淡化
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchHits = useMemo(() => searchEvents(shownSources, searchQuery), [shownSources, searchQuery])
   // 精簡模式：事件列縮小，讓卡滿的軸線收斂、其他軸線看得到
   const [compact, setCompact] = useState(false)
   // 摺疊空白：預設聽第一份文件的 display.collapseGaps 建議（SPEC 第 8 節）
@@ -883,6 +887,9 @@ export default function App() {
           themeId,
           setThemeId,
         }}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchCount={searchHits?.size ?? null}
         readOnly={readOnly}
         onMakeEditableCopy={() => {
           setEditableCopy(true)
@@ -939,6 +946,7 @@ export default function App() {
               collapseGaps={collapseGaps}
               theme={THEMES[themeId]}
               selectedKey={selection?.key ?? null}
+              highlightKeys={searchHits}
               onEventSelect={handleEventSelect}
               onEventCreate={readOnly ? undefined : handleEventCreate}
               onDomainChange={handleDomainChange}
@@ -955,6 +963,7 @@ export default function App() {
               compact={compact}
               theme={THEMES[themeId]}
               selectedKey={selection?.key ?? null}
+              highlightKeys={searchHits}
               onEventSelect={handleEventSelect}
               onEventCreate={readOnly ? undefined : handleEventCreate}
               onDomainChange={handleDomainChange}
@@ -1036,6 +1045,7 @@ export default function App() {
           deleteWarning={deleteWarning}
           trackChoices={readOnly ? [] : trackChoices}
           onMove={readOnly || createMode ? undefined : handleMoveEvent}
+          onTagSearch={createMode ? undefined : setSearchQuery}
         />
       )}
 

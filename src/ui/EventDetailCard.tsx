@@ -40,6 +40,8 @@ interface Props {
    * 成功回傳 null；不能搬（或使用者取消）回傳要顯示的原因
    */
   onMove?: (next: HstEvent, toLayerId: string, toTrackId: string) => string | null
+  /** 點標籤 → 用這個標籤找事件（主畫面其他事件淡化）。未提供時標籤只是文字 */
+  onTagSearch?: (tag: string) => void
 }
 
 export interface RelationInfo {
@@ -128,6 +130,7 @@ export function EventDetailCard({
   deleteWarning = '',
   trackChoices = [],
   onMove,
+  onTagSearch,
 }: Props) {
   const { event, docTitle, trackTitle, color, clientX, clientY } = selection
 
@@ -714,14 +717,26 @@ export function EventDetailCard({
 
             {event.tags && event.tags.length > 0 && (
               <p className="flex flex-wrap gap-1">
-                {event.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded bg-surface-alt px-1.5 py-0.5 text-sm text-ink-muted"
-                  >
-                    {tag}
-                  </span>
-                ))}
+                {event.tags.map((tag) =>
+                  onTagSearch ? (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => onTagSearch(tag)}
+                      title={`找出所有提到「${tag}」的事件`}
+                      className="rounded bg-surface-alt px-1.5 py-0.5 text-sm text-ink-muted hover:bg-accent hover:text-white"
+                    >
+                      {tag}
+                    </button>
+                  ) : (
+                    <span
+                      key={tag}
+                      className="rounded bg-surface-alt px-1.5 py-0.5 text-sm text-ink-muted"
+                    >
+                      {tag}
+                    </span>
+                  ),
+                )}
               </p>
             )}
 
