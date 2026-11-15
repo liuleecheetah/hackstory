@@ -78,6 +78,8 @@ export interface VerticalExportRequest extends ExportRequestBase {
 /** 橫式另外吃「精簡模式」——那是使用者調整「一張圖塞得下幾條軸線」的主要手段 */
 export interface HorizontalExportRequest extends ExportRequestBase {
   compact: boolean
+  /** 緊湊排列：軸線比較矮，但上下不一定照時間先後 */
+  packLanes?: boolean
   /** 版型 A「多軸泳道」外觀：左側軸線名色塊、頂部刻度帶、方頭長條 */
   swimlane?: boolean
   /** 版型 B「雙向對照」：刻度軸在中間、大年份，前半軸線在上、後半在下 */
@@ -269,6 +271,7 @@ export function renderHorizontalExportSvg(
       collapseGaps={req.collapseGaps}
       ordinal={req.ordinal}
       compact={req.compact}
+      packLanes={req.packLanes}
       swimlane={req.swimlane}
       centerAxis={req.centerAxis}
       callouts={req.callouts}

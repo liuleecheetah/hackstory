@@ -66,6 +66,11 @@ interface Props {
   centerAxis?: boolean
   /** 精簡模式：把事件列高、圓點、文字縮小，同樣高度塞更多事件、其他軸線比較看得到 */
   compact?: boolean
+  /**
+   * 緊湊排列：晚的事件可以塞回上面的空位，軸線比較矮，但同一條軸線的上下不一定照時間先後。
+   * 預設關閉（上下照時序，見 assignLanesByTime）；出圖放不下時讓使用者自己選
+   */
+  packLanes?: boolean
   /** 主題：字級、尺寸、顏色（預設「螢幕」主題） */
   theme?: RenderTheme
   /**
@@ -145,6 +150,7 @@ export function TimelineView({
   compact = false,
   theme = THEMES.screen,
   swimlane = false,
+  packLanes = false,
   callouts,
   relationLabels = true,
   selectedKey,
@@ -508,8 +514,11 @@ export function TimelineView({
         })
         .sort((p, q) => p.occL - q.occL)
 
-      // 同一條軸線內，上下疊的事件一律早的在上、晚的在下（讀者會把上下讀成先後）
-      const lanes = assignLanesByTime(items.map((it) => ({ left: it.occL, right: it.occR, t: it.tStart })))
+      // 同一條軸線內，上下疊的事件一律早的在上、晚的在下（讀者會把上下讀成先後）；
+      // 緊湊排列時改成「哪一列有空位就放哪一列」（items 已依左緣排好）
+      const lanes = packLanes
+        ? assignLanes(items.map((it) => ({ left: it.occL, right: it.occR })))
+        : assignLanesByTime(items.map((it) => ({ left: it.occL, right: it.occR, t: it.tStart })))
       const laneCount = items.length > 0 ? Math.max(...lanes) + 1 : 1
       const bandTop = y
       // 泳道外觀：軸線名折行放進左側色塊（有「文件｜軸線」時分兩層：文件名小字、軸線名粗體），

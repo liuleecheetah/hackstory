@@ -49,6 +49,8 @@ export interface StoredStudioSettings {
   collapseGaps: boolean
   ordinal: boolean
   compact: boolean
+  /** 後來才加：緊湊排列（上下不一定照時序） */
+  packLanes?: boolean
   reversed: boolean
   centerAxis: boolean
   embedFontsInSvg: boolean

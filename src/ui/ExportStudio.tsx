@@ -216,6 +216,8 @@ export function ExportStudio(props: Props) {
   // 順序等距：事件依先後等距排列（圖上固定標「非等比」）；卡片大事記本來就依先後排，不適用
   const [ordinal, setOrdinal] = useState(() => saved?.ordinal ?? false)
   const [compact, setCompact] = useState(() => saved?.compact ?? props.compact)
+  // 緊湊排列：預設關閉——上下照時間先後才不會誤導，放不下時使用者自己選
+  const [packLanes, setPackLanes] = useState(() => saved?.packLanes ?? false)
   const [reversed, setReversed] = useState(() => saved?.reversed ?? props.reversed)
   const [centerAxis, setCenterAxis] = useState(() => saved?.centerAxis ?? props.centerAxis)
   const [embedFontsInSvg, setEmbedFontsInSvg] = useState(() => saved?.embedFontsInSvg ?? false)
@@ -294,6 +296,7 @@ export function ExportStudio(props: Props) {
     setCollapseGaps(false)
     setOrdinal(false)
     setCompact(props.compact)
+    setPackLanes(false)
     setReversed(props.reversed)
     setCenterAxis(props.centerAxis)
     setEmbedFontsInSvg(false)
@@ -543,7 +546,7 @@ export function ExportStudio(props: Props) {
     ...extra,
   })
   // 建議的其他做法：已經在用的就不要再叫使用者去做（例如已經勾了「只放關鍵事件」）
-  const otherWays = `改選「長圖（高度自動）」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}${eventScope === 'linked' ? '' : '、只放有關係線的事件'}`
+  const otherWays = `${horizontal && !packLanes ? '勾選「緊湊排列」、' : ''}改選「長圖（高度自動）」、縮短時間範圍、取消勾選部分軸線${eventScope === 'featured' ? '' : '，或只放關鍵事件'}${eventScope === 'linked' ? '' : '、只放有關係線的事件'}`
 
   /**
    * 固定比例：選了要呈現的事件就一定要全部出現在圖上，否則是沒用的圖。
@@ -799,7 +802,7 @@ export function ExportStudio(props: Props) {
     if (horizontal) {
       const { svg, overflow, clipped, height, calloutsDropped, relationLabelsDropped } = await run(
         renderHorizontalExportSvg,
-        { ...common, compact, swimlane: true, centerAxis: layout === 'B', callouts: pageCallouts },
+        { ...common, compact, packLanes, swimlane: true, centerAxis: layout === 'B', callouts: pageCallouts },
         // 試算畫布要夠長：標註框放不進軸線之間的空白時，才有地方往下放
         calloutSpecs.length > 0 ? 200_000 : 600,
       )
@@ -881,7 +884,7 @@ export function ExportStudio(props: Props) {
   const renderSeq = useRef(0)
   const settingsKey = JSON.stringify([
     layout, bDir, ratioId, themeId, fontScale, titleText, subtitleText, footerText, [...layerOn], [...trackOff],
-    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, relationLabels, collapseGaps, compact,
+    rangeKind, timeRange, viewDomain, dateYear, dateMonth, dateDay, dateTime, showRelations, relationLabels, collapseGaps, compact, packLanes,
     reversed, centerAxis, cardMode, showConfidence, showSources, calloutKeys,
     eventScope, showScopeNote, overflowMode, ordinal, perPage, storySafe, coverOn, closingOn, callToAction,
     logo ? `${logo.name}:${logo.dataUrl.length}` : '',
@@ -925,6 +928,7 @@ export function ExportStudio(props: Props) {
       collapseGaps,
       ordinal,
       compact,
+      packLanes,
       reversed,
       centerAxis,
       embedFontsInSvg,
@@ -1616,6 +1620,14 @@ export function ExportStudio(props: Props) {
                       ordinal,
                     )}
                     {horizontal && checkbox('縮小事件列（放得下更多軸線）', compact, setCompact)}
+                    {horizontal && (
+                      <>
+                        {checkbox('緊湊排列（軸線比較矮）', packLanes, setPackLanes)}
+                        <p className="-mt-1 ml-6 text-sm text-ink-faint">
+                          晚的事件會補進上面的空位，同一條軸線的上下不一定照時間先後；左右位置仍然照時間
+                        </p>
+                      </>
+                    )}
                     {!horizontal && checkbox('最新的在上面', reversed, setReversed)}
                     {layout === 'D' && checkbox('年份刻度放中間', centerAxis, setCenterAxis)}
                   </>
