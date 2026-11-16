@@ -230,8 +230,21 @@ export default function App() {
   // 時間軸主題（字級、尺寸、配色）。暫時由「顯示選項」切換，U3 會議模式上線後改由模式決定
   const [themeId, setThemeId] = useState<ThemeId>('screen')
   // render 層回報的可視時間範圍：比例匯出照這個範圍出圖（所見即所得）
+  // 縮放、拖曳時每一格都會回報一次；只有出圖工作室用得到這個範圍，
+  // 所以平常只記在 ref（不觸發整頁重畫），打開工作室的那一刻才交給它。
   const [viewDomain, setViewDomain] = useState<[number, number] | null>(null)
-  const handleDomainChange = useCallback((d: [number, number]) => setViewDomain(d), [])
+  const viewDomainRef = useRef<[number, number] | null>(null)
+  const studioOpenRef = useRef(false)
+  studioOpenRef.current = studioOpen
+  const handleDomainChange = useCallback((d: [number, number]) => {
+    viewDomainRef.current = d
+    // 工作室開著時範圍若有變動（例如資料改了），照舊即時交給它
+    if (studioOpenRef.current) setViewDomain(d)
+  }, [])
+  const openStudio = useCallback(() => {
+    setViewDomain(viewDomainRef.current)
+    setStudioOpen(true)
+  }, [])
 
   // 分享連結（?src=）：開啟時依序載入分享的時間軸，
   // 第一份載入成功的文件決定「摺疊空白」的預設值
@@ -904,7 +917,7 @@ export default function App() {
         dirty={dirty}
         saveStatus={saveStatus}
         onOpenExport={() => setExportOpen(true)}
-        onOpenStudio={() => setStudioOpen(true)}
+        onOpenStudio={openStudio}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -1006,7 +1019,7 @@ export default function App() {
         orientation={orientation}
         onOpenStudio={() => {
           setExportOpen(false)
-          setStudioOpen(true)
+          openStudio()
         }}
         onDownloaded={(coveredAll) => {
           // 只有「全部圖層都下載了」才算真的保存完，單獨下載一份不清提示
